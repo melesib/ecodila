@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0b7a3e">
+<title>⏳ EcoDila — Le compte à rebours a commencé</title>
+<meta property="og:title" content="⏳ Le compte à rebours a commencé...">
+<meta property="og:description" content="🔥 Les lettres se dévoilent une par une. Rendez-vous demain 10h pour découvrir ce qui se prépare ! Suivez en direct.">
+<meta property="og:image" content="https://ecodila.com/logo.png">
+<meta property="og:url" content="https://ecodila.com/countdown.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="EcoDila">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Space+Mono:wght@400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  min-height:100vh;
+  background:#080f0b;
+  color:#ecfdf5;
+  font-family:'Space Mono',monospace;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  position:relative;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse at 30% 20%,rgba(45,106,79,.2) 0%,transparent 60%),
+    radial-gradient(ellipse at 70% 80%,rgba(34,197,94,.1) 0%,transparent 50%),
+    radial-gradient(ellipse at 50% 50%,rgba(245,158,11,.06) 0%,transparent 70%);
+  z-index:0;
+}
+/* Grid pattern */
+body::after{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(82,183,136,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(82,183,136,.04) 1px,transparent 1px);
+  background-size:40px 40px;
+  z-index:0;
+}
+.wrap{position:relative;z-index:1;text-align:center;padding:1.5rem;width:100%;max-width:420px}
+
+/* Top pill */
+.pill{
+  display:inline-block;padding:.3rem .9rem;border-radius:50px;
+  background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.25);
+  font-size:.55rem;font-weight:700;color:#52b788;letter-spacing:2px;text-transform:uppercase;
+  margin-bottom:1.8rem;
+}
+
+/* Letters */
+.letters{display:flex;justify-content:center;gap:clamp(.25rem,1.8vw,.55rem);margin-bottom:1.8rem}
+.lbox{
+  width:clamp(34px,12vw,52px);height:clamp(42px,14vw,62px);
+  border:2px solid rgba(82,183,136,.12);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:clamp(1.1rem,4.5vw,1.8rem);
+  color:rgba(82,183,136,.15);font-size:clamp(.8rem,3vw,1.2rem);
+  background:rgba(255,255,255,.02);
+  transition:all .7s cubic-bezier(.34,1.56,.64,1);
+  position:relative;
+}
+.lbox.on{
+  color:#ecfdf5;
+  border-color:#52b788;
+  background:linear-gradient(135deg,rgba(45,106,79,.35),rgba(34,197,94,.12));
+  box-shadow:0 0 18px rgba(34,197,94,.2),inset 0 0 12px rgba(34,197,94,.08);
+  animation:pop .5s cubic-bezier(.34,1.56,.64,1) both;
+}
+.lbox.on::before{
+  content:'';position:absolute;inset:-1px;border-radius:8px;
+  background:linear-gradient(135deg,rgba(82,183,136,.4),transparent,rgba(245,158,11,.3));
+  z-index:-1;opacity:.5;
+}
+.done .lbox.on{
+  color:#f59e0b;border-color:#f59e0b;
+  background:linear-gradient(135deg,rgba(245,158,11,.2),rgba(245,158,11,.06));
+  box-shadow:0 0 22px rgba(245,158,11,.25),inset 0 0 12px rgba(245,158,11,.06);
+}
+@keyframes pop{from{transform:scale(0) rotateX(90deg);opacity:0}to{transform:scale(1) rotateX(0);opacity:1}}
+
+/* Countdown */
+.cd{display:flex;justify-content:center;gap:clamp(.5rem,3vw,1rem);margin-bottom:1.2rem}
+.cd-u{text-align:center;min-width:clamp(42px,13vw,65px)}
+.cd-n{
+  font-weight:700;font-size:clamp(1.6rem,7vw,2.6rem);line-height:1;
+  color:#22c55e;text-shadow:0 0 12px rgba(34,197,94,.35);
+}
+.cd-l{font-size:clamp(.4rem,1.4vw,.55rem);color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-top:.25rem}
+.cd-s{font-size:clamp(1rem,4vw,1.8rem);color:#2d6a4f;align-self:center;animation:bk 1s step-end infinite}
+@keyframes bk{0%,100%{opacity:1}50%{opacity:.15}}
+
+/* Progress */
+.prog{margin:0 .5rem 1.5rem;position:relative}
+.prog-bg{height:3px;background:rgba(255,255,255,.05);border-radius:10px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#2d6a4f,#22c55e,#f59e0b);border-radius:10px;transition:width .4s;box-shadow:0 0 6px rgba(34,197,94,.35)}
+.prog-labels{display:flex;justify-content:space-between;font-size:.42rem;color:#4b5563;margin-top:.25rem}
+.prog-pct{position:absolute;top:-16px;font-size:.5rem;font-weight:700;color:#52b788;transition:left .4s}
+
+/* Next letter */
+.next{font-size:.55rem;color:#6b7280;margin-bottom:1.5rem}
+.next b{color:#52b788}
+
+/* Reveal */
+.reveal{display:none;margin-bottom:1rem}
+.reveal.show{display:block;animation:ri .8s cubic-bezier(.34,1.56,.64,1) both}
+.reveal-txt{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(1rem,4vw,1.5rem);color:#f59e0b;margin-bottom:.3rem}
+.reveal-sub{font-size:.6rem;color:#9ca3af}
+@keyframes ri{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* WA button */
+.wa{
+  display:inline-flex;align-items:center;gap:.45rem;
+  padding:.65rem 1.3rem;
+  background:linear-gradient(135deg,#25d366,#128c7e);
+  color:#fff;border:none;border-radius:50px;
+  font-family:'Space Mono',monospace;font-weight:700;font-size:.68rem;
+  cursor:pointer;text-decoration:none;
+  box-shadow:0 4px 18px rgba(37,211,102,.3);
+  transition:transform .2s;
+}
+.wa:hover{transform:translateY(-2px)}
+
+/* Footer */
+.foot{margin-top:1.5rem;font-size:.42rem;color:#374151;letter-spacing:1px}
+.foot a{color:#52b788;text-decoration:none}
+
+/* Scanlines subtle */
+.scanlines{
+  position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);
+}
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<div class="wrap">
+  <div class="pill">⏳ Quelque chose se prépare...</div>
+
+  <div class="letters" id="lt">
+    <div class="lbox" data-l="E">?</div>
+    <div class="lbox" data-l="C">?</div>
+    <div class="lbox" data-l="O">?</div>
+    <div class="lbox" data-l="D">?</div>
+    <div class="lbox" data-l="I">?</div>
+    <div class="lbox" data-l="L">?</div>
+    <div class="lbox" data-l="A">?</div>
+  </div>
+
+  <div class="cd" id="cd">
+    <div class="cd-u"><div class="cd-n" id="ch">--</div><div class="cd-l">Heures</div></div>
+    <div class="cd-s">:</div>
+    <div class="cd-u"><div class="cd-n" id="cm">--</div><div class="cd-l">Minutes</div></div>
+    <div class="cd-s">:</div>
+    <div class="cd-u"><div class="cd-n" id="cs">--</div><div class="cd-l">Secondes</div></div>
+  </div>
+
+  <div class="prog">
+    <div class="prog-pct" id="pp" style="left:0">0%</div>
+    <div class="prog-bg"><div class="prog-fill" id="pf" style="width:0"></div></div>
+    <div class="prog-labels"><span>Maintenant</span><span>Demain 10h</span></div>
+  </div>
+
+  <div class="next" id="nx">Prochaine lettre dans <b id="nt">--:--</b></div>
+
+  <div class="reveal" id="rv">
+    <div class="reveal-txt">🎉 EcoDila est là ! 🎉</div>
+    <div class="reveal-sub">L'électronique responsable en Côte d'Ivoire</div>
+  </div>
+
+  <a class="wa" id="wa" href="#" target="_blank">📲 Partager sur WhatsApp</a>
+
+  <div class="foot">ecodila.com — <a href="https://ecodila.com">Visitez le site</a></div>
+</div>
+
+<script>
+(function(){
+  var now=Date.now();
+  var end=new Date();
+  end.setDate(end.getDate()+1);end.setHours(10,0,0,0);
+  var END=end.getTime(),START=now,TOTAL=END-START;
+  var W='ECODILA',N=W.length,INT=TOTAL/N;
+  var bx=document.querySelectorAll('.lbox');
+  var lt=document.getElementById('lt');
+  function p(n){return n<10?'0'+n:''+n}
+  function tick(){
+    var n=Date.now(),rem=END-n,el=n-START;
+    var pct=Math.min(100,Math.max(0,el/TOTAL*100));
+    if(rem<=0){
+      document.getElementById('ch').textContent='00';
+      document.getElementById('cm').textContent='00';
+      document.getElementById('cs').textContent='00';
+      document.getElementById('pf').style.width='100%';
+      var pp=document.getElementById('pp');pp.textContent='100%';pp.style.left='calc(100% - 22px)';
+      document.getElementById('nx').style.display='none';
+      bx.forEach(function(b){b.textContent=b.getAttribute('data-l');b.classList.add('on')});
+      lt.classList.add('done');
+      document.getElementById('rv').classList.add('show');
+      return;
+    }
+    document.getElementById('ch').textContent=p(Math.floor(rem/36e5));
+    document.getElementById('cm').textContent=p(Math.floor(rem%36e5/6e4));
+    document.getElementById('cs').textContent=p(Math.floor(rem%6e4/1e3));
+    document.getElementById('pf').style.width=pct.toFixed(1)+'%';
+    var pp=document.getElementById('pp');pp.textContent=Math.floor(pct)+'%';pp.style.left='calc('+pct.toFixed(1)+'% - 11px)';
+    var shown=Math.min(Math.floor(el/INT),N);
+    for(var i=0;i<N;i++){if(i<shown&&!bx[i].classList.contains('on')){bx[i].textContent=bx[i].getAttribute('data-l');bx[i].classList.add('on');}}
+    if(shown>=N){lt.classList.add('done');document.getElementById('nx').style.display='none';document.getElementById('rv').classList.add('show');return}
+    var nxt=START+(shown+1)*INT,unt=nxt-n;
+    document.getElementById('nt').textContent=p(Math.floor(unt/6e4))+':'+p(Math.floor(unt%6e4/1e3));
+  }
+  var msg=encodeURIComponent('⏳ *Le compte à rebours EcoDila a commencé !*\n\n🔥 Les lettres se dévoilent une par une...\n💡 Rendez-vous demain à 10h pour la grande révélation !\n\n👀 Suivez en direct :\nhttps://ecodila.com/countdown.html\n\n🛡️ Occasion & recyclés garantis 3 mois\n#EcoDila #ComingSoon 🚀');
+  document.getElementById('wa').href='https://wa.me/?text='+msg;
+  tick();setInterval(tick,1000);
+})();
+</script>
+</body>
+</html>
