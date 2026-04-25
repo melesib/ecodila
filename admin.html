@@ -5581,22 +5581,40 @@ window._sbReload = async function() {
     </div>
 
     <!-- Onglets -->
-    <div style="display:flex;gap:0;border-bottom:2px solid var(--border)" id="legal-tabs">
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);overflow-x:auto;flex-wrap:wrap" id="legal-tabs">
       <button id="legal-tab-cgu" onclick="_legalSwitchTab('cgu')"
         style="padding:.6rem 1.3rem;background:transparent;color:var(--primary);
                border:none;border-bottom:2px solid var(--primary);margin-bottom:-2px;
                cursor:pointer;font-weight:700;font-size:.85rem;font-family:inherit;
-               transition:all .15s;display:flex;align-items:center;gap:.4rem" aria-label="📋 Conditions Générales dUtilisation">
+               transition:all .15s;display:flex;align-items:center;gap:.4rem;white-space:nowrap" aria-label="📋 Conditions Générales dUtilisation">
         📋 Conditions Générales d'Utilisation
       </button>
       <button id="legal-tab-privacy" onclick="_legalSwitchTab('privacy')"
         style="padding:.6rem 1.3rem;background:transparent;color:var(--text-muted);
                border:none;border-bottom:2px solid transparent;margin-bottom:-2px;
                cursor:pointer;font-weight:600;font-size:.85rem;font-family:inherit;
-               transition:all .15s;display:flex;align-items:center;gap:.4rem"
+               transition:all .15s;display:flex;align-items:center;gap:.4rem;white-space:nowrap"
         onmouseover="this.style.color='var(--text)'"
         onmouseout="if(!this.classList.contains('lgl-tab-active'))this.style.color='var(--text-muted)'" aria-label="🔒 Politique de confidentialité">
         🔒 Politique de confidentialité
+      </button>
+      <button id="legal-tab-mentions" onclick="_legalSwitchTab('mentions')"
+        style="padding:.6rem 1.3rem;background:transparent;color:var(--text-muted);
+               border:none;border-bottom:2px solid transparent;margin-bottom:-2px;
+               cursor:pointer;font-weight:600;font-size:.85rem;font-family:inherit;
+               transition:all .15s;display:flex;align-items:center;gap:.4rem;white-space:nowrap"
+        onmouseover="this.style.color='var(--text)'"
+        onmouseout="if(!this.classList.contains('lgl-tab-active'))this.style.color='var(--text-muted)'" aria-label="⚖️ Mentions légales">
+        ⚖️ Mentions légales
+      </button>
+      <button id="legal-tab-retours" onclick="_legalSwitchTab('retours')"
+        style="padding:.6rem 1.3rem;background:transparent;color:var(--text-muted);
+               border:none;border-bottom:2px solid transparent;margin-bottom:-2px;
+               cursor:pointer;font-weight:600;font-size:.85rem;font-family:inherit;
+               transition:all .15s;display:flex;align-items:center;gap:.4rem;white-space:nowrap"
+        onmouseover="this.style.color='var(--text)'"
+        onmouseout="if(!this.classList.contains('lgl-tab-active'))this.style.color='var(--text-muted)'" aria-label="🛡️ Retours & Garantie">
+        🛡️ Retours & Garantie
       </button>
     </div>
   </div>
@@ -5867,6 +5885,18 @@ window._sbReload = async function() {
        ONGLET HERO / SLIDER
        ═══════════════════════════════════════════════ -->
   <div id="pb-pane-hero" class="pb-pane" style="display:none">
+
+    <!-- Bandeau explicatif sur le hero original -->
+    <div style="background:rgba(82,183,136,.08);border:1px solid rgba(82,183,136,.25);border-radius:8px;padding:.7rem .9rem;margin-bottom:1rem;font-size:.78rem;line-height:1.55;color:var(--text)">
+      <div style="display:flex;align-items:flex-start;gap:.5rem">
+        <span style="font-size:1.1rem;flex-shrink:0">💡</span>
+        <div>
+          <strong style="color:#52b788">Comment fonctionne le hero du site ?</strong><br>
+          <span style="color:var(--text-muted)">Le hero d'origine du site contient des animations natives (mots <em>Achetez/Négociez/Troquez</em>, emojis défilants 📱📺💻⌚, boutons animés). Ces animations sont préservées tant que tu as <strong>0 ou 1 slide active</strong> ci-dessous. Si tu actives <strong>2 slides ou plus</strong>, un slider auto remplace l'animation native.</span>
+        </div>
+      </div>
+    </div>
+
     <div class="pb-two-col">
       <div>
         <div class="pb-section-head">
@@ -32905,15 +32935,125 @@ var _PRIVACY_DEFAULT = `<h1>Politique de confidentialité EcoDila</h1>
 <h2>Responsable du traitement</h2>
 <p>EcoDila — plateforme de reconditionnement d'appareils électroniques en Côte d'Ivoire.</p>`;
 
+var _MENTIONS_DEFAULT = `<h1>Mentions Légales</h1>
+<p style="color:#666;font-size:.9rem">Dernière mise à jour : 2026 — EcoDila</p>
+
+<h2>1. Éditeur du site</h2>
+<p><strong>EcoDila</strong> — Plateforme de vente et d'échange d'appareils électroniques reconditionnés.</p>
+<ul>
+  <li><strong>Adresse :</strong> Abidjan, Côte d'Ivoire 🇨🇮</li>
+  <li><strong>WhatsApp :</strong> +225 05 96 27 55 55</li>
+  <li><strong>Email :</strong> ecodila225@gmail.com</li>
+  <li><strong>Site web :</strong> ecodila.com</li>
+</ul>
+
+<h2>2. Hébergement</h2>
+<p>Le site EcoDila est hébergé par <strong>Netlify Inc.</strong>, 44 Montgomery Street, Suite 300, San Francisco, CA 94104, États-Unis.</p>
+<p>La base de données utilisateurs et transactions est hébergée par <strong>Supabase</strong> (Singapour), avec chiffrement TLS 1.3.</p>
+
+<h2>3. Propriété intellectuelle</h2>
+<p>L'ensemble du contenu du site EcoDila (textes, images, logos, graphismes, code source) est la propriété exclusive d'EcoDila ou de ses partenaires et est protégé par les lois ivoiriennes et internationales relatives à la propriété intellectuelle.</p>
+<p>Toute reproduction, représentation, modification, publication, transmission, dénaturation, totale ou partielle du site ou de son contenu, par quelque procédé que ce soit, et sur quelque support que ce soit est interdite sans autorisation écrite préalable d'EcoDila.</p>
+
+<h2>4. Marques déposées</h2>
+<p>EcoDila est une marque déposée. Les marques de smartphones, accessoires et autres appareils mentionnés sur le site sont la propriété de leurs détenteurs respectifs.</p>
+
+<h2>5. Liens hypertextes</h2>
+<p>Le site EcoDila peut contenir des liens vers d'autres sites web. EcoDila n'exerce aucun contrôle sur ces sites et ne saurait être tenu responsable de leur contenu.</p>
+
+<h2>6. Responsabilité</h2>
+<p>EcoDila s'efforce de fournir des informations aussi précises que possible. Toutefois, EcoDila ne pourra être tenue responsable des omissions, des inexactitudes et des carences dans la mise à jour, qu'elles soient de son fait ou du fait des tiers partenaires qui lui fournissent ces informations.</p>
+
+<h2>7. Loi applicable</h2>
+<p>Les présentes mentions légales sont régies par la <strong>loi ivoirienne</strong>. En cas de litige, et après échec d'une résolution amiable, les tribunaux d'Abidjan seront seuls compétents.</p>
+
+<h2>8. Conformité ARTCI / RGPD</h2>
+<p>EcoDila est conforme aux exigences de l'<strong>ARTCI</strong> (Autorité de Régulation des Télécommunications de Côte d'Ivoire) et au <strong>RGPD</strong> européen (Règlement UE 2016/679).</p>
+<p>Pour exercer vos droits ou pour toute question : <strong>ecodila225@gmail.com</strong></p>
+
+<h2>9. Crédits</h2>
+<p>Conception et développement : équipe EcoDila.<br>
+Technologies : HTML5/CSS3/JavaScript, Supabase, Netlify.<br>
+Polices : Syne, DM Sans (Google Fonts).</p>`;
+
+var _RETOURS_DEFAULT = `<h1>Politique de Retours et Garanties</h1>
+<p style="color:#666;font-size:.9rem">Dernière mise à jour : 2026 — EcoDila</p>
+
+<h2>1. Garantie EcoDila</h2>
+<p>EcoDila offre une <strong>garantie de 3 mois</strong> sur tous les produits <strong>Occasion</strong> et <strong>Recyclé</strong> à compter de la date d'achat figurant sur le reçu.</p>
+<p>Les produits <strong>Neufs</strong> bénéficient de la garantie constructeur selon la marque (généralement 12 à 24 mois).</p>
+
+<h2>2. Ce qui est couvert</h2>
+<ul>
+  <li>✅ Pannes techniques et défauts de fonctionnement</li>
+  <li>✅ Dysfonctionnements logiciels d'origine</li>
+  <li>✅ Problèmes de batterie (autonomie anormalement faible)</li>
+  <li>✅ Défauts de fabrication non détectés à la livraison</li>
+  <li>✅ Accessoires défectueux livrés avec l'appareil</li>
+</ul>
+
+<h2>3. Ce qui n'est pas couvert</h2>
+<ul>
+  <li>❌ Casse accidentelle (chute, choc, écran fissuré)</li>
+  <li>❌ Dégâts liquides (eau, café, etc.)</li>
+  <li>❌ Usage anormal ou modifications non autorisées (jailbreak, root, etc.)</li>
+  <li>❌ Usure normale (rayures cosmétiques, batterie après cycles d'usage)</li>
+  <li>❌ Perte ou vol de l'appareil</li>
+</ul>
+
+<h2>4. Délais de retour</h2>
+<h3>4.1 Retour pour produit non conforme</h3>
+<p>Vous disposez de <strong>7 jours calendaires</strong> à compter de la livraison pour signaler un produit non conforme à la description (modèle différent, défaut visible non mentionné, accessoires manquants).</p>
+
+<h3>4.2 Retour sous garantie (panne technique)</h3>
+<p>Pendant les <strong>3 mois de garantie</strong>, contactez-nous immédiatement par WhatsApp dès la détection d'une panne. Le produit sera réparé, échangé ou remboursé selon le cas.</p>
+
+<h2>5. Procédure de retour</h2>
+<ol>
+  <li><strong>Contactez le support</strong> via WhatsApp +225 05 96 27 55 55 ou via le formulaire de retour dans votre profil.</li>
+  <li><strong>Décrivez le problème</strong> avec photos/vidéos si possible.</li>
+  <li><strong>Recevez un numéro de retour</strong> sous 24h ouvrées.</li>
+  <li><strong>Renvoyez le produit</strong> dans son emballage d'origine (si possible) avec tous les accessoires.</li>
+  <li><strong>Diagnostic EcoDila</strong> sous 5 jours ouvrés à réception.</li>
+  <li><strong>Solution proposée</strong> : réparation, échange ou remboursement.</li>
+</ol>
+
+<h2>6. Frais de retour</h2>
+<ul>
+  <li><strong>Pour un produit défectueux</strong> ou non conforme : les frais de retour sont à la charge d'EcoDila.</li>
+  <li><strong>Pour un retour de convenance</strong> (changement d'avis dans les 7 jours) : les frais sont à votre charge.</li>
+</ul>
+
+<h2>7. Modes de remboursement</h2>
+<p>Le remboursement est effectué sous <strong>7 jours ouvrés</strong> après acceptation du retour, sur le mode de paiement utilisé lors de l'achat :</p>
+<ul>
+  <li>💳 Wave / Orange Money / MTN MoMo</li>
+  <li>💵 Cash (en magasin)</li>
+  <li>🏦 Virement bancaire (sur demande)</li>
+</ul>
+
+<h2>8. Cas spécifique des trocs</h2>
+<p>Pour les trocs validés, le retour suit la même procédure. Si l'appareil que vous avez reçu en échange est défectueux, EcoDila s'engage à le remplacer ou à rembourser la différence.</p>
+
+<h2>9. Médiation et litiges</h2>
+<p>En cas de désaccord persistant, vous pouvez saisir le service de médiation d'EcoDila ou les autorités compétentes (ARTCI, juridictions ivoiriennes).</p>
+
+<h2>10. Contact Support Retours</h2>
+<p>📱 <strong>WhatsApp :</strong> +225 05 96 27 55 55<br>
+📧 <strong>Email :</strong> ecodila225@gmail.com<br>
+🕒 <strong>Horaires :</strong> 7j/7, réponse sous 24h en moyenne</p>`;
+
 /* ─── État interne ───────────────────────────────────────────── */
 var _lglTab       = 'cgu';      // onglet actif
 var _lglHtmlMode  = false;      // mode HTML brut
 var _lglDirty     = false;      // modifications non sauvegardées
 var _lglAutoTimer = null;       // timer sauvegarde auto
 
-var LS_CGU     = 'ecodila_legal_cgu';
-var LS_PRIVACY = 'ecodila_legal_privacy';
-var LS_HISTORY = 'ecodila_legal_history';
+var LS_CGU      = 'ecodila_legal_cgu';
+var LS_PRIVACY  = 'ecodila_legal_privacy';
+var LS_MENTIONS = 'ecodila_legal_mentions';
+var LS_RETOURS  = 'ecodila_legal_retours';
+var LS_HISTORY  = 'ecodila_legal_history';
 
 /* ─── Helpers stockage ───────────────────────────────────── */
 function _lglGet(key, fallback) {
@@ -32932,6 +33072,36 @@ window._legalInit = function() {
     _legalRenderHistory();
 };
 
+/* ─── Mapping onglet → clé storage + défaut + label ──────────── */
+function _lglTabKey(tab) {
+    if (tab === 'cgu')      return LS_CGU;
+    if (tab === 'privacy')  return LS_PRIVACY;
+    if (tab === 'mentions') return LS_MENTIONS;
+    if (tab === 'retours')  return LS_RETOURS;
+    return LS_CGU;
+}
+function _lglTabDefault(tab) {
+    if (tab === 'cgu')      return _CGU_DEFAULT;
+    if (tab === 'privacy')  return _PRIVACY_DEFAULT;
+    if (tab === 'mentions') return _MENTIONS_DEFAULT;
+    if (tab === 'retours')  return _RETOURS_DEFAULT;
+    return _CGU_DEFAULT;
+}
+function _lglTabLabel(tab) {
+    if (tab === 'cgu')      return 'CGU';
+    if (tab === 'privacy')  return 'Politique de confidentialité';
+    if (tab === 'mentions') return 'Mentions légales';
+    if (tab === 'retours')  return 'Retours & Garantie';
+    return 'CGU';
+}
+function _lglTabSubtitle(tab) {
+    if (tab === 'cgu')      return { color: 'var(--primary)', desc: 'Page /termes du site' };
+    if (tab === 'privacy')  return { color: '#4d9fff',         desc: 'Modal cookies + Page légale' };
+    if (tab === 'mentions') return { color: '#fbbf24',         desc: 'Onglet Mentions légales (modal cookies)' };
+    if (tab === 'retours')  return { color: '#fb7185',         desc: 'Page /retours-client du site' };
+    return { color: 'var(--primary)', desc: '' };
+}
+
 /* ─── Chargement du document actif ──────────────────────────── */
 function _legalLoadDoc(tab) {
     var ed   = document.getElementById('lgl-editor');
@@ -32940,8 +33110,8 @@ function _legalLoadDoc(tab) {
     var saved= document.getElementById('lgl-last-saved');
     if (!ed) return;
 
-    var key  = tab === 'cgu' ? LS_CGU : LS_PRIVACY;
-    var def  = tab === 'cgu' ? _CGU_DEFAULT : _PRIVACY_DEFAULT;
+    var key  = _lglTabKey(tab);
+    var def  = _lglTabDefault(tab);
     var html = _lglGet(key + '_draft', _lglGet(key, def));
 
     ed.innerHTML = html;
@@ -32950,9 +33120,10 @@ function _legalLoadDoc(tab) {
 
     // Infos doc
     if (info) {
-        info.innerHTML = tab === 'cgu'
-            ? '<strong style="color:var(--primary)">Conditions Générales d\'Utilisation</strong><br><span style="font-size:.72rem;color:var(--text-muted)">Page /termes du site</span>'
-            : '<strong style="color:#4d9fff">Politique de confidentialité</strong><br><span style="font-size:.72rem;color:var(--text-muted)">Modal cookies + Page légale</span>';
+        var label = _lglTabLabel(tab);
+        var sub = _lglTabSubtitle(tab);
+        info.innerHTML = '<strong style="color:' + sub.color + '">' + label + '</strong>'
+            + '<br><span style="font-size:.72rem;color:var(--text-muted)">' + sub.desc + '</span>';
     }
 
     // Dernière publication
@@ -32970,15 +33141,18 @@ window._legalSwitchTab = function(tab) {
     }
     _lglTab = tab;
 
-    var tabCgu     = document.getElementById('legal-tab-cgu');
-    var tabPrivacy = document.getElementById('legal-tab-privacy');
-    var breadcrumb = document.getElementById('lgl-breadcrumb');
     // Style onglet actif : underline colorée
-    var activeStyle   = 'padding:.6rem 1.3rem;background:transparent;color:var(--primary);border:none;border-bottom:2px solid var(--primary);margin-bottom:-2px;cursor:pointer;font-weight:700;font-size:.85rem;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:.4rem';
-    var inactiveStyle = 'padding:.6rem 1.3rem;background:transparent;color:var(--text-muted);border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-weight:600;font-size:.85rem;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:.4rem';
-    if (tabCgu)     tabCgu.style.cssText     = tab === 'cgu'     ? activeStyle : inactiveStyle;
-    if (tabPrivacy) tabPrivacy.style.cssText = tab === 'privacy' ? activeStyle : inactiveStyle;
-    if (breadcrumb) breadcrumb.textContent   = tab === 'cgu' ? 'CGU' : 'Politique de confidentialité';
+    var activeStyle   = 'padding:.6rem 1.3rem;background:transparent;color:var(--primary);border:none;border-bottom:2px solid var(--primary);margin-bottom:-2px;cursor:pointer;font-weight:700;font-size:.85rem;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:.4rem;white-space:nowrap';
+    var inactiveStyle = 'padding:.6rem 1.3rem;background:transparent;color:var(--text-muted);border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-weight:600;font-size:.85rem;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:.4rem;white-space:nowrap';
+
+    var allTabs = ['cgu', 'privacy', 'mentions', 'retours'];
+    allTabs.forEach(function(t) {
+        var btn = document.getElementById('legal-tab-' + t);
+        if (btn) btn.style.cssText = (t === tab) ? activeStyle : inactiveStyle;
+    });
+
+    var breadcrumb = document.getElementById('lgl-breadcrumb');
+    if (breadcrumb) breadcrumb.textContent = _lglTabLabel(tab);
 
     _legalLoadDoc(tab);
     _legalRenderHistory();
@@ -33089,7 +33263,7 @@ window._legalKeydown = function(e) {
 function _legalAutoSave() {
     var ed = document.getElementById('lgl-editor');
     if (!ed) return;
-    var key = _lglTab === 'cgu' ? LS_CGU : LS_PRIVACY;
+    var key = _lglTabKey(_lglTab);
     _lglSet(key + '_draft', ed.innerHTML);
     _lglDirty = false;
     _legalUpdateStatus('💾 Brouillon sauvegardé');
@@ -33114,8 +33288,8 @@ window._legalPublish = function() {
         return;
     }
 
-    var key    = _lglTab === 'cgu' ? LS_CGU : LS_PRIVACY;
-    var label  = _lglTab === 'cgu' ? 'CGU' : 'Politique de confidentialité';
+    var key    = _lglTabKey(_lglTab);
+    var label  = _lglTabLabel(_lglTab);
     var date   = new Date().toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
     // Sauvegarder dans l'historique AVANT publication
@@ -33218,8 +33392,7 @@ window._legalRestoreVersion = function(filteredIndex) {
 /* ─── Réinitialisation ───────────────────────────────────────── */
 window._legalReset = function() {
     if (!confirm('Réinitialiser au contenu d\'origine ? Toutes les modifications seront perdues.')) return;
-    var key = _lglTab === 'cgu' ? LS_CGU : LS_PRIVACY;
-    var def = _lglTab === 'cgu' ? _CGU_DEFAULT : _PRIVACY_DEFAULT;
+    var key = _lglTabKey(_lglTab);
     window._sbRemove(key);
     window._sbRemove(key + '_draft');
     window._sbRemove(key + '_pubdate');
@@ -34005,9 +34178,25 @@ window._pbHeroSettingsSave = function(){
 
 function _pbPreviewHero(){
     var hero = getHero();
-    var slide = (hero.slides||[]).find(function(s){ return s.active; }) || (hero.slides||[])[0];
+    var activeSlides = (hero.slides||[]).filter(function(s){ return s.active !== false; });
     var pv = document.getElementById('pb-hero-preview');
-    if(!pv || !slide) return;
+    if(!pv) return;
+
+    // Si aucune slide active : afficher une note explicative
+    if(!activeSlides.length){
+        pv.style.background = '#0d0d0d';
+        pv.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#9ca3af">'
+            + '<div style="font-size:1.6rem;margin-bottom:.4rem">🌟</div>'
+            + '<div style="font-size:.78rem;font-weight:700;color:#52b788;margin-bottom:.3rem">Hero original du site actif</div>'
+            + '<div style="font-size:.68rem;line-height:1.5">Aucune slide activée → le hero d\'origine s\'affiche avec toutes ses animations natives '
+            + '(emojis défilants 📱📺💻, mots Achetez/Négociez/Troquez)</div>'
+            + '</div>';
+        return;
+    }
+
+    // Slide à afficher (la première active ou la première dans l'ordre original)
+    var slide = activeSlides[0];
+
     // Background : image ou couleur
     if(slide.img){
         pv.style.background = 'none';
@@ -34016,29 +34205,73 @@ function _pbPreviewHero(){
         pv.style.backgroundPosition = 'center';
     } else {
         pv.style.background = slide.bg||'#0d0d0d';
-        pv.style.backgroundImage = '';
+        pv.style.backgroundImage = 'radial-gradient(ellipse at 65% 40%,rgba(82,183,136,.15) 0%,transparent 65%),radial-gradient(ellipse at 20% 75%,rgba(231,111,81,.1) 0%,transparent 55%)';
     }
-    // Overlay sombre si image
+
     var overlay = slide.img ? 'background:rgba(0,0,0,.45);padding:.8rem;border-radius:6px;' : '';
-    pv.innerHTML = '<div style="'+overlay+'display:flex;flex-direction:column;align-items:center;gap:.35rem;text-align:center">'
-        + '<div style="font-size:.6rem;color:#52b788;background:rgba(82,183,136,.12);border:1px solid rgba(82,183,136,.3);padding:.15rem .55rem;border-radius:20px">'+slide.tag+'</div>'
-        + '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:.88rem;color:#f6f4f0;line-height:1.2;max-width:200px">'+slide.title.substring(0,55)+'</div>'
-        + '<div style="font-size:.65rem;color:#d1d5db;max-width:200px;line-height:1.35">'+slide.subtitle.substring(0,80)+'</div>'
-        + '<div style="display:flex;gap:.4rem;margin-top:.15rem">'
-        +   '<span style="padding:.2rem .55rem;background:#2d6a4f;color:#fff;border-radius:6px;font-size:.6rem">'+slide.btn1_text+'</span>'
-        +   '<span style="padding:.2rem .55rem;background:rgba(255,255,255,.14);color:#f6f4f0;border:1px solid rgba(255,255,255,.25);border-radius:6px;font-size:.6rem">'+slide.btn2_text+'</span>'
+
+    // ═══ Cas 1 slide : aperçu fidèle du hero original avec animations ═══
+    if(activeSlides.length === 1){
+        // Animation emojis défilants (vraie reproduction du hero site)
+        var emojiList = ['📱 Smartphone','📺 TV','📱 Tablette','⌚ Montre','💻 Ordi','🎮 Jeu vidéo','🚁 Drone'];
+        var emojiHtml = '<div style="overflow:hidden;height:1rem;margin:0 auto .35rem;max-width:200px;position:relative">'
+            + '<div style="display:flex;flex-direction:column;animation:pbHeroScroll 14s ease-in-out infinite">'
+            + emojiList.map(function(e){
+                return '<span style="height:1rem;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:600;color:#52b788">'+e+'</span>';
+              }).join('')
+            + '</div></div>';
+
+        pv.innerHTML = '<div style="'+overlay+'display:flex;flex-direction:column;align-items:center;gap:.25rem;text-align:center;position:relative;z-index:1">'
+            + '<div style="font-size:.55rem;color:#52b788;background:rgba(82,183,136,.12);border:1px solid rgba(82,183,136,.3);padding:.12rem .5rem;border-radius:20px;letter-spacing:1px;text-transform:uppercase;font-weight:600">'+(slide.tag||'')+'</div>'
+            + '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:.92rem;color:#f6f4f0;line-height:1.15;max-width:220px;letter-spacing:-.5px">'+(slide.title||'').substring(0,55)+'</div>'
+            + emojiHtml
+            + '<div style="font-size:.6rem;color:#d1d5db;max-width:200px;line-height:1.35">'+(slide.subtitle||'').substring(0,80)+'</div>'
+            + '<div style="display:flex;gap:.35rem;margin-top:.2rem">'
+            +   '<span style="padding:.22rem .55rem;background:#2d6a4f;color:#fff;border-radius:6px;font-size:.58rem;font-weight:700">💳 '+(slide.btn1_text||'')+'</span>'
+            +   '<span style="padding:.22rem .55rem;background:rgba(255,255,255,.14);color:#f6f4f0;border:1px solid rgba(255,255,255,.25);border-radius:6px;font-size:.58rem;font-weight:600">🔄 '+(slide.btn2_text||'')+'</span>'
+            + '</div>'
+            + '<div style="margin-top:.6rem;padding:.3rem .55rem;background:rgba(82,183,136,.12);border:1px dashed rgba(82,183,136,.35);border-radius:5px;font-size:.55rem;color:#52b788;line-height:1.4;max-width:240px">'
+            +   '✨ <strong>1 slide active</strong> — les animations natives du hero site (mots typed, emojis défilants) sont préservées'
+            + '</div>'
+            + '</div>';
+
+        // Injection animation CSS si pas déjà fait
+        if(!document.getElementById('pb-hero-anim-style')){
+            var st = document.createElement('style');
+            st.id = 'pb-hero-anim-style';
+            st.textContent = '@keyframes pbHeroScroll{'
+                + '0%,12%{transform:translateY(0)}'
+                + '14%,26%{transform:translateY(-1rem)}'
+                + '28%,40%{transform:translateY(-2rem)}'
+                + '42%,54%{transform:translateY(-3rem)}'
+                + '56%,68%{transform:translateY(-4rem)}'
+                + '70%,82%{transform:translateY(-5rem)}'
+                + '84%,100%{transform:translateY(-6rem)}'
+                + '}';
+            document.head.appendChild(st);
+        }
+        return;
+    }
+
+    // ═══ Cas 2+ slides : slider générique (aperçu) ═══
+    pv.innerHTML = '<div style="'+overlay+'display:flex;flex-direction:column;align-items:center;gap:.25rem;text-align:center;position:relative;z-index:1">'
+        + '<div style="font-size:.55rem;color:#52b788;background:rgba(82,183,136,.12);border:1px solid rgba(82,183,136,.3);padding:.12rem .5rem;border-radius:20px;letter-spacing:1px;text-transform:uppercase;font-weight:600">'+(slide.tag||'')+'</div>'
+        + '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:.88rem;color:#f6f4f0;line-height:1.2;max-width:220px;letter-spacing:-.5px">'+(slide.title||'').substring(0,55)+'</div>'
+        + '<div style="font-size:.62rem;color:#d1d5db;max-width:200px;line-height:1.35">'+(slide.subtitle||'').substring(0,80)+'</div>'
+        + '<div style="display:flex;gap:.35rem;margin-top:.15rem">'
+        +   '<span style="padding:.2rem .55rem;background:#2d6a4f;color:#fff;border-radius:6px;font-size:.58rem;font-weight:700">'+(slide.btn1_text||'')+'</span>'
+        +   '<span style="padding:.2rem .55rem;background:rgba(255,255,255,.14);color:#f6f4f0;border:1px solid rgba(255,255,255,.25);border-radius:6px;font-size:.58rem;font-weight:600">'+(slide.btn2_text||'')+'</span>'
+        + '</div>'
+        + '<div style="display:flex;gap:.25rem;margin-top:.3rem">'
+        +   activeSlides.map(function(s,i){
+              var isFirst = (s.id === slide.id);
+              return '<div style="width:'+(isFirst?'14px':'5px')+';height:5px;border-radius:3px;background:'+(isFirst?'#52b788':'rgba(255,255,255,.4)')+';transition:all .3s"></div>';
+            }).join('')
+        + '</div>'
+        + '<div style="margin-top:.5rem;padding:.3rem .55rem;background:rgba(255,170,0,.12);border:1px dashed rgba(255,170,0,.35);border-radius:5px;font-size:.55rem;color:#ffaa00;line-height:1.4;max-width:240px">'
+        +   '⚠️ <strong>'+activeSlides.length+' slides actives</strong> — slider auto activé. Les animations natives du hero original sont remplacées par un slider standard.'
         + '</div>'
         + '</div>';
-    // Slide count indicator
-    var total = (hero.slides||[]).length;
-    if(total > 1){
-        var activeIdx = (hero.slides||[]).findIndex(function(s){ return s.active; });
-        pv.innerHTML += '<div style="display:flex;gap:.3rem;justify-content:center;margin-top:.5rem">'
-            + (hero.slides||[]).map(function(s,i){
-                return '<div style="width:'+(s.active?'16px':'6px')+';height:6px;border-radius:3px;background:'+(s.active?'var(--primary)':'rgba(255,255,255,.3)')+';transition:all .3s"></div>';
-              }).join('')
-            + '</div>';
-    }
 }
 
 /* ══════════════════════════════════════════════════════════════

@@ -4138,6 +4138,8 @@ window._sbRead = function(k) {
     'ecodila_panier':d.panier,'ecodila_cart':d.panier,'panier':d.panier,
     'ecodila_legal_cgu':d.settings.ecodila_legal_cgu||d.settings.legal_cgu||null,
     'ecodila_legal_privacy':d.settings.ecodila_legal_privacy||d.settings.legal_privacy||null,
+    'ecodila_legal_mentions':d.settings.ecodila_legal_mentions||d.settings.legal_mentions||null,
+    'ecodila_legal_retours':d.settings.ecodila_legal_retours||d.settings.legal_retours||null,
     'ecodila_pb_pub_toasts':d.settings.ecodila_pb_pub_toasts||d.settings.pb_pub_toasts||[],
     'ecodila_promo_carousel':d.settings.ecodila_promo_carousel||d.settings['ecodila_promo_carousel']||null,
     'ecodila_catalogue_anim':d.settings.ecodila_catalogue_anim||d.settings['ecodila_catalogue_anim']||null,
@@ -11706,8 +11708,9 @@ window.addEventListener('storage', function(e) {
     // Avis publiés
     if (k === 'ecodila_avis_site') { _syncAvis(); }
 
-    // Légal CGU / Politique
-    if (k === 'ecodila_legal_cgu' || k === 'ecodila_legal_privacy') {
+    // Légal CGU / Politique / Mentions / Retours
+    if (k === 'ecodila_legal_cgu' || k === 'ecodila_legal_privacy'
+        || k === 'ecodila_legal_mentions' || k === 'ecodila_legal_retours') {
         if (typeof _applyLegal === 'function') _applyLegal();
     }
     // Commandes / trocs / propositions
@@ -21047,10 +21050,11 @@ document.addEventListener('DOMContentLoaded', function(){
 <script>
 
 /* ════════════════════════════════════════════════════════════════
-   SYNCHRONISATION LÉGAL — CGU & Politique de confidentialité
-   Lit Supabase (ecodila_legal_cgu, ecodila_legal_privacy)
-   et met à jour le contenu de la page /termes et du modal cookies
-   si le BO a publié du contenu mis à jour.
+   SYNCHRONISATION LÉGAL — CGU, Politique, Mentions, Retours
+   Lit Supabase (ecodila_legal_cgu, ecodila_legal_privacy,
+   ecodila_legal_mentions, ecodila_legal_retours) et met à jour
+   les pages /termes, /retours-client et le modal cookies si
+   le BO a publié du contenu mis à jour.
    ════════════════════════════════════════════════════════════════ */
 (function _syncLegalContent() {
     function _applyLegal() {
@@ -21076,15 +21080,40 @@ document.addEventListener('DOMContentLoaded', function(){
             if (modal) {
                 var inner = modal.querySelector('div > div');
                 if (inner) {
-                    // Remplacer uniquement le contenu texte, garder le bouton Fermer
                     inner.innerHTML = privacyHtml
                         + '<button onclick="document.getElementById(\'eco-privacy-modal\').style.display=\'none\'" style="margin-top:.9rem;background:#2d6a4f;color:#fff;border:none;border-radius:8px;padding:.45rem 1.1rem;cursor:pointer;font-weight:700;font-size:.8rem;font-family:inherit">Fermer</button>';
                 }
             }
         }
+
+        // ── Mentions légales : onglet ⚖️ du modal cookies ─────────
+        var mentionsHtml = null;
+        try { mentionsHtml = window._sbRead('ecodila_legal_mentions'); } catch(e){}
+        if (mentionsHtml) {
+            var legalPanel = document.getElementById('priv-content-legal');
+            if (legalPanel) legalPanel.innerHTML = mentionsHtml;
+        }
+
+        // ── Retours & Garantie : page #page-retours-client ───────
+        var retoursHtml = null;
+        try { retoursHtml = window._sbRead('ecodila_legal_retours'); } catch(e){}
+        if (retoursHtml) {
+            var retClient = document.getElementById('page-retours-client');
+            if (retClient) {
+                var contentDiv = document.getElementById('retours-policy-content');
+                if (!contentDiv) {
+                    contentDiv = document.createElement('div');
+                    contentDiv.id = 'retours-policy-content';
+                    contentDiv.style.cssText = 'padding:1.2rem;max-width:920px;margin:0 auto 1.2rem;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.04)';
+                    var firstChild = retClient.firstElementChild;
+                    if (firstChild) retClient.insertBefore(contentDiv, firstChild);
+                    else retClient.appendChild(contentDiv);
+                }
+                contentDiv.innerHTML = retoursHtml;
+            }
+        }
     }
 
-    // Appliquer après chargement Supabase
     function _waitAndApplyLegal() {
         if (window._d && window._d.loaded) {
             _applyLegal();
@@ -21094,9 +21123,9 @@ document.addEventListener('DOMContentLoaded', function(){
     }
     setTimeout(_waitAndApplyLegal, 1000);
 
-    // Ré-appliquer si le BO publie en temps réel (même navigateur)
     window.addEventListener('storage', function(e) {
-        if (e.key === 'ecodila_legal_cgu' || e.key === 'ecodila_legal_privacy') {
+        if (e.key === 'ecodila_legal_cgu' || e.key === 'ecodila_legal_privacy'
+            || e.key === 'ecodila_legal_mentions' || e.key === 'ecodila_legal_retours') {
             _applyLegal();
         }
     });
@@ -21200,8 +21229,11 @@ window.applyHero = function applyHero(hero){
         return;
     }
 
-    // CAS 5 : plusieurs slides → slider complet (ne remplace le DOM qu'à ce moment)
-    heroEl.style.cssText = 'position:relative;overflow:hidden;min-height:340px;padding:0';
+    // CAS 5 : plusieurs slides → slider mais avec wrapper original préservé
+    // FIX 2026-04-25 : on utilise un container par-dessus le hero original au lieu
+    // de remplacer son innerHTML. Quand le slider tourne, on bascule l'opacité
+    // du wrapper original vs le slider sans détruire les animations natives.
+    heroEl.style.cssText = 'background:var(--black);padding:0;text-align:center;position:relative;overflow:hidden;min-height:340px';
 
     var slidesHtml = activeSlides.map(function(slide, idx){
         var bg = slide.img
@@ -23427,10 +23459,11 @@ document.addEventListener('DOMContentLoaded', function(){
 <script>
 
 /* ════════════════════════════════════════════════════════════════
-   SYNCHRONISATION LÉGAL — CGU & Politique de confidentialité
-   Lit Supabase (ecodila_legal_cgu, ecodila_legal_privacy)
-   et met à jour le contenu de la page /termes et du modal cookies
-   si le BO a publié du contenu mis à jour.
+   SYNCHRONISATION LÉGAL — CGU, Politique, Mentions, Retours
+   Lit Supabase (ecodila_legal_cgu, ecodila_legal_privacy,
+   ecodila_legal_mentions, ecodila_legal_retours) et met à jour
+   les pages /termes, /retours-client et le modal cookies si
+   le BO a publié du contenu mis à jour.
    ════════════════════════════════════════════════════════════════ */
 (function _syncLegalContent() {
     function _applyLegal() {
@@ -23456,15 +23489,40 @@ document.addEventListener('DOMContentLoaded', function(){
             if (modal) {
                 var inner = modal.querySelector('div > div');
                 if (inner) {
-                    // Remplacer uniquement le contenu texte, garder le bouton Fermer
                     inner.innerHTML = privacyHtml
                         + '<button onclick="document.getElementById(\'eco-privacy-modal\').style.display=\'none\'" style="margin-top:.9rem;background:#2d6a4f;color:#fff;border:none;border-radius:8px;padding:.45rem 1.1rem;cursor:pointer;font-weight:700;font-size:.8rem;font-family:inherit">Fermer</button>';
                 }
             }
         }
+
+        // ── Mentions légales : onglet ⚖️ du modal cookies ─────────
+        var mentionsHtml = null;
+        try { mentionsHtml = window._sbRead('ecodila_legal_mentions'); } catch(e){}
+        if (mentionsHtml) {
+            var legalPanel = document.getElementById('priv-content-legal');
+            if (legalPanel) legalPanel.innerHTML = mentionsHtml;
+        }
+
+        // ── Retours & Garantie : page #page-retours-client ───────
+        var retoursHtml = null;
+        try { retoursHtml = window._sbRead('ecodila_legal_retours'); } catch(e){}
+        if (retoursHtml) {
+            var retClient = document.getElementById('page-retours-client');
+            if (retClient) {
+                var contentDiv = document.getElementById('retours-policy-content');
+                if (!contentDiv) {
+                    contentDiv = document.createElement('div');
+                    contentDiv.id = 'retours-policy-content';
+                    contentDiv.style.cssText = 'padding:1.2rem;max-width:920px;margin:0 auto 1.2rem;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.04)';
+                    var firstChild = retClient.firstElementChild;
+                    if (firstChild) retClient.insertBefore(contentDiv, firstChild);
+                    else retClient.appendChild(contentDiv);
+                }
+                contentDiv.innerHTML = retoursHtml;
+            }
+        }
     }
 
-    // Appliquer après chargement Supabase
     function _waitAndApplyLegal() {
         if (window._d && window._d.loaded) {
             _applyLegal();
@@ -23474,9 +23532,9 @@ document.addEventListener('DOMContentLoaded', function(){
     }
     setTimeout(_waitAndApplyLegal, 1000);
 
-    // Ré-appliquer si le BO publie en temps réel (même navigateur)
     window.addEventListener('storage', function(e) {
-        if (e.key === 'ecodila_legal_cgu' || e.key === 'ecodila_legal_privacy') {
+        if (e.key === 'ecodila_legal_cgu' || e.key === 'ecodila_legal_privacy'
+            || e.key === 'ecodila_legal_mentions' || e.key === 'ecodila_legal_retours') {
             _applyLegal();
         }
     });
