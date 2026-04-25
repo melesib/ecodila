@@ -10674,36 +10674,39 @@ var ADM_LOG_KEY  = 'ecodila_admin_logs_v1';
 var ADM_HIST_KEY = 'ecodila_admin_history_v1';
 
 var ALL_MODULES = [
-    {id:'dashboard',   label:'Dashboard',       icon:'📊'},
-    {id:'produits',    label:'Produits',         icon:'📦'},
-    {id:'categories',  label:'Catégories',       icon:'🗂'},
-    {id:'commandes',   label:'Commandes',        icon:'🛒'},
-    {id:'clients',     label:'Clients',          icon:'👤'},
-    {id:'trocs',       label:'Trocs',            icon:'🔄'},
-    {id:'coupons',     label:'Coupons',          icon:'🏷'},
-    {id:'blog',        label:'Blog / Pages',     icon:'📝'},
-    {id:'avis',        label:'Avis',             icon:'⭐'},
-    {id:'messages',    label:'Messages',         icon:'💬'},
-    {id:'settings',    label:'Configuration',    icon:'⚙️'},
-    {id:'stats',       label:'Statistiques',     icon:'📈'},
-    {id:'pnl',         label:'P&L / Rentabilité', icon:'📈'},
-    {id:'admins',      label:'Admins',           icon:'🔐'},
-    {id:'errors',      label:'Erreurs & Bugs',   icon:'🚨'},
-    {id:'fournisseurs',label:'Fournisseurs',      icon:'🏭'},
-    {id:'negotiations',label:'Négociations',      icon:'💰'},
-    {id:'pagebuilder', label:'Pages & Design',    icon:'🎨'},
-    {id:'legal',       label:'Légal / CGU',       icon:'📄'},
-    {id:'backups',     label:'Sauvegardes',        icon:'💾'},
-    {id:'parrainage',  label:'Parrainage',          icon:'🤝'},
-    {id:'retours',     label:'Retours',              icon:'↩️'},
-    {id:'achats',      label:'Achat Appareils',      icon:'🛒'}
+    {id:'dashboard',     label:'Dashboard',         icon:'📊'},
+    {id:'produits',      label:'Produits',          icon:'📦'},
+    {id:'categories',    label:'Catégories',        icon:'🗂'},
+    {id:'commandes',     label:'Commandes',         icon:'🛒'},
+    {id:'clients',       label:'Clients',           icon:'👤'},
+    {id:'trocs',         label:'Trocs',             icon:'🔄'},
+    {id:'coupons',       label:'Coupons',           icon:'🏷'},
+    {id:'blog',          label:'Blog / Pages',      icon:'📝'},
+    {id:'avis',          label:'Avis',              icon:'⭐'},
+    {id:'messages',      label:'Messages',          icon:'💬'},
+    {id:'settings',      label:'Configuration',     icon:'⚙️'},
+    {id:'stats',         label:'Statistiques',      icon:'📈'},
+    {id:'pnl',           label:'P&L / Rentabilité', icon:'📈'},
+    {id:'admins',        label:'Admins',            icon:'🔐'},
+    {id:'errors',        label:'Erreurs & Bugs',    icon:'🚨'},
+    {id:'fournisseurs',  label:'Fournisseurs',      icon:'🏭'},
+    {id:'negotiations',  label:'Négociations',      icon:'💰'},
+    {id:'pagebuilder',   label:'Pages & Design',    icon:'🎨'},
+    {id:'legal',         label:'Légal / CGU',       icon:'📄'},
+    {id:'backups',       label:'Sauvegardes',       icon:'💾'},
+    {id:'parrainage',    label:'Parrainage',        icon:'🤝'},
+    {id:'retours',       label:'Retours',           icon:'↩️'},
+    {id:'achats',        label:'Achat Appareils',   icon:'🛒'},
+    {id:'livraison',     label:'Frais de Livraison',icon:'🚚'},
+    {id:'rgpd-inactifs', label:'RGPD — Inactifs',   icon:'🔒'},
+    {id:'rgpd-rapport',  label:'Rapport RGPD/ARTCI',icon:'📄'}
 ];
 
 var ROLES = {
     super_admin:      { label:'Super Admin',        color:'#00ff88', bg:'rgba(0,255,136,.12)', icon:'⭐', modules: ALL_MODULES.map(function(m){return m.id;}) },
     admin_catalogue:  { label:'Admin Catalogue',    color:'#a78bfa', bg:'rgba(167,139,250,.12)', icon:'📦', modules:['produits','categories','stats','achats'] },
     admin_commandes:  { label:'Admin Commandes',    color:'#f59e0b', bg:'rgba(245,158,11,.12)', icon:'🛒', modules:['commandes','trocs','clients','stats','pnl','retours','achats'] },
-    admin_finance:    { label:'Admin Finance',      color:'#34d399', bg:'rgba(52,211,153,.12)', icon:'💹', modules:['commandes','trocs','negotiations','clients','stats','pnl','fournisseurs','retours','achats'] },
+    admin_finance:    { label:'Admin Finance',      color:'#34d399', bg:'rgba(52,211,153,.12)', icon:'💹', modules:['commandes','trocs','negotiations','clients','stats','pnl','fournisseurs','retours','achats','livraison'] },
     support_client:   { label:'Support Client',     color:'#38bdf8', bg:'rgba(56,189,248,.12)', icon:'💬', modules:['clients','messages','avis'] },
     marketing:        { label:'Marketing / Contenu',color:'#fb7185', bg:'rgba(251,113,133,.12)', icon:'📣', modules:['blog','coupons','stats'] },
     admin_parrainage: { label:'Admin Parrainage',   color:'#34d399', bg:'rgba(52,211,153,.12)', icon:'🤝', modules:['parrainage'] }
@@ -10823,9 +10826,51 @@ function _migrateAchatsModule(){
     }
 }
 
+/* ── Migration v2 : Frais de Livraison + modules RGPD ──
+   Ajoute :
+   - livraison au Super Admin et Admin Finance (frais impactent les marges)
+   - rgpd-inactifs, rgpd-rapport UNIQUEMENT au Super Admin
+     (ces modules sensibles ne doivent jamais être donnés par défaut à un autre rôle).
+   Les permissions personnalisées (où ces modules ont été volontairement retirés)
+   ne sont pas réintroduites lors de la migration. */
+function _migrateLivraisonRgpdModules(){
+    try {
+        var admins = getAdmins();
+        if(!admins || !admins.length) return;
+        var changed = false;
+        admins.forEach(function(a){
+            if(!a || a._livraison_rgpd_module_v1) return; // déjà migré
+            a._livraison_rgpd_module_v1 = true;            // poser le flag quoi qu'il arrive
+            if(!Array.isArray(a.modules)) a.modules = [];
+
+            // Super Admin : ajouter les 3 modules s'ils n'y sont pas
+            if(a.isSuperRoot || a.role === 'super_admin'){
+                ['livraison','rgpd-inactifs','rgpd-rapport'].forEach(function(mid){
+                    if(a.modules.indexOf(mid) === -1) a.modules.push(mid);
+                });
+                changed = true;
+                return;
+            }
+
+            // Admin Finance : ajouter livraison uniquement
+            if(a.role === 'admin_finance'){
+                if(a.modules.indexOf('livraison') === -1){
+                    a.modules.push('livraison');
+                    changed = true;
+                }
+            }
+            // Aucun ajout automatique des modules RGPD pour les autres rôles
+            // (le Super Admin doit les attribuer manuellement si besoin).
+        });
+        if(changed) saveAdmins(admins);
+    } catch(e){
+        if(window.console && console.warn) console.warn('[admins] migration livraison/rgpd:', e);
+    }
+}
+
 function ensureSuperAdmin(cb){
     var admins = getAdmins();
-    if(admins.length > 0){ _migrateAchatsModule(); if(cb) cb(); return; }
+    if(admins.length > 0){ _migrateAchatsModule(); _migrateLivraisonRgpdModules(); if(cb) cb(); return; }
     var storedName = (window._sbAdminName || 'Admin') || 'Super Administrateur';
     var storedCreds = lsGet('ecodila_admin_creds');
     var email = (storedCreds && storedCreds.email) || 'admin@ecodila.com';
@@ -35564,7 +35609,9 @@ var PAGE_TO_MODULE = {
     'backups':       'backups',
     'admins':        'admins',
     'retours':       'retours',
-    'achats':        'achats'
+    'achats':        'achats',
+    'rgpd-inactifs': 'rgpd-inactifs',
+    'rgpd-rapport':  'rgpd-rapport'
 };
 window.PAGE_TO_MODULE = PAGE_TO_MODULE;
 
