@@ -7046,6 +7046,10 @@ async function doLogin(){
   _lsSet(_SK.SES, { parrainId: parrain.id, loginAt: new Date().toISOString(), lastSeenCom: Date.now() });
   window._parrainCode = parrain.code || '';
 
+  /* FIX 2026-04-25 : reset du bouton aussi en cas de succès, pour qu'il soit propre
+     si l'utilisateur revient sur la page de login (logout, re-load partiel, etc.) */
+  _loginBtnReset();
+
   /* ── Capturer l'IP du parrain pour l'exclure des stats ── */
   (async function(){
     try {
@@ -7101,6 +7105,29 @@ function doLogout(){
   currentAvatar = '🛍️';
   var _avEl = document.getElementById('avatarEmoji');
   if(_avEl) _avEl.textContent = currentAvatar;
+
+  /* ══ FIX 2026-04-25 : Réinitialiser COMPLÈTEMENT l'écran de login ══
+     Sans ce reset, si le bouton était resté en état "⏳ Connexion..."
+     (cas normal après login réussi car _loginBtnReset n'est pas appelé en succès),
+     l'utilisateur voit le sablier et "Connexion en cours" au prochain affichage. */
+  try {
+    var _btn = document.querySelector('.login-btn');
+    if(_btn){
+      _btn.disabled = false;
+      _btn.style.opacity = '';
+      _btn.style.cursor = '';
+      _btn.textContent = '🔓 Accéder à mon espace';
+    }
+    /* Vider les champs (sécurité cybercafé) */
+    var _idEl = document.getElementById('login-identifier');
+    var _pwdEl = document.getElementById('login-pwd');
+    if(_idEl) { _idEl.value = ''; _idEl.style.borderColor = ''; }
+    if(_pwdEl) { _pwdEl.value = ''; _pwdEl.style.borderColor = ''; }
+    /* Cacher le message de blocage si affiché */
+    var _blockedMsg = document.getElementById('login-blocked-msg');
+    if(_blockedMsg) _blockedMsg.style.display = 'none';
+  } catch(e){ console.warn('[Logout reset login UI]', e); }
+
   document.getElementById('loginScreen').style.display = 'flex';
 
   /* Rechargement complet recommandé en cybercafé pour repartir propre */

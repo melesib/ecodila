@@ -59,7 +59,7 @@
   [headers.values]
     Cache-Control = "public, max-age=3600"
 
-# ── Cache HTML par défaut (admin, auditaz, parrain, countdown) ──
+# ── Cache HTML par défaut (admin, auditaz, parrain) ──
 # Revalidation à chaque visite : garantit que les admins voient toujours
 # la dernière version du BO après un déploiement.
 [[headers]]
