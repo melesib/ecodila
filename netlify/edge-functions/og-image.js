@@ -78,16 +78,18 @@ function dataUrlToBytes(dataUrl) {
 
 /**
  * Récupère l'image principale d'un produit
+ * Format Supabase : product.photos = [{ data: "data:image/...", name, isMain }]
  */
 function getProductImage(product) {
   if (!product) return null;
 
-  // Cas 1 : tableau photos
+  // Cas 1 : tableau photos avec format BO admin
   if (Array.isArray(product.photos) && product.photos.length > 0) {
     const main = product.photos.find(p => p && p.isMain) || product.photos[0];
     if (main) {
-      const url = main.url || main.dataUrl || main.image || main;
-      if (typeof url === "string") return url;
+      // Le BO admin stocke sous .data ; d'autres formats possibles
+      const url = main.data || main.url || main.dataUrl || main.image || (typeof main === "string" ? main : null);
+      if (typeof url === "string" && url.length > 0) return url;
     }
   }
 
@@ -96,6 +98,9 @@ function getProductImage(product) {
 
   // Cas 3 : champ img direct
   if (product.img && typeof product.img === "string") return product.img;
+
+  // Cas 4 : photo unique
+  if (product.photo && typeof product.photo === "string") return product.photo;
 
   return null;
 }
@@ -135,14 +140,19 @@ export default async (request, context) => {
   const product = await fetchProduct(productId);
 
   let imageData = null;
+  let debugInfo = "no-product";
 
   if (product) {
+    debugInfo = "product-found";
     const imgUrl = getProductImage(product);
 
     if (imgUrl) {
+      debugInfo = "image-url-extracted";
       // Cas A : image en data: URL → décoder
       if (imgUrl.startsWith("data:")) {
         imageData = dataUrlToBytes(imgUrl);
+        if (imageData) debugInfo = "data-url-decoded";
+        else debugInfo = "data-url-decode-failed";
       }
       // Cas B : URL HTTP(S) → fetch et renvoyer
       else if (imgUrl.startsWith("http")) {
@@ -152,11 +162,19 @@ export default async (request, context) => {
             const buf = await res.arrayBuffer();
             const ct = res.headers.get("content-type") || "image/jpeg";
             imageData = { bytes: new Uint8Array(buf), mime: ct };
+            debugInfo = "http-fetched";
+          } else {
+            debugInfo = "http-fetch-not-ok";
           }
         } catch (e) {
           console.error("[OG-IMG] fetch external image error:", e);
+          debugInfo = "http-fetch-error";
         }
+      } else {
+        debugInfo = "image-url-unknown-format";
       }
+    } else {
+      debugInfo = "no-image-in-product";
     }
   }
 
@@ -178,6 +196,7 @@ export default async (request, context) => {
       // Cache 1 jour côté CDN, 1h navigateur
       "cache-control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
       "x-edge-og-img": product ? "found" : "fallback",
+      "x-edge-og-debug": debugInfo,
     },
   });
 };
