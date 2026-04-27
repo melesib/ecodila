@@ -21043,20 +21043,55 @@ window._waSeqShowNext = function(){
   var tel = _waFmtTel(c.wa||c.tel||'');
   var msg = window._waSeqMsgFn(c);
   var url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(msg);
+
   var m = document.createElement('div');
   m.id = 'wa-seq-modal';
   m.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:#0f1724;border:1px solid #25d366;border-radius:12px;padding:1rem;width:320px;box-shadow:0 8px 30px rgba(0,0,0,.5)';
-  m.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">'
-    +'<span style="font-weight:800;color:#25d366;font-size:.85rem">'+window._waSeqTitle+'</span>'
+
+  /* FIX 2026-04-27 : on construit le lien via createElement + setAttribute
+     pour que les caractères URL-encodés (%F0%9F...) ne soient pas mal interprétés
+     comme des entités HTML lors du parsing innerHTML. Ça cassait les emojis WhatsApp. */
+  var headerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">'
+    +'<span style="font-weight:800;color:#25d366;font-size:.85rem">'+_esc(window._waSeqTitle||'')+'</span>'
     +'<span style="font-size:.7rem;color:#8892a6;font-weight:700">'+(idx+1)+'/'+total+'</span></div>'
     +'<div style="padding:.5rem;background:#1a2332;border-radius:8px;margin-bottom:.6rem">'
     +'<div style="font-weight:700;color:#e4e7eb;font-size:.82rem">'+_esc(c.nom||c.name||'Client')+'</div>'
-    +'<div style="font-size:.7rem;color:#8892a6;font-family:monospace">'+(c.wa||c.tel||'')+'</div></div>'
-    +'<div style="display:flex;gap:.4rem">'
-    +'<button onclick="document.getElementById(\'wa-seq-modal\').remove()" style="flex:1;padding:.45rem;background:none;border:1px solid #2a3548;border-radius:6px;color:#8892a6;font-size:.72rem;cursor:pointer;font-family:inherit">✕ Arrêter</button>'
-    +'<button onclick="window._waSeqIdx++;window._waSeqShowNext()" style="flex:1;padding:.45rem;background:#374151;border:none;border-radius:6px;color:#e4e7eb;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit">⏭ Passer</button>'
-    +'<a href="'+url+'" target="_blank" onclick="setTimeout(function(){window._waSeqIdx++;window._waSeqShowNext();},500)" style="flex:2;padding:.45rem;background:#25d366;border:none;border-radius:6px;color:#fff;font-size:.72rem;font-weight:700;cursor:pointer;text-decoration:none;text-align:center;display:block;font-family:inherit">📤 Envoyer → Suivant</a></div>'
-    +'<div style="margin-top:.4rem;height:3px;background:#1a2332;border-radius:2px;overflow:hidden"><div style="height:100%;background:#25d366;border-radius:2px;width:'+Math.round((idx+1)/total*100)+'%"></div></div>';
+    +'<div style="font-size:.7rem;color:#8892a6;font-family:monospace">'+_esc(c.wa||c.tel||'')+'</div></div>';
+
+  // Boutons
+  var btnsContainer = document.createElement('div');
+  btnsContainer.style.cssText = 'display:flex;gap:.4rem';
+
+  var btnStop = document.createElement('button');
+  btnStop.style.cssText = 'flex:1;padding:.45rem;background:none;border:1px solid #2a3548;border-radius:6px;color:#8892a6;font-size:.72rem;cursor:pointer;font-family:inherit';
+  btnStop.textContent = '✕ Arrêter';
+  btnStop.onclick = function(){ document.getElementById('wa-seq-modal').remove(); };
+
+  var btnSkip = document.createElement('button');
+  btnSkip.style.cssText = 'flex:1;padding:.45rem;background:#374151;border:none;border-radius:6px;color:#e4e7eb;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit';
+  btnSkip.textContent = '⏭ Passer';
+  btnSkip.onclick = function(){ window._waSeqIdx++; window._waSeqShowNext(); };
+
+  var btnSend = document.createElement('a');
+  btnSend.setAttribute('href', url);
+  btnSend.setAttribute('target', '_blank');
+  btnSend.style.cssText = 'flex:2;padding:.45rem;background:#25d366;border:none;border-radius:6px;color:#fff;font-size:.72rem;font-weight:700;cursor:pointer;text-decoration:none;text-align:center;display:block;font-family:inherit';
+  btnSend.textContent = '📤 Envoyer ▸ Suivant';
+  btnSend.onclick = function(){
+    setTimeout(function(){ window._waSeqIdx++; window._waSeqShowNext(); }, 500);
+  };
+
+  btnsContainer.appendChild(btnStop);
+  btnsContainer.appendChild(btnSkip);
+  btnsContainer.appendChild(btnSend);
+
+  var progress = document.createElement('div');
+  progress.style.cssText = 'margin-top:.4rem;height:3px;background:#1a2332;border-radius:2px;overflow:hidden';
+  progress.innerHTML = '<div style="height:100%;background:#25d366;border-radius:2px;width:'+Math.round((idx+1)/total*100)+'%"></div>';
+
+  m.innerHTML = headerHtml;
+  m.appendChild(btnsContainer);
+  m.appendChild(progress);
   document.body.appendChild(m);
 };
 
@@ -23997,20 +24032,57 @@ function _boostShowNext(){
     var w = document.createElement('div');
     w.id = 'boost-seq-widget';
     w.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:99999;background:#0f1724;border:1px solid #25d366;border-radius:12px;padding:1rem;width:320px;box-shadow:0 8px 30px rgba(0,0,0,.5)';
-    w.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">'
+
+    /* FIX 2026-04-27 : on construit le lien via createElement + setAttribute
+       au lieu de string-concatener `url` dans innerHTML. Pourquoi : `enc` contient
+       des séquences URL-encodées (%F0%9F...) qui peuvent être mal interprétées
+       comme des entités HTML lors du parsing innerHTML. Cela cassait les emojis
+       côté WhatsApp Web. setAttribute préserve la string brute. */
+
+    // En-tête
+    var headerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">'
         +'<span style="font-weight:800;color:#25d366;font-size:.85rem">📱 Promo WhatsApp</span>'
         +'<span style="font-size:.7rem;color:#8892a6;font-weight:700">'+(idx+1)+'/'+total+'</span>'
         +'</div>'
         +'<div style="padding:.5rem;background:#1a2332;border-radius:8px;margin-bottom:.6rem">'
         +'<div style="font-weight:700;color:#e4e7eb;font-size:.82rem">'+_esc(client.nom)+'</div>'
         +'<div style="font-size:.7rem;color:#8892a6;font-family:monospace">+'+client.tel+'</div>'
-        +'</div>'
-        +'<div style="display:flex;gap:.4rem">'
-        +'<button onclick="document.getElementById(\'boost-seq-widget\').remove()" style="flex:1;padding:.45rem;background:none;border:1px solid #2a3548;border-radius:6px;color:#8892a6;font-size:.72rem;cursor:pointer;font-family:inherit">✕ Arrêter</button>'
-        +'<button onclick="window._boostQueueIdx++;_boostShowNext()" style="flex:1;padding:.45rem;background:#374151;border:none;border-radius:6px;color:#e4e7eb;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit">⏭ Passer</button>'
-        +'<a href="'+url+'" target="_blank" onclick="setTimeout(function(){window._boostQueueIdx++;_boostShowNext();},500)" style="flex:2;padding:.45rem;background:#25d366;border:none;border-radius:6px;color:#fff;font-size:.72rem;font-weight:700;cursor:pointer;text-decoration:none;text-align:center;display:block;font-family:inherit">📤 Envoyer → Suivant</a>'
-        +'</div>'
-        +'<div style="margin-top:.4rem;height:3px;background:#1a2332;border-radius:2px;overflow:hidden"><div style="height:100%;background:#25d366;border-radius:2px;width:'+Math.round((idx+1)/total*100)+'%"></div></div>';
+        +'</div>';
+
+    // Boutons (sans le lien wa.me dans innerHTML)
+    var btnsContainer = document.createElement('div');
+    btnsContainer.style.cssText = 'display:flex;gap:.4rem';
+
+    var btnStop = document.createElement('button');
+    btnStop.style.cssText = 'flex:1;padding:.45rem;background:none;border:1px solid #2a3548;border-radius:6px;color:#8892a6;font-size:.72rem;cursor:pointer;font-family:inherit';
+    btnStop.textContent = '✕ Arrêter';
+    btnStop.onclick = function(){ document.getElementById('boost-seq-widget').remove(); };
+
+    var btnSkip = document.createElement('button');
+    btnSkip.style.cssText = 'flex:1;padding:.45rem;background:#374151;border:none;border-radius:6px;color:#e4e7eb;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit';
+    btnSkip.textContent = '⏭ Passer';
+    btnSkip.onclick = function(){ window._boostQueueIdx++; _boostShowNext(); };
+
+    var btnSend = document.createElement('a');
+    btnSend.setAttribute('href', url);  // ← FIX : setAttribute préserve les caractères encodés
+    btnSend.setAttribute('target', '_blank');
+    btnSend.style.cssText = 'flex:2;padding:.45rem;background:#25d366;border:none;border-radius:6px;color:#fff;font-size:.72rem;font-weight:700;cursor:pointer;text-decoration:none;text-align:center;display:block;font-family:inherit';
+    btnSend.textContent = '📤 Envoyer ▸ Suivant';
+    btnSend.onclick = function(){
+        setTimeout(function(){ window._boostQueueIdx++; _boostShowNext(); }, 500);
+    };
+
+    btnsContainer.appendChild(btnStop);
+    btnsContainer.appendChild(btnSkip);
+    btnsContainer.appendChild(btnSend);
+
+    var progress = document.createElement('div');
+    progress.style.cssText = 'margin-top:.4rem;height:3px;background:#1a2332;border-radius:2px;overflow:hidden';
+    progress.innerHTML = '<div style="height:100%;background:#25d366;border-radius:2px;width:'+Math.round((idx+1)/total*100)+'%"></div>';
+
+    w.innerHTML = headerHtml;
+    w.appendChild(btnsContainer);
+    w.appendChild(progress);
     document.body.appendChild(w);
 }
 
