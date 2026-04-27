@@ -23706,57 +23706,31 @@ function _boostOpenPromoModal(product) {
 
     var pNom = product.nom || ((product.brand||'') + ' ' + (product.model||'')).trim() || 'Produit';
     var pPrix = (product.prix||0).toLocaleString('fr-FR');
-    var lm = {'vedette':'⭐ Produit Vedette','promo':'🔥 PROMO','nouveau':'🆕 Nouveau','vente-flash':'🔥 VENTE FLASH'};
-    var bl = lm[(product.boost && product.boost.label) || ''] || '🚀 Offre Spéciale';
+    var lm = {'vedette':'⭐ Produit Vedette du moment','promo':'🔥 PROMO du moment','nouveau':'🆕 Nouveauté EcoDila','vente-flash':'🔥 VENTE FLASH'};
+    var bl = lm[(product.boost && product.boost.label) || ''] || '🚀 Deal du moment';
 
     // Lien direct vers le produit (utilise le routing du site)
     var prodId = product.id || '';
     var prodUrl = 'https://ecodila.com/?p=' + prodId;
 
     // Détection promo : prix barré
-    var pricePromo = '';
     var pBarre = product.prixBarre || product.prixOccasion || product.prixNeuf || 0;
+    var pctOff = '';
     if(pBarre > 0 && pBarre > (product.prix||0)){
       var pct = Math.round(((pBarre - product.prix)/pBarre)*100);
-      pricePromo = '~' + pBarre.toLocaleString('fr-FR') + ' FCFA~ -> ';
+      if(pct >= 5) pctOff = ' (-' + pct + '%)';
     }
 
-    // Construction du message riche
+    // Message court : titre, produit, prix, lien d'action, options en bas
     var lines = [];
     lines.push(bl);
     lines.push('');
-    lines.push('🔥 *' + pNom + '*');
-
-    // Catégorie + état
-    if(product.categorie || product.qualite){
-      var catLine = [];
-      if(product.categorie) catLine.push('📦 ' + product.categorie);
-      if(product.qualite) catLine.push('⭐ ' + product.qualite);
-      lines.push(catLine.join(' - '));
-    }
-
-    // Specs
-    var specs = [];
-    if(product.memory) specs.push('💾 ' + (product.memory||'').split('|RAM:')[0]);
-    if((product.memory||'').indexOf('|RAM:')>-1) specs.push('🔋 ' + (product.memory||'').split('|RAM:')[1] + ' RAM');
-    if(product.screen) specs.push('📱 ' + product.screen);
-    if(specs.length){
-      lines.push(specs.join(' - '));
-    }
+    lines.push('*' + pNom + '*' + pctOff);
+    lines.push('💰 *' + pPrix + ' FCFA*');
     lines.push('');
-
-    // Prix mis en valeur
-    lines.push('💰 ' + pricePromo + '*' + pPrix + ' FCFA*');
+    lines.push('👉 Découvrir & commander : ' + prodUrl);
     lines.push('');
-
-    lines.push('✅ Garantie 3 mois');
-    lines.push('🚚 Livraison Abidjan');
-    lines.push('💳 Paiement à la livraison');
-    lines.push('');
-    lines.push('👉 *Voir le produit & commander :*');
-    lines.push(prodUrl);
-    lines.push('');
-    lines.push('_EcoDila - Marketplace #1 de reconditionné en Côte d\'Ivoire_');
+    lines.push('💳 Achat | 🔄 Troc | 💬 Négociation');
 
     var msg = lines.join('\n');
     var enc = encodeURIComponent(msg);
@@ -34163,29 +34137,18 @@ window._promoBroadcastWA=function(){
   if(!clients.length){showNotification('Aucun client éligible','warning');return;}
   if(!confirm('📢 Diffuser les promos à '+clients.length+' client(s) ?\n\nEnvoi séquentiel — vous confirmez chaque envoi.'))return;
 
-  // Construction du message avec lien direct par produit
+  // Construction du message court avec lien direct par produit
+  // Pas de specs détaillées — l'aperçu Open Graph et le lien font le job.
   var prodLines = cfg.products.map(function(p,i){
-    var line = '🛒 *'+p.nom+'*';
-    var priceLine = '   💰 ';
-    if(p.prixBarre>0){
-      priceLine += '~'+Number(p.prixBarre).toLocaleString('fr-FR')+' FCFA~ -> ';
-    }
-    priceLine += '*'+Number(p.prix).toLocaleString('fr-FR')+' FCFA*';
-    if(p.badge && p.badge!=='PROMO'){
-      // Calcul du % si possible
-      if(p.prixBarre>0 && p.prix<p.prixBarre){
-        var pct = Math.round(((p.prixBarre - p.prix)/p.prixBarre)*100);
-        priceLine += '  (-'+pct+'%)';
-      } else {
-        priceLine += '  '+p.badge;
-      }
-    }
-
-    // Lien direct vers le produit
     var prodId = p.id || p.productId || '';
-    var linkLine = '   👉 https://ecodila.com/?p=' + prodId;
-
-    return line + '\n' + priceLine + '\n' + linkLine;
+    var prodUrl = 'https://ecodila.com/?p=' + prodId;
+    var price = '*'+Number(p.prix).toLocaleString('fr-FR')+' FCFA*';
+    var pctOff = '';
+    if(p.prixBarre>0 && p.prix<p.prixBarre){
+      var pct = Math.round(((p.prixBarre - p.prix)/p.prixBarre)*100);
+      if(pct >= 5) pctOff = ' (-'+pct+'%)';
+    }
+    return '🛒 *' + p.nom + '*' + pctOff + ' — ' + price + '\n   👉 ' + prodUrl;
   }).join('\n\n');
 
   var contacts=clients.map(function(c){return{nom:c.nom||c.name||'Client',tel:c.telephone||c.tel||''};});
@@ -34193,15 +34156,9 @@ window._promoBroadcastWA=function(){
   _waSeqStart(contacts,function(contact){
     return '🔥 *'+(cfg.bannerText||'PROMO DU MOMENT')+'*\n\n'
       +'Bonjour '+contact.nom+' 👋\n\n'
-      +'Découvrez nos offres exceptionnelles :\n\n'
       +prodLines+'\n\n'
-      +'-------------------------\n'
-      +'✅ Garantie 3 mois\n'
-      +'🚚 Livraison Abidjan\n'
-      +'💳 Paiement à la livraison\n'
-      +'-------------------------\n\n'
-      +'📲 Cliquez sur un lien ci-dessus pour commander, ou répondez ici !\n\n'
-      +'_EcoDila - Marketplace #1 de reconditionné en Côte d\'Ivoire_\n\n'
+      +'👉 *Découvrir plus :* https://ecodila.com\n\n'
+      +'💳 Achat | 🔄 Troc | 💬 Négociation\n\n'
       +'_Envoyez STOP pour ne plus recevoir de promotions._';
   },'📢 Diffusion promo ('+contacts.length+' clients)');
 };
