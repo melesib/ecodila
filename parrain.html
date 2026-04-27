@@ -8795,9 +8795,9 @@ window._chShareProductWA = function(id){
   var specs = [];
   if(ch.productCategory) specs.push('📦 ' + ch.productCategory);
   if(ch.productMemory) specs.push('💾 ' + ch.productMemory);
-  if(ch.productState || ch.productEtat) specs.push('✨ ' + (ch.productState || ch.productEtat));
+  if(ch.productState || ch.productEtat) specs.push('⭐ ' + (ch.productState || ch.productEtat));
   if(specs.length) {
-    lines.push(specs.join('  •  '));
+    lines.push(specs.join(' - '));
     lines.push('');
   }
 
@@ -8807,14 +8807,14 @@ window._chShareProductWA = function(id){
     lines.push('');
   }
 
-  lines.push('🛡️ Garantie 3 mois');
+  lines.push('✅ Garantie 3 mois');
   lines.push('🚚 Livraison Abidjan');
   lines.push('💳 Paiement à la livraison');
   lines.push('');
   lines.push('👉 *Voir le produit & commander :*');
   lines.push(url);
   lines.push('');
-  lines.push('_EcoDila — Marketplace #1 de reconditionné en Côte d\'Ivoire 🇨🇮_');
+  lines.push('_EcoDila - Marketplace #1 de reconditionné en Côte d\'Ivoire_');
 
   var msg = lines.join('\n');
 

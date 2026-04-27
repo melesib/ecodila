@@ -23671,7 +23671,7 @@ function _boostOpenPromoModal(product) {
 
     var pNom = product.nom || ((product.brand||'') + ' ' + (product.model||'')).trim() || 'Produit';
     var pPrix = (product.prix||0).toLocaleString('fr-FR');
-    var lm = {'vedette':'⭐ Produit Vedette','promo':'🔥 PROMO','nouveau':'🆕 Nouveau','vente-flash':'⚡ VENTE FLASH'};
+    var lm = {'vedette':'⭐ Produit Vedette','promo':'🔥 PROMO','nouveau':'🆕 Nouveau','vente-flash':'🔥 VENTE FLASH'};
     var bl = lm[(product.boost && product.boost.label) || ''] || '🚀 Offre Spéciale';
 
     // Lien direct vers le produit (utilise le routing du site)
@@ -23683,7 +23683,7 @@ function _boostOpenPromoModal(product) {
     var pBarre = product.prixBarre || product.prixOccasion || product.prixNeuf || 0;
     if(pBarre > 0 && pBarre > (product.prix||0)){
       var pct = Math.round(((pBarre - product.prix)/pBarre)*100);
-      pricePromo = '~' + pBarre.toLocaleString('fr-FR') + ' FCFA~ → ';
+      pricePromo = '~' + pBarre.toLocaleString('fr-FR') + ' FCFA~ -> ';
     }
 
     // Construction du message riche
@@ -23696,17 +23696,17 @@ function _boostOpenPromoModal(product) {
     if(product.categorie || product.qualite){
       var catLine = [];
       if(product.categorie) catLine.push('📦 ' + product.categorie);
-      if(product.qualite) catLine.push('✨ ' + product.qualite);
-      lines.push(catLine.join('  •  '));
+      if(product.qualite) catLine.push('⭐ ' + product.qualite);
+      lines.push(catLine.join(' - '));
     }
 
     // Specs
     var specs = [];
     if(product.memory) specs.push('💾 ' + (product.memory||'').split('|RAM:')[0]);
-    if((product.memory||'').indexOf('|RAM:')>-1) specs.push('⚡ ' + (product.memory||'').split('|RAM:')[1] + ' RAM');
+    if((product.memory||'').indexOf('|RAM:')>-1) specs.push('🔋 ' + (product.memory||'').split('|RAM:')[1] + ' RAM');
     if(product.screen) specs.push('📱 ' + product.screen);
     if(specs.length){
-      lines.push(specs.join('  •  '));
+      lines.push(specs.join(' - '));
     }
     lines.push('');
 
@@ -23714,14 +23714,14 @@ function _boostOpenPromoModal(product) {
     lines.push('💰 ' + pricePromo + '*' + pPrix + ' FCFA*');
     lines.push('');
 
-    lines.push('🛡️ Garantie 3 mois');
+    lines.push('✅ Garantie 3 mois');
     lines.push('🚚 Livraison Abidjan');
     lines.push('💳 Paiement à la livraison');
     lines.push('');
     lines.push('👉 *Voir le produit & commander :*');
     lines.push(prodUrl);
     lines.push('');
-    lines.push('_EcoDila — Marketplace #1 de reconditionné en Côte d\'Ivoire 🇨🇮_');
+    lines.push('_EcoDila - Marketplace #1 de reconditionné en Côte d\'Ivoire_');
 
     var msg = lines.join('\n');
     var enc = encodeURIComponent(msg);
@@ -34093,17 +34093,17 @@ window._promoBroadcastWA=function(){
 
   // Construction du message avec lien direct par produit
   var prodLines = cfg.products.map(function(p,i){
-    var line = (i+1)+'️⃣ *'+p.nom+'*';
+    var line = '🛒 *'+p.nom+'*';
     var priceLine = '   💰 ';
     if(p.prixBarre>0){
-      priceLine += '~'+Number(p.prixBarre).toLocaleString('fr-FR')+' FCFA~ → ';
+      priceLine += '~'+Number(p.prixBarre).toLocaleString('fr-FR')+' FCFA~ -> ';
     }
     priceLine += '*'+Number(p.prix).toLocaleString('fr-FR')+' FCFA*';
     if(p.badge && p.badge!=='PROMO'){
       // Calcul du % si possible
       if(p.prixBarre>0 && p.prix<p.prixBarre){
         var pct = Math.round(((p.prixBarre - p.prix)/p.prixBarre)*100);
-        priceLine += '  🏷️ -'+pct+'%';
+        priceLine += '  (-'+pct+'%)';
       } else {
         priceLine += '  '+p.badge;
       }
@@ -34123,13 +34123,13 @@ window._promoBroadcastWA=function(){
       +'Bonjour '+contact.nom+' 👋\n\n'
       +'Découvrez nos offres exceptionnelles :\n\n'
       +prodLines+'\n\n'
-      +'━━━━━━━━━━━━━━━━━\n'
-      +'🛡️ Garantie 3 mois\n'
+      +'-------------------------\n'
+      +'✅ Garantie 3 mois\n'
       +'🚚 Livraison Abidjan\n'
       +'💳 Paiement à la livraison\n'
-      +'━━━━━━━━━━━━━━━━━\n\n'
+      +'-------------------------\n\n'
       +'📲 Cliquez sur un lien ci-dessus pour commander, ou répondez ici !\n\n'
-      +'_EcoDila — Marketplace #1 de reconditionné en Côte d\'Ivoire 🇨🇮_\n\n'
+      +'_EcoDila - Marketplace #1 de reconditionné en Côte d\'Ivoire_\n\n'
       +'_Envoyez STOP pour ne plus recevoir de promotions._';
   },'📢 Diffusion promo ('+contacts.length+' clients)');
 };

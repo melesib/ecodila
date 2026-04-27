@@ -24637,7 +24637,7 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
     try {
       if(item.prixOccasion && item.prixNeuf && item.prixOccasion < item.prixNeuf){
         var pct = Math.round(((item.prixNeuf - item.prixOccasion) / item.prixNeuf) * 100);
-        if(pct >= 5) promo = ' 🏷️ -' + pct + '%';
+        if(pct >= 5) promo = ' (-' + pct + '%)';
       }
     } catch(e){}
 
@@ -24650,11 +24650,11 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
     // Specs
     var specs = [];
     if(memory) specs.push('💾 ' + memory);
-    if(ram) specs.push('⚡ ' + ram + ' RAM');
+    if(ram) specs.push('🔋 ' + ram + ' RAM');
     if(screen) specs.push('📱 ' + screen);
-    if(etat) specs.push('✨ ' + etat);
+    if(etat) specs.push('⭐ ' + etat);
     if(specs.length) {
-      lines.push(specs.join('  •  '));
+      lines.push(specs.join(' - '));
       lines.push('');
     }
 
@@ -24663,14 +24663,14 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
       lines.push('');
     }
 
-    lines.push('🛡️ Garantie 3 mois');
+    lines.push('✅ Garantie 3 mois');
     lines.push('🚚 Livraison Abidjan');
     lines.push('💳 Paiement à la livraison');
     lines.push('');
     lines.push('👉 *Voir le produit & commander :*');
     lines.push(url);
     lines.push('');
-    lines.push('_EcoDila — Marketplace #1 de reconditionné en Côte d\'Ivoire 🇨🇮_');
+    lines.push('_EcoDila - Marketplace #1 de reconditionné en Côte d\'Ivoire_');
 
     var msg = lines.join('\n');
 
