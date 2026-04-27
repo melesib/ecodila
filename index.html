@@ -11354,6 +11354,11 @@ function formatTelWhatsApp(tel){
 // Seuls les produits créés dans le back-office (ecodila_products) sont affichés.
 let products = [];
 
+// Exposer à window pour que le router puisse y accéder (let n'est pas attaché à window)
+// Synchronisation manuelle via _syncProductsToWindow() après chaque modification
+window._syncProductsToWindow = function(){ try { window.products = products; } catch(e){} };
+window._syncProductsToWindow();
+
 function loadProductsFromBackOffice() {
     try {
         // Lire en priorité ecodila_admin_products (source BO directe)
@@ -11426,6 +11431,7 @@ function loadProductsFromBackOffice() {
             if (!p || !p.id) return false;
             return true;
         });
+        window._syncProductsToWindow && window._syncProductsToWindow();
 
         // ── Reconstruire boosts depuis settings Supabase (clés eco_boost_{id}) ──
         var _boostCount = 0;
@@ -11503,6 +11509,7 @@ function loadProductsFromBackOffice() {
     } catch(e) {
         console.error('❌ loadProductsFromBackOffice:', e);
         products = [];
+        window._syncProductsToWindow && window._syncProductsToWindow();
     }
 }
 
@@ -11899,7 +11906,9 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') _closeOve
 function showPage(name){
   _lastPageBeforeAuth = name;
 
-  if(['acheter','troquer','profil','parrainage'].includes(name)&&!userLoggedIn){
+  // Protections d'authentification (acheter/troquer/profil nécessitent un compte).
+  // 'parrainage' est consultable sans login — la protection est dans _parOpen()
+  if(['acheter','troquer','profil'].includes(name)&&!userLoggedIn){
     demanderAuthentification();
     return;
   }
@@ -12136,6 +12145,7 @@ function _ensureProducts() {
           photos: p.photos || [], img: p.img || '', screen: p.screen || '', memory: (p.memory||'').split('|RAM:')[0] || '', ram: (p.memory||'').indexOf('|RAM:')>-1 ? (p.memory||'').split('|RAM:')[1] : ''
         };
       });
+      window._syncProductsToWindow && window._syncProductsToWindow();
     }
   } catch(e) { console.warn('[Search] Fallback erreur:', e); }
 }
@@ -24368,45 +24378,60 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
 
   /* ─── Appliquer un état URL ───────────────────────────────── */
   function _applyRoute(params){
-    _routerSilent = true;
-    try {
-      // 1) Page
-      if(params.page && VALID_PAGES.indexOf(params.page) !== -1 && params.page !== 'catalogue'){
-        if(typeof showPage === 'function') showPage(params.page);
-      } else if(params.page === 'catalogue' || (!params.page && !params.product)){
-        if(typeof _closeOverlayPage === 'function') _closeOverlayPage();
+    // 1) Page : synchrone, simple
+    if(params.page && VALID_PAGES.indexOf(params.page) !== -1 && params.page !== 'catalogue'){
+      if(typeof showPage === 'function'){
+        _routerSilent = true;
+        try { showPage(params.page); } catch(e){ console.warn('[router] showPage:', e); }
+        _routerSilent = false;
       }
-
-      // 2) Produit (peut être combiné avec page)
-      if(params.product){
-        // Attendre que les produits soient chargés
-        var tries = 0;
-        function _tryOpen(){
-          tries++;
-          if(typeof openModal === 'function' && window.products && window.products.length){
-            var item = window.products.find(function(p){ return String(p.id) === String(params.product); });
-            if(item){
-              openModal(params.product);
-              _metaForProduct(item);
-              return;
-            }
-            // Produit non trouvé → afficher modal "produit introuvable" si dispo
-            if(typeof window.fermerModalProduitIntrouvable === 'function'){
-              var pnf = document.getElementById('pnf-overlay');
-              if(pnf){
-                pnf.style.display = 'flex';
-              }
-            }
-          }
-          if(tries < 30) setTimeout(_tryOpen, 300);
-        }
-        _tryOpen();
-      } else {
-        _metaForPage(params.page || 'catalogue');
+    } else if(params.page === 'catalogue'){
+      if(typeof _closeOverlayPage === 'function'){
+        _routerSilent = true;
+        try { _closeOverlayPage(); } catch(e){}
+        _routerSilent = false;
       }
-    } finally {
-      _routerSilent = false;
     }
+
+    // 2) Produit : asynchrone, attendre que `products` soit chargé
+    if(params.product){
+      _waitForProductAndOpen(params.product, 0);
+    } else {
+      _metaForPage(params.page || 'catalogue');
+    }
+  }
+
+  /* Récupère le tableau products (exposé via window._syncProductsToWindow) */
+  function _getProducts(){
+    if(window.products && window.products.length) return window.products;
+    return null;
+  }
+
+  /* Boucle d'attente pour ouvrir un produit */
+  function _waitForProductAndOpen(productId, tries){
+    tries = tries || 0;
+    var prods = _getProducts();
+    if(prods && prods.length && typeof openModal === 'function'){
+      var item = prods.find(function(p){ return String(p.id) === String(productId); });
+      if(item){
+        _routerSilent = true;
+        try { openModal(productId); } catch(e){ console.warn('[router] openModal:', e); }
+        _routerSilent = false;
+        try { _metaForProduct(item); } catch(e){}
+        return;
+      } else {
+        // Produit pas trouvé après chargement complet
+        if(tries >= 5){
+          // Afficher l'alerte "produit non trouvé" si dispo
+          var pnf = document.getElementById('pnf-overlay');
+          if(pnf){ pnf.style.display = 'flex'; }
+          _metaForPage('catalogue');
+          return;
+        }
+      }
+    }
+    // Produits pas encore chargés ou produit pas trouvé → réessayer
+    if(tries < 40) setTimeout(function(){ _waitForProductAndOpen(productId, tries+1); }, 250);
   }
 
   /* ─── Hooks sur showPage et openModal ─────────────────────── */
@@ -24434,7 +24459,8 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
         _setUrl({ page: current.page, product: id }, false);
         // Mettre à jour meta avec produit
         try {
-          var item = window.products && window.products.find(function(p){ return String(p.id) === String(id); });
+          var prods = _getProducts();
+          var item = prods && prods.find(function(p){ return String(p.id) === String(id); });
           if(item) _metaForProduct(item);
         } catch(e){}
       }
@@ -24477,7 +24503,8 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
   /* ─── Bouton "Partager" sur les produits ──────────────────── */
   window._ecoShareProduct = function(productId){
     var url = window._ecoUrlProduct(productId);
-    var item = window.products && window.products.find(function(p){ return String(p.id) === String(productId); });
+    var prods = _getProducts();
+    var item = prods && prods.find(function(p){ return String(p.id) === String(productId); });
     var name = item ? ((item.marque||item.brand||'') + ' ' + (item.modele||item.model||item.nom||'')).trim() : 'ce produit';
     var price = item && item.prix ? ' à ' + Number(item.prix).toLocaleString('fr-FR') + ' FCFA' : '';
     var msg = '👀 Regarde ' + name + price + ' sur EcoDila :\n' + url;
@@ -24543,10 +24570,10 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
   function _initRouter(){
     var params = _getParams();
     if(params.page || params.product){
-      // Donner du temps à showPage et products de se charger
-      setTimeout(function(){ _applyRoute(params); }, 800);
-      // Re-essayer après le chargement complet
-      setTimeout(function(){ _applyRoute(params); }, 2500);
+      // Application unique. Pour les produits, _waitForProductAndOpen
+      // gère lui-même la boucle d'attente jusqu'à 10s.
+      // On laisse 600ms pour que showPage soit défini.
+      setTimeout(function(){ _applyRoute(params); }, 600);
     }
   }
   if(document.readyState === 'loading'){
