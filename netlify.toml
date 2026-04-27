@@ -91,6 +91,7 @@
   for = "/*.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
+    Content-Type = "text/html; charset=utf-8"
 
 # ── Cache agressif pour la page d'accueil client (Option B) ──
 # max-age=600       : navigateur peut servir depuis cache pendant 10 min
@@ -105,9 +106,11 @@
   for = "/index.html"
   [headers.values]
     Cache-Control = "public, max-age=600, stale-while-revalidate=3600"
+    Content-Type = "text/html; charset=utf-8"
 
 # Couvre aussi https://ecodila.com/ (route racine)
 [[headers]]
   for = "/"
   [headers.values]
     Cache-Control = "public, max-age=600, stale-while-revalidate=3600"
+    Content-Type = "text/html; charset=utf-8"
