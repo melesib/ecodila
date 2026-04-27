@@ -12674,11 +12674,18 @@ function _doRenderCatalogue(items){
   catalogueGrid.innerHTML=_displayItems.map((item,idx)=>{
     // Détection des photos multiples (compatibilité back office)
     const hasMultipleImages = item.photos && Array.isArray(item.photos) && item.photos.length > 1;
+    // Extraction robuste : on prend le premier champ string non-vide
+    // (compat: data, url, dataUrl, image, ou la photo elle-même si c'est une string)
+    const _extractPhoto = function(p){
+      if(!p) return null;
+      if(typeof p === 'string') return p;
+      return p.data || p.url || p.dataUrl || p.image || null;
+    };
     const images = item.photos && Array.isArray(item.photos) && item.photos.length > 0
-      ? item.photos.map(p => p.data || p)
+      ? item.photos.map(_extractPhoto).filter(Boolean)
       : item.imgs && Array.isArray(item.imgs) && item.imgs.length > 0
-        ? item.imgs
-        : item.img ? [item.img] : [];
+        ? item.imgs.filter(function(u){ return u && typeof u === 'string'; })
+        : item.img && typeof item.img === 'string' ? [item.img] : [];
 
     return `
     <div class="card ${_isBoostLive(item) ? 'is-boosted' : ''}" onclick="openModal('${item.id}')">
@@ -13345,11 +13352,17 @@ function openModal(id){
   if(typeof buyCouponReset==='function') buyCouponReset();
 
   // Gérer les photos (compatibilité back office)
+  // Extraction robuste : on prend le premier champ string non-vide
+  const _extractPhotoModal = function(p){
+    if(!p) return null;
+    if(typeof p === 'string') return p;
+    return p.data || p.url || p.dataUrl || p.image || null;
+  };
   const photos = item.photos && Array.isArray(item.photos) && item.photos.length > 0
-    ? item.photos.map(p => p.data || p)
+    ? item.photos.map(_extractPhotoModal).filter(Boolean)
     : item.imgs && Array.isArray(item.imgs) && item.imgs.length > 0
-      ? item.imgs
-      : item.img ? [item.img] : [];
+      ? item.imgs.filter(function(u){ return u && typeof u === 'string'; })
+      : item.img && typeof item.img === 'string' ? [item.img] : [];
 
   // Titre du modal
   document.getElementById('modalTitle').textContent=`${CE[item.cat]||'📦'} ${item.brand || item.marque || ''} ${item.model || item.modele || ''}`;
@@ -20211,10 +20224,15 @@ function renderFeatured() {
         const item = entry.item;
         const type = entry.type;
 
+        const _extractPhotoFeat = function(p){
+            if(!p) return null;
+            if(typeof p === 'string') return p;
+            return p.data || p.url || p.dataUrl || p.image || null;
+        };
         const images = item.photos && item.photos.length > 0
-            ? item.photos.map(function(p){ return p.data||p; })
-            : item.imgs && item.imgs.length > 0 ? item.imgs
-            : item.img ? [item.img] : [];
+            ? item.photos.map(_extractPhotoFeat).filter(Boolean)
+            : item.imgs && item.imgs.length > 0 ? item.imgs.filter(function(u){return u && typeof u === 'string';})
+            : item.img && typeof item.img === 'string' ? [item.img] : [];
         const imgSrc = images[0] || '';
         const nom = item.nom || ((item.brand||item.marque||'') + ' ' + (item.model||item.modele||'')).trim() || 'Produit';
 

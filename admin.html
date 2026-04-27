@@ -12837,7 +12837,7 @@ function login(e) {
             }
         }
         // 3. Query directe Supabase settings
-        _sb.from('settings').select('value').eq('key', k).single().then(function(res){
+        _sb.from('settings').select('value').eq('key', k).maybeSingle().then(function(res){
             var v = res.data && res.data.value;
             if(typeof v === 'string'){ try{ v = JSON.parse(v); }catch(e){ v=null; } }
             if(v && v.secret && v.enabled){
@@ -16721,7 +16721,7 @@ function loadTrocPhotoStrip(trocId, nbPhotos) {
     }
 
     /* 3. Sinon chercher directement dans Supabase (requête fraîche) */
-    _sb.from('trocs').select('photos').eq('id', trocId).single().then(function(r){
+    _sb.from('trocs').select('photos').eq('id', trocId).maybeSingle().then(function(r){
         var freshPhotos = _parseTrocPhotos(r.data ? r.data.photos : null);
         if(freshPhotos.length > 0){
             _renderTrocPhotoStrip(container, trocId, freshPhotos);
@@ -16818,7 +16818,7 @@ function viewTrocPhotoFromIDB(trocId, startIdx) {
     }
 
     /* 2. Requête Supabase fraîche */
-    _sb.from('trocs').select('photos').eq('id', trocId).single().then(function(r){
+    _sb.from('trocs').select('photos').eq('id', trocId).maybeSingle().then(function(r){
         var freshP = _parseTrocPhotos(r.data ? r.data.photos : null);
         if(freshP.length > 0){
             openTrocPhotoViewer(t, freshP, startIdx);
@@ -17010,7 +17010,7 @@ function viewTrocDetails(trocId) {
         return;
     }
     /* 2. Requête Supabase fraîche */
-    _sb.from('trocs').select('photos').eq('id', trocId).single().then(function(r){
+    _sb.from('trocs').select('photos').eq('id', trocId).maybeSingle().then(function(r){
         var detFresh = _parseTrocPhotos(r.data ? r.data.photos : null);
         if(detFresh.length > 0){
             renderModal(detFresh);
@@ -23414,7 +23414,7 @@ function openBoostModal(productId) {
         if(cached && cached.active) p.boost = cached;
     }
     // Query Supabase en parallèle pour garantir les données fraîches
-    _sb.from('settings').select('value').eq('key', boostKey).single().then(function(r){
+    _sb.from('settings').select('value').eq('key', boostKey).maybeSingle().then(function(r){
         if(r.data && r.data.value){
             var b = r.data.value;
             if(typeof b === 'string'){ try{ b = JSON.parse(b); }catch(e){} }
@@ -23598,7 +23598,7 @@ function bmSave() {
             } else {
                 console.log('[Boost] ✅ Sauvé:', boostKey);
                 // Vérification
-                _sb.from('settings').select('value').eq('key', boostKey).single().then(function(v){
+                _sb.from('settings').select('value').eq('key', boostKey).maybeSingle().then(function(v){
                     if(v.data && v.data.value) console.log('[Boost] ✅ Vérifié en base');
                     else console.error('[Boost] ❌ Vérification échouée !');
                 });
@@ -23727,14 +23727,25 @@ function _boostOpenPromoModal(product) {
     var enc = encodeURIComponent(msg);
 
     // Récupérer l'image du produit
+    // Format BO admin : product.photos = [{ data: "data:image/...", name, isMain }]
     var pImg = '';
     try {
       if(product.photos && product.photos.length){
-        var mainPhoto = product.photos.find(function(p){return p.isMain;}) || product.photos[0];
-        pImg = mainPhoto.url || mainPhoto.dataUrl || mainPhoto || '';
+        var mainPhoto = product.photos.find(function(p){return p && p.isMain;}) || product.photos[0];
+        if(mainPhoto){
+          // Priorité au champ "data" (format BO), puis fallbacks
+          var candidate = mainPhoto.data || mainPhoto.url || mainPhoto.dataUrl || mainPhoto.image;
+          // Si c'est directement une string, l'utiliser
+          if(typeof candidate === 'string' && candidate) pImg = candidate;
+          // Si mainPhoto est lui-même une string (ancien format), l'utiliser
+          else if(typeof mainPhoto === 'string' && mainPhoto) pImg = mainPhoto;
+        }
       }
-      if(!pImg) pImg = product.image || product.img || '';
-    } catch(e){}
+      if(!pImg && typeof product.image === 'string') pImg = product.image;
+      if(!pImg && typeof product.img === 'string') pImg = product.img;
+    } catch(e){ pImg = ''; }
+    // Sécurité absolue : pImg DOIT être une string
+    if(typeof pImg !== 'string') pImg = '';
 
     var imgBlock = '';
     if(pImg){
@@ -23799,7 +23810,11 @@ function _boostWaToggleAll(checked) {
 function _boostDownloadImage(){
     var imgUrl = window._boostProductImage;
     var name = window._boostProductName || 'produit';
-    if(!imgUrl){ showNotification('⚠️ Aucune image disponible', 'warning'); return; }
+    // Sécurité : si imgUrl n'est pas une string utilisable, on s'arrête proprement
+    if(!imgUrl || typeof imgUrl !== 'string'){
+        showNotification('⚠️ Aucune image disponible', 'warning');
+        return;
+    }
 
     function _downloadBlob(blob, filename){
         var url = URL.createObjectURL(blob);
@@ -23854,7 +23869,11 @@ function _boostDownloadImage(){
 /* ─── Copier l'image dans le presse-papier (Web ClipBoard API) ───── */
 function _boostCopyImage(){
     var imgUrl = window._boostProductImage;
-    if(!imgUrl){ showNotification('⚠️ Aucune image disponible', 'warning'); return; }
+    // Sécurité : si imgUrl n'est pas une string utilisable, on s'arrête proprement
+    if(!imgUrl || typeof imgUrl !== 'string'){
+        showNotification('⚠️ Aucune image disponible', 'warning');
+        return;
+    }
 
     function _dataURLtoBlob(dataUrl){
         try {
@@ -49796,7 +49815,7 @@ var _tfaForceProceedFn   = null;
 function tfaForceSetup(adminRecord, proceedFn) {
     // ── Safety net: vérifier DIRECTEMENT dans Supabase avant d'afficher le QR ──
     var k = 'ecodila_2fa_' + adminRecord.id;
-    _sb.from('settings').select('value').eq('key', k).single().then(function(res){
+    _sb.from('settings').select('value').eq('key', k).maybeSingle().then(function(res){
         var v = res.data && res.data.value;
         if(typeof v === 'string'){ try{ v = JSON.parse(v); }catch(e){ v=null; } }
         if(v && v.secret && v.enabled){
