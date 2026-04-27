@@ -10379,7 +10379,7 @@ function _clView(refId,type){
   if(cl.items){Object.keys(cl.items).forEach(function(k){var ok=cl.items[k];var nt=cl.notes&&cl.notes[k]||'';var lbl=cl.labels&&cl.labels[k]?cl.labels[k]:(_CL_LABELS[k]||k.replace(/_/g,' '));h+='<div style="padding:.25rem 0;border-bottom:1px solid #f3f4f6;display:flex;align-items:flex-start;gap:.3rem"><span style="font-size:.8rem">'+(ok?'✅':'❌')+'</span><div style="flex:1"><div style="font-size:.7rem;font-weight:600;color:#1f2937">'+lbl+'</div>'+(nt?'<div style="font-size:.6rem;color:#6b7280">'+nt+'</div>':'')+'</div></div>';});}
   if(cl.imei)h+='<div style="margin-top:.5rem;padding:.3rem .5rem;background:#fffbeb;border:1px solid #fef3c7;border-radius:5px;font-size:.65rem;color:#92400e">🔐 IMEI: <strong>'+cl.imei+'</strong></div>';
   if(cl.comment)h+='<div style="margin-top:.3rem;padding:.3rem .5rem;background:#f9fafb;border-radius:5px;font-size:.65rem;color:#374151">📝 '+cl.comment+'</div>';
-  if(cl.signature&&cl.signature.length>200)h+='<div style="margin-top:.4rem"><div style="font-size:.6rem;color:#6b7280;margin-bottom:.1rem">✍️ '+(type==='diagnostic'?'Technicien':'Client')+'</div><img src="'+cl.signature+'" style="max-width:100%;height:50px;border:1px solid #e5e7eb;border-radius:5px;background:#fafafa"></div>';
+  if(cl.signature&&cl.signature.length>200)h+='<div style="margin-top:.4rem"><div style="font-size:.6rem;color:#6b7280;margin-bottom:.1rem">✍️ '+(type==='diagnostic'?'Technicien':'Client')+'</div><img src="'+cl.signature+'" style="max-width:100%;height:50px;border:1px solid #e5e7eb;border-radius:5px;background:#fafafa" alt="Image"></div>';
   if(cl.techName)h+='<div style="margin-top:.2rem;font-size:.6rem;color:#6b7280">👨‍🔧 '+cl.techName+'</div>';
   h+='</div></div></div>';
   var old=document.getElementById('cl-view');if(old)old.remove();
@@ -12213,11 +12213,11 @@ function performSearch(query) {
         var nm = _esc(prod.nom || '') || bm || 'Produit';
         var pid = String(prod.id || '').replace(/'/g, "\\'");
         var imgH = mainImg
-          ? '<img src="' + mainImg + '" class="search-result-img" onerror="this.style.display=\'none\'">'
+          ? '<img src="' + mainImg + '" class="search-result-img" onerror="this.style.display=\'none\'" alt="Image">'
           : '<div class="search-result-img" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">📦</div>';
         html += '<div style="display:flex;align-items:center;gap:clamp(.4rem,2vw,.6rem);padding:clamp(.45rem,2vw,.65rem);border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer" onclick="openModalFromSearch(\'' + pid + '\')">'
           + (mainImg
-            ? '<img src="'+mainImg+'" style="width:clamp(36px,12vw,50px);height:clamp(36px,12vw,50px);min-width:36px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,.05)" onerror="this.style.display=\'none\'">'
+            ? '<img src="'+mainImg+'" style="width:clamp(36px,12vw,50px);height:clamp(36px,12vw,50px);min-width:36px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,.05)" onerror="this.style.display=\'none\'" alt="Image">'
             : '<div style="width:clamp(36px,12vw,50px);height:clamp(36px,12vw,50px);min-width:36px;border-radius:8px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;font-size:1.2rem">📦</div>')
           + '<div style="flex:1;min-width:0">'
           + '<div style="font-weight:700;color:#ffffff;font-size:clamp(.7rem,2.5vw,.85rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nm + '</div>'
@@ -13377,14 +13377,14 @@ function openModal(id){
              src="${photos[0]}"
              onclick="event.stopPropagation();_showImgFull(this.src)"
              style="width:100%;height:clamp(160px,28vh,250px);object-fit:contain;background:#fff;cursor:zoom-in;display:block"
-             title="Agrandir">
+             title="Agrandir" alt="Image">
 
         <!-- Miniatures cliquables -->
         ${photos.length>1?`
         <div style="display:flex;gap:4px;padding:4px;background:var(--cream);overflow-x:auto">
           ${photos.map((u, idx)=>`
             <img src="${u}"
-                 onclick="document.getElementById('modal-main-image').src='${u}'; this.parentElement.querySelectorAll('img').forEach(i=>i.style.borderColor='transparent'); this.style.borderColor='var(--gl)'"
+                 onclick="document.getElementById('modal-main-image').src='${u}'; this.parentElement.querySelectorAll('img').forEach(i= alt="Image">i.style.borderColor='transparent'); this.style.borderColor='var(--gl)'"
                  style="height:36px;min-width:36px;object-fit:contain;background:white;border-radius:4px;cursor:pointer;border:2px solid ${idx===0?'var(--gl)':'transparent'};padding:.15rem"
                  title="Cliquer pour changer l'image principale">
           `).join('')}
@@ -17362,7 +17362,7 @@ function openStockForm(id){
     document.getElementById('sf-qty').value=p.qty||1;
     const imgPrev=document.getElementById('sf-img-preview');
     if(!imgPrev)return;
-    if(p.img) imgPrev.innerHTML=`<img src="${p.img}" class="img-thumb"> <span style="font-size:.78rem">Image actuelle</span>`;
+    if(p.img) imgPrev.innerHTML=`<img src="${p.img}" class="img-thumb" alt="Image"> <span style="font-size:.78rem">Image actuelle</span>`;
     else imgPrev.innerHTML=`<span>📷</span> Cliquer pour changer l'image`;
   } else {
     document.getElementById('stock-form-title').textContent='+ Nouvel article';
@@ -17381,7 +17381,7 @@ function previewStockImgs(input){
   prev.innerHTML=`<span style="color:var(--green);font-weight:600">✅ ${files.length} image(s) sélectionnée(s)</span>`;
   grid.innerHTML=files.map((f,i)=>{
     const url=URL.createObjectURL(f);
-    return `<div style="position:relative"><img src="${url}" style="width:100%;height:55px;object-fit:cover;border-radius:6px;border:1.5px solid var(--border)"><span style="position:absolute;top:2px;left:4px;font-size:.6rem;background:var(--black);color:white;border-radius:3px;padding:1px 4px">${i===0?'🌟':i+1}</span></div>`;
+    return `<div style="position:relative"><img src="${url}" style="width:100%;height:55px;object-fit:cover;border-radius:6px;border:1.5px solid var(--border)" alt="Image"><span style="position:absolute;top:2px;left:4px;font-size:.6rem;background:var(--black);color:white;border-radius:3px;padding:1px 4px">${i===0?'🌟':i+1}</span></div>`;
   }).join('');
   // Stocker les URLs pour saveStockItem
   window._stockImgUrls=files.map(f=>URL.createObjectURL(f));
@@ -17498,8 +17498,8 @@ function renderStock(){
   document.getElementById('stockTable').innerHTML=products.map(p=>`
     <div class="bo-table-row" style="grid-template-columns:.4fr .5fr .9fr 1.3fr .8fr .7fr .8fr .8fr">
       <span>${p.imgs&&p.imgs.length?
-        `<div style="display:flex;gap:2px">${p.imgs.slice(0,2).map(u=>`<img src="${u}" class="img-thumb" style="width:28px;height:28px">`).join('')}${p.imgs.length>2?`<span style="font-size:.7rem;align-self:center;color:var(--gray)">+${p.imgs.length-2}</span>`:''}</div>`
-        :p.img?`<img src="${p.img}" class="img-thumb">`:`<span style="font-size:1.5rem">${CE[p.cat]||'📦'}</span>`}</span>
+        `<div style="display:flex;gap:2px">${p.imgs.slice(0,2).map(u=>`<img src="${u}" class="img-thumb" style="width:28px;height:28px" alt="Image">`).join('')}${p.imgs.length>2?`<span style="font-size:.7rem;align-self:center;color:var(--gray)">+${p.imgs.length-2}</span>`:''}</div>`
+        :p.img?`<img src="${p.img}" class="img-thumb" alt="Image">`:`<span style="font-size:1.5rem">${CE[p.cat]||'📦'}</span>`}</span>
       <span style="font-size:.8rem">${CE[p.cat]||'📦'} ${p.cat}</span>
       <span>${p.marque}</span>
       <span style="font-weight:600">${p.modele}</span>
@@ -24062,7 +24062,7 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
 
 <!-- Image plein écran -->
 <div id="ecoImgFull" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);align-items:center;justify-content:center;cursor:pointer;padding:.5rem">
-<img id="ecoImgFullSrc" style="max-width:96%;max-height:92vh;object-fit:contain;border-radius:6px">
+<img id="ecoImgFullSrc" style="max-width:96%;max-height:92vh;object-fit:contain;border-radius:6px" alt="Image">
 <div id="ecoImgFullBadge" style="display:none;position:absolute;top:14px;left:14px;font-size:.82rem;font-weight:800;padding:.4rem .75rem;border-radius:7px;white-space:nowrap;z-index:10000;letter-spacing:.4px;box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none;text-transform:uppercase;color:#fff"></div>
 <div id="ecoImgFullWarranty" style="display:none;position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:rgba(5,95,70,.95);color:#fff;font-size:.72rem;font-weight:700;padding:.4rem .8rem;border-radius:20px;white-space:nowrap;z-index:10000;letter-spacing:.2px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.3)">✅ Vérifié par EcoDila · Garantie 3 mois</div>
 <div onclick="document.getElementById('ecoImgFull').style.display='none'" style="position:absolute;top:10px;right:14px;color:#fff;font-size:1.3rem;font-weight:700;cursor:pointer;background:rgba(0,0,0,.5);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center">✕</div>
