@@ -24700,6 +24700,11 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
           return navigator.share(shareData);
         })
         .catch(function(err){
+          // AbortError = l'utilisateur a fermé le menu de partage volontairement
+          // → ne PAS faire de fallback, c'est intentionnel
+          if(err && (err.name === 'AbortError' || err.message === 'Share canceled')){
+            return; // silence intentionnel
+          }
           console.warn('[share] Échec partage avec image, fallback texte:', err);
           _shareTextOnly();
         });
@@ -24711,7 +24716,11 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
           title: name + ' | EcoDila',
           text: msg,
           url: url
-        }).catch(function(){
+        }).catch(function(err){
+          // AbortError = annulation utilisateur, ne pas re-fallback
+          if(err && (err.name === 'AbortError' || err.message === 'Share canceled')){
+            return;
+          }
           _ecoCopyToClipboard(msg, '✅ Message copié — colle-le sur WhatsApp');
         });
         return;

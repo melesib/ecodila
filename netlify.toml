@@ -29,6 +29,12 @@
   function = "og-product"
   path = "/index.html"
 
+# Sert les images de produits en binaire pour les bots WhatsApp/Facebook
+# (les bots ne peuvent pas afficher les images stockées en base64)
+[[edge_functions]]
+  function = "og-image"
+  path = "/og-image/*"
+
 [[headers]]
   for = "/*"
   [headers.values]

@@ -168,19 +168,9 @@ function buildProductMeta(product, baseUrl) {
 
   const description = parts.join(" ").substring(0, 300);
 
-  // Image
-  let image = "";
-  if (Array.isArray(product.photos) && product.photos.length > 0) {
-    const main = product.photos.find(p => p && p.isMain) || product.photos[0];
-    image = (main && (main.url || main)) || "";
-  }
-  if (!image && product.image) image = product.image;
-  if (!image) image = `${baseUrl}/logo.png`;
-
-  // Image absolue
-  if (image && !image.startsWith("http") && !image.startsWith("data:")) {
-    image = `${baseUrl}${image.startsWith("/") ? "" : "/"}${image}`;
-  }
+  // Image — utiliser /og-image/PRODID qui sert l'image en binaire
+  // (les bots WhatsApp/Facebook ne peuvent PAS afficher des data:image base64)
+  let image = `${baseUrl}/og-image/${encodeURIComponent(product.id)}`;
 
   // URL canonique
   const productUrl = `${baseUrl}/?p=${encodeURIComponent(product.id)}`;
@@ -300,11 +290,6 @@ export default async (request, context) => {
   const url = new URL(request.url);
   const userAgent = request.headers.get("user-agent") || "";
 
-  // Si pas un bot → laisser passer normalement
-  if (!isBot(userAgent)) {
-    return context.next();
-  }
-
   // Vérifier si l'URL contient un paramètre p= ou page=
   const productId = url.searchParams.get("p");
   const pageName = url.searchParams.get("page");
@@ -313,6 +298,20 @@ export default async (request, context) => {
   if (!productId && !pageName) {
     return context.next();
   }
+
+  // ════════════════════════════════════════════════════════════════
+  // STRATÉGIE :
+  // - Pour les bots de scraping → toujours réécrire (priorité max)
+  // - Pour les humains → réécrire AUSSI (les meta tags ne gênent pas
+  //   l'utilisateur, le router JS prendra le relais ensuite, et ça
+  //   garantit que TOUT bot non-listé dans BOT_USER_AGENTS verra le
+  //   bon contenu).
+  //
+  // Pourquoi : on ne sait jamais quel user-agent WhatsApp/Facebook va
+  // envoyer (ça change avec les versions). Mieux vaut toujours servir
+  // le bon HTML — les humains s'en fichent, le router JS gère le reste.
+  // ════════════════════════════════════════════════════════════════
+  const isBotUA = isBot(userAgent);
 
   // Récupérer le HTML normal
   const response = await context.next();
@@ -355,8 +354,11 @@ export default async (request, context) => {
     headers: {
       ...Object.fromEntries(response.headers),
       "content-type": "text/html; charset=utf-8",
-      "cache-control": "public, max-age=300, stale-while-revalidate=600",
+      "cache-control": isBotUA
+        ? "public, max-age=3600, s-maxage=86400"  // bots : cache 1h navigateur, 1j CDN
+        : "public, max-age=300, stale-while-revalidate=600",  // humains : 5min
       "x-edge-og": productId ? "product" : "page",
+      "x-edge-og-bot": isBotUA ? "yes" : "no",
     },
   });
 };
