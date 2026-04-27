@@ -24,10 +24,15 @@
 <meta property="og:url" content="https://ecodila.com/">
 <meta property="og:title" content="EcoDila — Achetez, Troquez & Négociez vos appareils">
 <meta property="og:description" content="La marketplace d'appareils reconditionnés en Côte d'Ivoire. Smartphones, TV, drones à prix réduits. Livraison Abidjan.">
+<meta property="og:image" content="https://ecodila.com/logo.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:site_name" content="EcoDila">
-<meta name="twitter:card" content="summary">
+<meta property="og:locale" content="fr_FR">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="EcoDila — Marketplace d'appareils en Côte d'Ivoire">
 <meta name="twitter:description" content="Achetez, troquez ou négociez vos appareils. Livraison Abidjan et CI.">
+<meta name="twitter:image" content="https://ecodila.com/logo.png">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebSite","name":"EcoDila","url":"https://ecodila.com","description":"Marketplace d'appareils reconditionnés en Côte d'Ivoire","potentialAction":{"@type":"SearchAction","target":"https://ecodila.com/?q={search_term_string}","query-input":"required name=search_term_string"}}
 </script>
@@ -24635,8 +24640,43 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
 
     // Récupérer la première image du produit
     var imgUrl = item.image || item.img || (item.photos && item.photos.length ? (item.photos[0].url || item.photos[0]) : '');
-    if(imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')){
+    if(imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:') && !imgUrl.startsWith('blob:')){
       imgUrl = window.location.origin + (imgUrl.startsWith('/') ? '' : '/') + imgUrl;
+    }
+
+    /* Convertit data:image base64 en Blob directement (sans fetch CSP-bloqué) */
+    function _dataURLtoBlob(dataUrl){
+      try {
+        var parts = dataUrl.split(',');
+        var meta = parts[0];
+        var b64 = parts[1];
+        var mime = meta.match(/:(.*?);/)[1] || 'image/jpeg';
+        var bin = atob(b64);
+        var len = bin.length;
+        var bytes = new Uint8Array(len);
+        for(var i=0; i<len; i++){ bytes[i] = bin.charCodeAt(i); }
+        return new Blob([bytes], { type: mime });
+      } catch(e){ console.warn('[share] dataURLtoBlob:', e); return null; }
+    }
+
+    /* Récupère le Blob de l'image depuis un imgUrl (base64 ou http) */
+    function _getImageBlob(imgUrl){
+      return new Promise(function(resolve, reject){
+        if(!imgUrl) return reject('no-img');
+        // Cas 1 : data:image/...;base64,... → conversion directe
+        if(imgUrl.indexOf('data:image') === 0){
+          var blob = _dataURLtoBlob(imgUrl);
+          if(blob) return resolve(blob);
+          return reject('decode-failed');
+        }
+        // Cas 2 : URL http(s) → fetch (autorisé par CSP pour https:)
+        try {
+          fetch(imgUrl, { mode: 'cors' })
+            .then(function(r){ if(!r.ok) throw new Error('fetch-failed'); return r.blob(); })
+            .then(resolve)
+            .catch(reject);
+        } catch(e){ reject(e); }
+      });
     }
 
     // Tentative d'attacher l'image via Web Share API niveau 2 (avec files)
@@ -24644,9 +24684,7 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
       if(!imgUrl || !navigator.share || !navigator.canShare){
         return _shareTextOnly();
       }
-      // Récupérer l'image et la convertir en File pour partage
-      fetch(imgUrl)
-        .then(function(r){ return r.blob(); })
+      _getImageBlob(imgUrl)
         .then(function(blob){
           var ext = (blob.type.split('/')[1]||'jpg').replace('jpeg','jpg');
           var file = new File([blob], 'ecodila-' + (productId||'produit') + '.' + ext, { type: blob.type });

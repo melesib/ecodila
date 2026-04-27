@@ -8805,8 +8805,40 @@ window._chShareProductWA = function(id){
 
   // Tentative partage avec image si l'API supporte
   var imgUrl = ch.productImage || ch.productImg || '';
-  if(imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')){
+  if(imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:') && !imgUrl.startsWith('blob:')){
     imgUrl = 'https://ecodila.com' + (imgUrl.startsWith('/') ? '' : '/') + imgUrl;
+  }
+
+  /* Convertit data:image base64 en Blob directement (évite le CSP bloquant le fetch) */
+  function _dataURLtoBlob(dataUrl){
+    try {
+      var parts = dataUrl.split(',');
+      var meta = parts[0];
+      var b64 = parts[1];
+      var mime = meta.match(/:(.*?);/)[1] || 'image/jpeg';
+      var bin = atob(b64);
+      var len = bin.length;
+      var bytes = new Uint8Array(len);
+      for(var i=0; i<len; i++){ bytes[i] = bin.charCodeAt(i); }
+      return new Blob([bytes], { type: mime });
+    } catch(e){ console.warn('[share] dataURLtoBlob:', e); return null; }
+  }
+
+  function _getImageBlob(u){
+    return new Promise(function(resolve, reject){
+      if(!u) return reject('no-img');
+      if(u.indexOf('data:image') === 0){
+        var blob = _dataURLtoBlob(u);
+        if(blob) return resolve(blob);
+        return reject('decode-failed');
+      }
+      try {
+        fetch(u, { mode: 'cors' })
+          .then(function(r){ if(!r.ok) throw new Error('fetch-failed'); return r.blob(); })
+          .then(resolve)
+          .catch(reject);
+      } catch(e){ reject(e); }
+    });
   }
 
   function _shareTextOnly(){
@@ -8826,8 +8858,7 @@ window._chShareProductWA = function(id){
 
   // Si l'image est dispo et qu'on peut partager des fichiers (mobile moderne)
   if(imgUrl && navigator.share && navigator.canShare){
-    fetch(imgUrl)
-      .then(function(r){ return r.blob(); })
+    _getImageBlob(imgUrl)
       .then(function(blob){
         var ext = (blob.type.split('/')[1]||'jpg').replace('jpeg','jpg');
         var file = new File([blob], 'ecodila-' + (ch.product||'produit') + '.' + ext, { type: blob.type });

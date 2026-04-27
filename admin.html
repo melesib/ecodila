@@ -23726,6 +23726,36 @@ function _boostOpenPromoModal(product) {
     var msg = lines.join('\n');
     var enc = encodeURIComponent(msg);
 
+    // Récupérer l'image du produit
+    var pImg = '';
+    try {
+      if(product.photos && product.photos.length){
+        var mainPhoto = product.photos.find(function(p){return p.isMain;}) || product.photos[0];
+        pImg = mainPhoto.url || mainPhoto.dataUrl || mainPhoto || '';
+      }
+      if(!pImg) pImg = product.image || product.img || '';
+    } catch(e){}
+
+    var imgBlock = '';
+    if(pImg){
+      imgBlock = '<div style="padding:.7rem .8rem;background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(37,211,102,.08));border-bottom:1px solid #2a3548">'
+        + '<div style="display:flex;gap:.7rem;align-items:flex-start">'
+        +   '<img src="' + pImg + '" alt="Produit" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:2px solid #25d366;flex-shrink:0">'
+        +   '<div style="flex:1;min-width:0">'
+        +     '<div style="font-size:.7rem;color:#fbbf24;font-weight:700;margin-bottom:.25rem">📸 IMAGE DU PRODUIT</div>'
+        +     '<div style="font-size:.66rem;color:#94a3b8;line-height:1.4;margin-bottom:.4rem">Pour un partage optimal : envoie d\'abord l\'image, puis le texte</div>'
+        +     '<div style="display:flex;gap:.3rem;flex-wrap:wrap">'
+        +       '<button onclick="_boostDownloadImage()" style="background:#fbbf24;color:#0a0e1a;border:none;padding:.3rem .6rem;border-radius:5px;font-size:.7rem;font-weight:700;cursor:pointer;font-family:inherit">📥 Télécharger</button>'
+        +       '<button onclick="_boostCopyImage()" style="background:#25D366;color:#fff;border:none;padding:.3rem .6rem;border-radius:5px;font-size:.7rem;font-weight:700;cursor:pointer;font-family:inherit">📋 Copier image</button>'
+        +     '</div>'
+        +   '</div>'
+        + '</div>'
+        + '</div>';
+      // Stocker l'image pour les fonctions de téléchargement/copie
+      window._boostProductImage = pImg;
+      window._boostProductName = pNom;
+    }
+
     var old = document.getElementById('boost-wa-modal');
     if (old) old.remove();
 
@@ -23745,6 +23775,7 @@ function _boostOpenPromoModal(product) {
         + '<div style="padding:.9rem 1rem;background:#25D366;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center">'
         + '<b style="color:#fff;font-size:.95rem">📱 Promo WhatsApp — ' + nums.length + ' contacts</b>'
         + '<button onclick="this.closest(\'#boost-wa-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:.9rem">×</button></div>'
+        + imgBlock
         + '<div style="padding:.6rem .8rem;background:#0f1724;border-bottom:1px solid #2a3548;font-size:.72rem;color:#8892a6">'
         + '<b style="color:var(--primary)">Message :</b> ' + bl + ' — ' + pNom + ' — ' + pPrix + ' FCFA<br>'
         + '<span style="color:#25d366">🔗 Lien produit inclus :</span> <code style="font-size:.66rem;color:#aaa">' + prodUrl + '</code></div>'
@@ -23762,6 +23793,145 @@ function _boostOpenPromoModal(product) {
 
 function _boostWaToggleAll(checked) {
     document.querySelectorAll('.boost-wa-cb').forEach(function(cb) { cb.checked = checked; });
+}
+
+/* ─── Télécharger l'image du produit pour partage WhatsApp ───────── */
+function _boostDownloadImage(){
+    var imgUrl = window._boostProductImage;
+    var name = window._boostProductName || 'produit';
+    if(!imgUrl){ showNotification('⚠️ Aucune image disponible', 'warning'); return; }
+
+    function _downloadBlob(blob, filename){
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    }
+
+    function _dataURLtoBlob(dataUrl){
+        try {
+            var parts = dataUrl.split(',');
+            var meta = parts[0];
+            var b64 = parts[1];
+            var mime = meta.match(/:(.*?);/)[1] || 'image/jpeg';
+            var bin = atob(b64);
+            var bytes = new Uint8Array(bin.length);
+            for(var i=0; i<bin.length; i++){ bytes[i] = bin.charCodeAt(i); }
+            return new Blob([bytes], { type: mime });
+        } catch(e){ return null; }
+    }
+
+    var fname = 'ecodila-' + name.replace(/[^a-zA-Z0-9]/g, '_').substring(0,30) + '.jpg';
+
+    // Cas data:image/...;base64
+    if(imgUrl.indexOf('data:image') === 0){
+        var blob = _dataURLtoBlob(imgUrl);
+        if(blob){
+            _downloadBlob(blob, fname);
+            showNotification('✅ Image téléchargée', 'success');
+            return;
+        }
+    }
+    // Cas URL http(s)
+    fetch(imgUrl, { mode: 'cors' })
+        .then(function(r){ return r.blob(); })
+        .then(function(blob){
+            _downloadBlob(blob, fname);
+            showNotification('✅ Image téléchargée', 'success');
+        })
+        .catch(function(err){
+            console.warn('[boost] Download:', err);
+            // Fallback : ouvrir l'image dans un nouvel onglet
+            window.open(imgUrl, '_blank');
+            showNotification('⚠️ Téléchargement direct impossible — image ouverte dans un onglet', 'warning');
+        });
+}
+
+/* ─── Copier l'image dans le presse-papier (Web ClipBoard API) ───── */
+function _boostCopyImage(){
+    var imgUrl = window._boostProductImage;
+    if(!imgUrl){ showNotification('⚠️ Aucune image disponible', 'warning'); return; }
+
+    function _dataURLtoBlob(dataUrl){
+        try {
+            var parts = dataUrl.split(',');
+            var meta = parts[0];
+            var b64 = parts[1];
+            var mime = meta.match(/:(.*?);/)[1] || 'image/png';
+            var bin = atob(b64);
+            var bytes = new Uint8Array(bin.length);
+            for(var i=0; i<bin.length; i++){ bytes[i] = bin.charCodeAt(i); }
+            return new Blob([bytes], { type: mime });
+        } catch(e){ return null; }
+    }
+
+    function _copyBlob(blob){
+        if(!navigator.clipboard || !window.ClipboardItem){
+            // Pas supporté → fallback download
+            showNotification('⚠️ Copie non supportée — utilisation du téléchargement', 'warning');
+            _boostDownloadImage();
+            return;
+        }
+        // ClipboardItem requiert PNG (pas JPEG) sur la plupart des navigateurs
+        // Si c'est du JPEG, on convertit via canvas
+        if(blob.type !== 'image/png'){
+            var img = new Image();
+            var url = URL.createObjectURL(blob);
+            img.onload = function(){
+                var canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+                canvas.toBlob(function(pngBlob){
+                    if(!pngBlob){ showNotification('❌ Conversion PNG échouée', 'error'); return; }
+                    navigator.clipboard.write([
+                        new ClipboardItem({ 'image/png': pngBlob })
+                    ]).then(function(){
+                        showNotification('✅ Image copiée — colle-la dans WhatsApp (Ctrl+V)', 'success');
+                    }).catch(function(err){
+                        console.warn('[boost] Clipboard:', err);
+                        showNotification('⚠️ Copie échouée — utilisation du téléchargement', 'warning');
+                        _boostDownloadImage();
+                    });
+                    URL.revokeObjectURL(url);
+                }, 'image/png');
+            };
+            img.onerror = function(){
+                URL.revokeObjectURL(url);
+                showNotification('❌ Image illisible', 'error');
+            };
+            img.src = url;
+        } else {
+            navigator.clipboard.write([
+                new ClipboardItem({ 'image/png': blob })
+            ]).then(function(){
+                showNotification('✅ Image copiée — colle-la dans WhatsApp (Ctrl+V)', 'success');
+            }).catch(function(err){
+                console.warn('[boost] Clipboard:', err);
+                showNotification('⚠️ Copie échouée', 'warning');
+                _boostDownloadImage();
+            });
+        }
+    }
+
+    if(imgUrl.indexOf('data:image') === 0){
+        var blob = _dataURLtoBlob(imgUrl);
+        if(blob) return _copyBlob(blob);
+        showNotification('❌ Image illisible', 'error');
+        return;
+    }
+    fetch(imgUrl, { mode: 'cors' })
+        .then(function(r){ return r.blob(); })
+        .then(_copyBlob)
+        .catch(function(err){
+            console.warn('[boost] Fetch:', err);
+            showNotification('⚠️ Copie impossible — utilisation du téléchargement', 'warning');
+            _boostDownloadImage();
+        });
 }
 
 function _boostWaSendSelected() {
