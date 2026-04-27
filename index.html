@@ -24440,11 +24440,20 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
     return null;
   }
 
-  /* Boucle d'attente pour ouvrir un produit */
-  function _waitForProductAndOpen(productId, tries){
+  /* Boucle d'attente pour ouvrir un produit
+     Stratégie en 3 phases :
+     - Phase 1 : attendre que window.products soit non-vide (cache ou Supabase)
+     - Phase 2 : si produit absent du cache → continuer à attendre la fraîche refresh Supabase
+     - Phase 3 : timeout 20s → si toujours absent, afficher PNF avec ID lisible
+  */
+  function _waitForProductAndOpen(productId, tries, lastProductsLength){
     tries = tries || 0;
+    lastProductsLength = lastProductsLength || 0;
     var prods = _getProducts();
-    if(prods && prods.length && typeof openModal === 'function'){
+    var currentLen = prods ? prods.length : 0;
+
+    // Cas 1 : on a des produits → essayer de trouver le produit demandé
+    if(currentLen > 0 && typeof openModal === 'function'){
       var item = prods.find(function(p){ return String(p.id) === String(productId); });
       if(item){
         _routerSilent = true;
@@ -24452,19 +24461,38 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
         _routerSilent = false;
         try { _metaForProduct(item); } catch(e){}
         return;
-      } else {
-        // Produit pas trouvé après chargement complet
-        if(tries >= 5){
-          // Afficher l'alerte "produit non trouvé" si dispo
-          var pnf = document.getElementById('pnf-overlay');
-          if(pnf){ pnf.style.display = 'flex'; }
-          _metaForPage('catalogue');
-          return;
-        }
       }
+      // Produit absent — peut-être cache obsolète
+      // → continuer à attendre que la liste change (fraîche depuis Supabase)
     }
-    // Produits pas encore chargés ou produit pas trouvé → réessayer
-    if(tries < 40) setTimeout(function(){ _waitForProductAndOpen(productId, tries+1); }, 250);
+
+    // Cas 2 : Si la liste n'a pas grossi depuis 80 essais (20s), considérer comme introuvable
+    if(currentLen === lastProductsLength && tries >= 80){
+      console.warn('[router] Produit non trouvé après 20s :', productId, '(', currentLen, 'produits chargés)');
+      if(typeof window.ouvrirModalProduitIntrouvable === 'function'){
+        window.ouvrirModalProduitIntrouvable('Produit ID : ' + productId);
+      } else {
+        var pnf = document.getElementById('pnf-overlay');
+        if(pnf){ pnf.style.display = 'flex'; }
+      }
+      _metaForPage('catalogue');
+      return;
+    }
+
+    // Réessayer (jusqu'à 120 essais = 30s max)
+    if(tries < 120){
+      // Si la liste a changé, reset le compteur lastProductsLength pour donner plus de temps
+      var nextLast = (currentLen !== lastProductsLength) ? currentLen : lastProductsLength;
+      // Et reset tries si la liste vient de changer (on a vu de nouveaux produits)
+      var nextTries = (currentLen > lastProductsLength) ? Math.max(0, tries - 5) : tries + 1;
+      setTimeout(function(){
+        _waitForProductAndOpen(productId, nextTries, nextLast);
+      }, 250);
+    } else {
+      // Timeout absolu
+      console.warn('[router] Timeout 30s :', productId);
+      _metaForPage('catalogue');
+    }
   }
 
   /* ─── Hooks sur showPage et openModal ─────────────────────── */
