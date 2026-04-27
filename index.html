@@ -9903,7 +9903,16 @@ function demanderAuthentification(){
 <div id="copy-blocked-msg" class="copy-blocked">🚫 Contenu protégé — EcoDila © 2026</div>
 <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
   <div class="modal">
-    <div class="modal-header"><h3 id="modalTitle">Appareil</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-header" style="display:flex;align-items:center;gap:.4rem">
+      <h3 id="modalTitle" style="flex:1;margin:0">Appareil</h3>
+      <button onclick="if(currentModalId)_ecoShareProduct(currentModalId)" title="Partager ce produit" aria-label="Partager"
+              style="background:rgba(82,183,136,.15);border:1.5px solid rgba(82,183,136,.4);color:var(--green);width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:all .2s"
+              onmouseover="this.style.background='rgba(82,183,136,.25)'"
+              onmouseout="this.style.background='rgba(82,183,136,.15)'">
+        🔗
+      </button>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
     <div class="modal-body" id="modalBody"></div>
 
   </div>
@@ -21979,6 +21988,12 @@ window.applyPopups = applyPopups;
         <span style="font-size:1.2rem">🚀</span>
         <span>Devenir Parrain maintenant</span>
       </button>
+      <button onclick="_ecoSharePage('parrainage')" title="Partager le programme parrainage" aria-label="Partager"
+              style="padding:.65rem 1rem;background:rgba(82,183,136,.15);color:var(--green);border:1.5px solid rgba(82,183,136,.4);border-radius:10px;cursor:pointer;font-size:.85rem;font-weight:700;font-family:inherit;display:inline-flex;align-items:center;gap:.4rem;margin-left:.5rem;transition:all .2s"
+              onmouseover="this.style.background='rgba(82,183,136,.25)'"
+              onmouseout="this.style.background='rgba(82,183,136,.15)'">
+        🔗 Partager
+      </button>
       <button class="par-btn-ghost" onclick="if(window.innerWidth<=768){_parSlide(0);}else{document.getElementById('par-how').scrollIntoView({behavior:'smooth'});}">
         Comment ça marche ↓
       </button>
@@ -24205,6 +24220,340 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
   // Démarrer 4s après le chargement — aucun impact sur les produits
   if(document.readyState === 'complete') setTimeout(start, 4000);
   else window.addEventListener('load', function(){ setTimeout(start, 4000); });
+})();
+</script>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     ROUTING URL — partage et référencement (SEO)
+     ════════════════════════════════════════════════════════════════
+     Permet de partager des URLs directes vers :
+     - Pages : ?page=parrainage, ?page=termes, ?page=avis, etc.
+     - Produits : ?p=PRODUCTID
+     - Combinaison : ?p=PRODUCTID&page=acheter
+     Met à jour aussi les Meta tags Open Graph dynamiquement
+     pour un beau partage WhatsApp / Facebook.
+     ════════════════════════════════════════════════════════════════ -->
+<script>
+(function _ecoRouter(){
+  'use strict';
+
+  /* Pages valides — toutes celles qui ont un id="page-XXX" */
+  var VALID_PAGES = ['catalogue','acheter','troquer','profil','avis','termes',
+                     'retours-client','parrainage'];
+
+  /* Anti-boucle pour éviter pushState quand on lit l'URL */
+  var _routerSilent = false;
+
+  /* ─── Lire l'URL actuelle ──────────────────────────────────── */
+  function _getParams(){
+    try {
+      var sp = new URLSearchParams(window.location.search);
+      return {
+        page: sp.get('page') || '',
+        product: sp.get('p') || ''
+      };
+    } catch(e){ return {page:'', product:''}; }
+  }
+
+  /* ─── Construire l'URL canonique d'un produit/page ────────── */
+  window._ecoUrlPage = function(pageName){
+    if(!pageName || pageName === 'catalogue') return window.location.origin + '/';
+    return window.location.origin + '/?page=' + encodeURIComponent(pageName);
+  };
+  window._ecoUrlProduct = function(productId){
+    return window.location.origin + '/?p=' + encodeURIComponent(productId);
+  };
+
+  /* ─── Mettre à jour l'URL sans recharger ──────────────────── */
+  function _setUrl(newParams, replace){
+    if(_routerSilent) return;
+    try {
+      var sp = new URLSearchParams();
+      if(newParams.page && newParams.page !== 'catalogue') sp.set('page', newParams.page);
+      if(newParams.product) sp.set('p', newParams.product);
+      var qs = sp.toString();
+      var url = window.location.pathname + (qs ? '?' + qs : '');
+      if(window.location.search !== (qs ? '?' + qs : '') ||
+         window.location.pathname !== window.location.pathname){
+        if(replace) window.history.replaceState({pageRoute: newParams}, '', url);
+        else        window.history.pushState({pageRoute: newParams}, '', url);
+      }
+    } catch(e){ console.warn('[router] setUrl:', e); }
+  }
+
+  /* ─── Mettre à jour les meta tags pour partage social ─────── */
+  function _updateMeta(opts){
+    opts = opts || {};
+    var title = opts.title || "EcoDila — Achetez, Troquez & Négociez vos appareils en Côte d'Ivoire";
+    var desc  = opts.desc  || "EcoDila, la marketplace d'appareils reconditionnés en Côte d'Ivoire. Achetez, troquez ou négociez smartphones, TV, drones et plus.";
+    var image = opts.image || (window.location.origin + '/logo.png');
+    var url   = opts.url   || window.location.href;
+
+    document.title = title;
+    _setMeta('description', desc, false);
+    _setMeta('og:title', title, true);
+    _setMeta('og:description', desc, true);
+    _setMeta('og:image', image, true);
+    _setMeta('og:url', url, true);
+    _setMeta('twitter:title', title, false);
+    _setMeta('twitter:description', desc, false);
+    _setMeta('twitter:image', image, false);
+
+    // Canonical
+    var can = document.querySelector('link[rel="canonical"]');
+    if(can) can.setAttribute('href', url);
+  }
+  function _setMeta(key, content, isProp){
+    var sel = isProp ? 'meta[property="'+key+'"]' : 'meta[name="'+key+'"]';
+    var el  = document.querySelector(sel);
+    if(!el){
+      el = document.createElement('meta');
+      if(isProp) el.setAttribute('property', key); else el.setAttribute('name', key);
+      document.head.appendChild(el);
+    }
+    el.setAttribute('content', content);
+  }
+
+  /* ─── Meta dynamiques pour un produit ─────────────────────── */
+  function _metaForProduct(item){
+    if(!item) return;
+    var name = ((item.marque||item.brand||'') + ' ' + (item.modele||item.model||item.nom||item.appareil||'')).trim() || 'Produit EcoDila';
+    var price = item.prix ? Number(item.prix).toLocaleString('fr-FR') + ' FCFA' : '';
+    var title = name + (price ? ' — ' + price : '') + ' | EcoDila';
+    var etat = (item.etat || '').toLowerCase();
+    var desc = name + (price ? ' à ' + price : '') + ' sur EcoDila' + (etat ? ' — ' + item.etat : '') + '. Marketplace d\'appareils reconditionnés en Côte d\'Ivoire. Livraison Abidjan.';
+    var image = item.image || item.img || (item.images && item.images[0]) || (window.location.origin + '/logo.png');
+    if(image && !image.startsWith('http') && !image.startsWith('data:')){
+      image = window.location.origin + (image.startsWith('/') ? '' : '/') + image;
+    }
+    _updateMeta({
+      title: title,
+      desc: desc.substring(0, 200),
+      image: image,
+      url: window._ecoUrlProduct(item.id)
+    });
+  }
+
+  /* ─── Meta pour pages connues ─────────────────────────────── */
+  function _metaForPage(pageName){
+    var pageTitles = {
+      'catalogue': "EcoDila — Achetez, Troquez & Négociez vos appareils en Côte d'Ivoire",
+      'acheter': "Acheter un appareil sur EcoDila — Marketplace Abidjan",
+      'troquer': "Troquer votre appareil — Estimation gratuite EcoDila",
+      'avis': "Avis clients EcoDila — Témoignages réels",
+      'termes': "Conditions Générales d'Utilisation — EcoDila",
+      'retours-client': "Retours & Garantie — EcoDila",
+      'parrainage': "Devenez parrain EcoDila — Gagnez 5 à 10% de commissions",
+      'profil': "Mon espace — EcoDila"
+    };
+    var pageDescs = {
+      'catalogue': "EcoDila, la marketplace d'appareils reconditionnés en Côte d'Ivoire. Smartphones, TV, drones, montres connectées et plus. Livraison Abidjan.",
+      'acheter': "Achetez votre prochain smartphone, TV, ordinateur ou drone reconditionné sur EcoDila. Garantie 3 mois, livraison Abidjan.",
+      'troquer': "Troquez votre ancien appareil contre un nouveau sur EcoDila. Estimation gratuite et instantanée.",
+      'avis': "Découvrez les avis et témoignages des clients d'EcoDila — la marketplace de confiance en Côte d'Ivoire.",
+      'termes': "Conditions Générales d'Utilisation d'EcoDila. Marketplace ivoirienne d'appareils électroniques.",
+      'retours-client': "Politique de retours et garantie EcoDila — 3 mois de garantie sur tous les produits reconditionnés.",
+      'parrainage': "Rejoignez le programme parrainage EcoDila. Gagnez 5 à 10% de commission sur chaque vente. Inscription gratuite.",
+      'profil': "Gérez votre compte EcoDila — commandes, trocs, parrainage."
+    };
+    _updateMeta({
+      title: pageTitles[pageName] || pageTitles['catalogue'],
+      desc:  pageDescs[pageName]  || pageDescs['catalogue'],
+      url:   pageName && pageName !== 'catalogue'
+              ? window._ecoUrlPage(pageName)
+              : (window.location.origin + '/')
+    });
+  }
+
+  /* ─── Appliquer un état URL ───────────────────────────────── */
+  function _applyRoute(params){
+    _routerSilent = true;
+    try {
+      // 1) Page
+      if(params.page && VALID_PAGES.indexOf(params.page) !== -1 && params.page !== 'catalogue'){
+        if(typeof showPage === 'function') showPage(params.page);
+      } else if(params.page === 'catalogue' || (!params.page && !params.product)){
+        if(typeof _closeOverlayPage === 'function') _closeOverlayPage();
+      }
+
+      // 2) Produit (peut être combiné avec page)
+      if(params.product){
+        // Attendre que les produits soient chargés
+        var tries = 0;
+        function _tryOpen(){
+          tries++;
+          if(typeof openModal === 'function' && window.products && window.products.length){
+            var item = window.products.find(function(p){ return String(p.id) === String(params.product); });
+            if(item){
+              openModal(params.product);
+              _metaForProduct(item);
+              return;
+            }
+            // Produit non trouvé → afficher modal "produit introuvable" si dispo
+            if(typeof window.fermerModalProduitIntrouvable === 'function'){
+              var pnf = document.getElementById('pnf-overlay');
+              if(pnf){
+                pnf.style.display = 'flex';
+              }
+            }
+          }
+          if(tries < 30) setTimeout(_tryOpen, 300);
+        }
+        _tryOpen();
+      } else {
+        _metaForPage(params.page || 'catalogue');
+      }
+    } finally {
+      _routerSilent = false;
+    }
+  }
+
+  /* ─── Hooks sur showPage et openModal ─────────────────────── */
+  var _origShowPage = window.showPage;
+  if(typeof _origShowPage === 'function'){
+    window.showPage = function(name){
+      var ret = _origShowPage.apply(this, arguments);
+      if(!_routerSilent){
+        var current = _getParams();
+        // Ne pas écraser le produit ouvert si on navigue vers une page subordonnée
+        var newParams = { page: name === 'catalogue' ? '' : name, product: current.product };
+        _setUrl(newParams, false);
+        if(!current.product) _metaForPage(name);
+      }
+      return ret;
+    };
+  }
+
+  var _origOpenModal = window.openModal;
+  if(typeof _origOpenModal === 'function'){
+    window.openModal = function(id){
+      var ret = _origOpenModal.apply(this, arguments);
+      if(!_routerSilent){
+        var current = _getParams();
+        _setUrl({ page: current.page, product: id }, false);
+        // Mettre à jour meta avec produit
+        try {
+          var item = window.products && window.products.find(function(p){ return String(p.id) === String(id); });
+          if(item) _metaForProduct(item);
+        } catch(e){}
+      }
+      return ret;
+    };
+  }
+
+  var _origCloseModal = window.closeModal;
+  if(typeof _origCloseModal === 'function'){
+    window.closeModal = function(){
+      var ret = _origCloseModal.apply(this, arguments);
+      if(!_routerSilent){
+        var current = _getParams();
+        _setUrl({ page: current.page, product: '' }, false);
+        _metaForPage(current.page || 'catalogue');
+      }
+      return ret;
+    };
+  }
+
+  var _origCloseOverlay = window._closeOverlayPage;
+  if(typeof _origCloseOverlay === 'function'){
+    window._closeOverlayPage = function(){
+      var ret = _origCloseOverlay.apply(this, arguments);
+      if(!_routerSilent){
+        var current = _getParams();
+        _setUrl({ page: '', product: current.product }, false);
+        if(!current.product) _metaForPage('catalogue');
+      }
+      return ret;
+    };
+  }
+
+  /* ─── Bouton retour navigateur ────────────────────────────── */
+  window.addEventListener('popstate', function(e){
+    var params = _getParams();
+    _applyRoute(params);
+  });
+
+  /* ─── Bouton "Partager" sur les produits ──────────────────── */
+  window._ecoShareProduct = function(productId){
+    var url = window._ecoUrlProduct(productId);
+    var item = window.products && window.products.find(function(p){ return String(p.id) === String(productId); });
+    var name = item ? ((item.marque||item.brand||'') + ' ' + (item.modele||item.model||item.nom||'')).trim() : 'ce produit';
+    var price = item && item.prix ? ' à ' + Number(item.prix).toLocaleString('fr-FR') + ' FCFA' : '';
+    var msg = '👀 Regarde ' + name + price + ' sur EcoDila :\n' + url;
+
+    // 1) Web Share API si dispo (mobile)
+    if(navigator.share){
+      navigator.share({
+        title: name + ' | EcoDila',
+        text: msg,
+        url: url
+      }).catch(function(err){
+        // Fallback copie URL
+        _ecoCopyToClipboard(url, '✅ Lien copié — partage-le sur WhatsApp');
+      });
+      return;
+    }
+    // 2) WhatsApp direct
+    if(typeof window._ecoShareWhatsApp === 'function'){
+      window._ecoShareWhatsApp(msg);
+      return;
+    }
+    var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
+    window.open(waUrl, '_blank');
+  };
+  window._ecoSharePage = function(pageName){
+    var url = window._ecoUrlPage(pageName);
+    var titles = {
+      'parrainage': '🤝 Programme parrainage EcoDila',
+      'termes': '📋 CGU EcoDila',
+      'retours-client': '🛡️ Retours & Garantie EcoDila',
+      'avis': '⭐ Avis EcoDila',
+      'troquer': '🔄 Troquer un appareil sur EcoDila',
+      'acheter': '💳 Catalogue EcoDila'
+    };
+    var msg = (titles[pageName] || 'EcoDila') + '\n' + url;
+    if(navigator.share){
+      navigator.share({ title: titles[pageName] || 'EcoDila', url: url }).catch(function(){
+        _ecoCopyToClipboard(url, '✅ Lien copié');
+      });
+      return;
+    }
+    var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
+    window.open(waUrl, '_blank');
+  };
+  function _ecoCopyToClipboard(text, msg){
+    try {
+      navigator.clipboard.writeText(text).then(function(){
+        if(typeof showToast === 'function') showToast(msg||'✅ Lien copié');
+        else alert(msg||'✅ Lien copié');
+      });
+    } catch(e){
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); if(typeof showToast === 'function') showToast(msg||'✅ Lien copié'); } catch(_){}
+      document.body.removeChild(ta);
+    }
+  }
+  window._ecoCopyToClipboard = _ecoCopyToClipboard;
+
+  /* ─── Init au chargement ──────────────────────────────────── */
+  function _initRouter(){
+    var params = _getParams();
+    if(params.page || params.product){
+      // Donner du temps à showPage et products de se charger
+      setTimeout(function(){ _applyRoute(params); }, 800);
+      // Re-essayer après le chargement complet
+      setTimeout(function(){ _applyRoute(params); }, 2500);
+    }
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', _initRouter);
+  } else {
+    _initRouter();
+  }
 })();
 </script>
 
