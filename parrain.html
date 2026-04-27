@@ -8552,7 +8552,7 @@ function _chRenderCard(ch, idx){
     productHtml = '<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:.8rem .9rem;margin:.5rem 0">'
       +'<div style="font-size:.6rem;font-weight:700;color:var(--p1);text-transform:uppercase;letter-spacing:.7px;margin-bottom:.45rem">🔗 Ton lien produit</div>'
       +'<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.42rem .65rem;display:flex;align-items:center;gap:.4rem;margin-bottom:.45rem">'
-        +'<span style="flex:1;font-family:monospace;font-size:.6rem;color:var(--p2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">ecodila.com/produit/'+ch.product+'?ref='+code+'</span>'
+        +'<span style="flex:1;font-family:monospace;font-size:.6rem;color:var(--p2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">ecodila.com/?p='+ch.product+'&ref='+code+'</span>'
         +'<button onclick="window._chCopyProductLink(\''+ch.id+'\')" style="padding:.25rem .45rem;background:var(--grad);border:none;border-radius:6px;color:#0b0f18;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">📋</button>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.35rem;margin-bottom:.45rem">'
@@ -8756,7 +8756,7 @@ window._chCopyProductLink = function(id){
   if(!ch) return;
   var parrain = typeof _getCurrentParrain==='function' ? _getCurrentParrain() : null;
   var code = parrain ? (parrain.code||'CODE') : 'CODE';
-  var url = 'https://ecodila.com/produit/'+ch.product+'?ref='+code;
+  var url = 'https://ecodila.com/?p='+ch.product+'&ref='+code;
   if(navigator.clipboard){ navigator.clipboard.writeText(url).then(function(){ if(typeof toast==='function') toast('🔗 Lien produit copié !'); }); }
   else { if(typeof toast==='function') toast('🔗 '+url); }
 };
@@ -8767,7 +8767,7 @@ window._chShareProductWA = function(id){
   if(!ch) return;
   var parrain = typeof _getCurrentParrain==='function' ? _getCurrentParrain() : null;
   var code = parrain ? (parrain.code||'CODE') : 'CODE';
-  var url = 'https://ecodila.com/produit/'+(ch.product||'')+'?ref='+code;
+  var url = 'https://ecodila.com/?p='+(ch.product||'')+'&ref='+code;
   var msg = encodeURIComponent('📱 *'+(ch.productName||'Produit EcoDila')+'*\n\n'+(ch.productPrice?'Prix : '+ch.productPrice+'\n\n':'')+'Commander ici 👉 '+url+'\n\n✅ Livraison rapide · Paiement sécurisé');
   window.open('https://wa.me/?text='+msg, '_blank');
 };

@@ -24267,12 +24267,39 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
   }
 
   /* ─── Construire l'URL canonique d'un produit/page ────────── */
+  /* Si l'utilisateur est un parrain (code stocké dans window._parrainCode
+     OU sessionStorage.ecodila_my_parrain_code), on ajoute automatiquement
+     ?ref=CODE pour que les vues/ventes lui soient créditées. */
+  function _myParrainCode(){
+    try {
+      // 1) Variable globale (parrain.html stocke window._parrainCode au login)
+      if(window._parrainCode) return String(window._parrainCode).toUpperCase();
+      // 2) sessionStorage (si on a vu le parrain en session)
+      var s = sessionStorage.getItem('ecodila_my_parrain_code') || '';
+      if(s) return s.toUpperCase();
+      // 3) Lecture depuis l'utilisateur connecté (si parrain code est sur son profil)
+      if(typeof utilisateurConnecte !== 'undefined' && utilisateurConnecte && utilisateurConnecte.parrainCode){
+        return String(utilisateurConnecte.parrainCode).toUpperCase();
+      }
+    } catch(e){}
+    return '';
+  }
+
   window._ecoUrlPage = function(pageName){
-    if(!pageName || pageName === 'catalogue') return window.location.origin + '/';
-    return window.location.origin + '/?page=' + encodeURIComponent(pageName);
+    var ref = _myParrainCode();
+    var base = window.location.origin + '/';
+    if(!pageName || pageName === 'catalogue'){
+      return ref ? base + '?ref=' + encodeURIComponent(ref) : base;
+    }
+    var qs = 'page=' + encodeURIComponent(pageName);
+    if(ref) qs += '&ref=' + encodeURIComponent(ref);
+    return base + '?' + qs;
   };
   window._ecoUrlProduct = function(productId){
-    return window.location.origin + '/?p=' + encodeURIComponent(productId);
+    var ref = _myParrainCode();
+    var base = window.location.origin + '/?p=' + encodeURIComponent(productId);
+    if(ref) base += '&ref=' + encodeURIComponent(ref);
+    return base;
   };
 
   /* ─── Mettre à jour l'URL sans recharger ──────────────────── */
@@ -24282,6 +24309,12 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
       var sp = new URLSearchParams();
       if(newParams.page && newParams.page !== 'catalogue') sp.set('page', newParams.page);
       if(newParams.product) sp.set('p', newParams.product);
+      // Préserver le ref s'il était dans l'URL initiale (lien parrain)
+      // → garantit que le tracking parrain reste actif pendant toute la session
+      try {
+        var existingRef = new URLSearchParams(window.location.search).get('ref');
+        if(existingRef) sp.set('ref', existingRef);
+      } catch(e){}
       var qs = sp.toString();
       var url = window.location.pathname + (qs ? '?' + qs : '');
       if(window.location.search !== (qs ? '?' + qs : '') ||
