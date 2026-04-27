@@ -28,7 +28,7 @@
  */
 
 const SUPABASE_URL = "https://ftvowlmrsgcaienvhojj.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ0dm93bG1yc2djYWllbnZob2pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcxMTM2NjQsImV4cCI6MjA2MjY4OTY2NH0.1cd2i2SE3J0CjxV6dCxy8PkOeNhSvc8OwUGNcS2DxQQ";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ0dm93bG1yc2djYWllbnZob2pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0Mjk5NTYsImV4cCI6MjA5MDAwNTk1Nn0.1owVKN-R6-Edc3Rl7I0YyGxes8HFaTvOuff6dwZ2mX4";
 
 /**
  * Fetch un produit depuis Supabase

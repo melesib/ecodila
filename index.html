@@ -24575,6 +24575,23 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
      - Lien direct (WhatsApp affichera automatiquement l'aperçu Open Graph)
      - Sur mobile compatible : image attachée via Web Share API */
   window._ecoShareProduct = function(productId){
+    // Protection : empêcher les clics multiples qui causent
+    // "InvalidStateError: An earlier share has not yet completed"
+    if(window._ecoShareInProgress){
+      console.log('[share] Partage déjà en cours, ignoré');
+      return;
+    }
+    window._ecoShareInProgress = true;
+    // Auto-release après 10s au cas où le partage ne se termine jamais proprement
+    var _shareReleaseTimer = setTimeout(function(){
+      window._ecoShareInProgress = false;
+    }, 10000);
+    // Helper pour libérer le verrou
+    var _releaseShareLock = function(){
+      clearTimeout(_shareReleaseTimer);
+      window._ecoShareInProgress = false;
+    };
+
     var url = window._ecoUrlProduct(productId);
     var prods = _getProducts();
     var item = prods && prods.find(function(p){ return String(p.id) === String(productId); });
@@ -24584,6 +24601,7 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
       var fallbackMsg = '👀 Découvre ce produit sur EcoDila :\n👉 ' + url;
       var waUrlFallback = 'https://wa.me/?text=' + encodeURIComponent(fallbackMsg);
       window.open(waUrlFallback, '_blank');
+      _releaseShareLock();
       return;
     }
 
@@ -24699,11 +24717,18 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
           }
           return navigator.share(shareData);
         })
+        .then(function(){ _releaseShareLock(); })
         .catch(function(err){
+          _releaseShareLock();
           // AbortError = l'utilisateur a fermé le menu de partage volontairement
           // → ne PAS faire de fallback, c'est intentionnel
           if(err && (err.name === 'AbortError' || err.message === 'Share canceled')){
             return; // silence intentionnel
+          }
+          // InvalidStateError = un autre partage est déjà en cours, on ignore
+          if(err && err.name === 'InvalidStateError'){
+            console.log('[share] Partage déjà en cours, abandon silencieux');
+            return;
           }
           console.warn('[share] Échec partage avec image, fallback texte:', err);
           _shareTextOnly();
@@ -24716,9 +24741,14 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
           title: name + ' | EcoDila',
           text: msg,
           url: url
-        }).catch(function(err){
+        }).then(function(){ _releaseShareLock(); })
+        .catch(function(err){
+          _releaseShareLock();
           // AbortError = annulation utilisateur, ne pas re-fallback
           if(err && (err.name === 'AbortError' || err.message === 'Share canceled')){
+            return;
+          }
+          if(err && err.name === 'InvalidStateError'){
             return;
           }
           _ecoCopyToClipboard(msg, '✅ Message copié — colle-le sur WhatsApp');
@@ -24728,6 +24758,7 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
       // Desktop : ouvrir WhatsApp Web
       var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
       window.open(waUrl, '_blank');
+      _releaseShareLock();
     }
 
     // Stratégie : essayer d'abord avec image (mobile moderne), sinon texte seul
@@ -24738,6 +24769,7 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
       // (WhatsApp affichera automatiquement l'aperçu Open Graph avec image grâce au router)
       var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
       window.open(waUrl, '_blank');
+      _releaseShareLock();
     }
   };
   window._ecoSharePage = function(pageName){

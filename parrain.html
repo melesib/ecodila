@@ -8762,9 +8762,24 @@ window._chCopyProductLink = function(id){
 };
 
 window._chShareProductWA = function(id){
+  // Protection contre les clics multiples qui causent
+  // "InvalidStateError: An earlier share has not yet completed"
+  if(window._chShareInProgress){
+    console.log('[share] Partage déjà en cours, ignoré');
+    return;
+  }
+  window._chShareInProgress = true;
+  var _shareReleaseTimer = setTimeout(function(){
+    window._chShareInProgress = false;
+  }, 10000);
+  var _releaseShareLock = function(){
+    clearTimeout(_shareReleaseTimer);
+    window._chShareInProgress = false;
+  };
+
   var challenges = _chGetChallenges();
   var ch = challenges.find(function(c){return c.id===id;});
-  if(!ch) return;
+  if(!ch){ _releaseShareLock(); return; }
   var parrain = typeof _getCurrentParrain==='function' ? _getCurrentParrain() : null;
   var code = parrain ? (parrain.code||'CODE') : 'CODE';
   var url = 'https://ecodila.com/?p='+(ch.product||'')+'&ref='+code;
@@ -8847,9 +8862,14 @@ window._chShareProductWA = function(id){
         title: name + ' | EcoDila',
         text: msg,
         url: url
-      }).catch(function(err){
+      }).then(function(){ _releaseShareLock(); })
+      .catch(function(err){
+        _releaseShareLock();
         // AbortError = annulation utilisateur, ne pas relancer WhatsApp
         if(err && (err.name === 'AbortError' || err.message === 'Share canceled')){
+          return;
+        }
+        if(err && err.name === 'InvalidStateError'){
           return;
         }
         // Fallback : ouvrir WhatsApp
@@ -8857,6 +8877,7 @@ window._chShareProductWA = function(id){
       });
     } else {
       window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+      _releaseShareLock();
     }
   }
 
@@ -8872,9 +8893,14 @@ window._chShareProductWA = function(id){
         }
         return navigator.share(shareData);
       })
+      .then(function(){ _releaseShareLock(); })
       .catch(function(err){
+        _releaseShareLock();
         // AbortError = annulation utilisateur, ne rien faire
         if(err && (err.name === 'AbortError' || err.message === 'Share canceled')){
+          return;
+        }
+        if(err && err.name === 'InvalidStateError'){
           return;
         }
         console.warn('[share] Échec image, fallback texte:', err);
