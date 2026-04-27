@@ -24561,34 +24561,137 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
     _applyRoute(params);
   });
 
-  /* ─── Bouton "Partager" sur les produits ──────────────────── */
+  /* ─── Bouton "Partager" sur les produits ────────────────────
+     Génère un message WhatsApp riche avec :
+     - Emojis et titre accrocheur
+     - Spécifications (mémoire, écran, état)
+     - Prix mis en valeur
+     - Bouton d'action "👉 Voir le produit"
+     - Lien direct (WhatsApp affichera automatiquement l'aperçu Open Graph)
+     - Sur mobile compatible : image attachée via Web Share API */
   window._ecoShareProduct = function(productId){
     var url = window._ecoUrlProduct(productId);
     var prods = _getProducts();
     var item = prods && prods.find(function(p){ return String(p.id) === String(productId); });
-    var name = item ? ((item.marque||item.brand||'') + ' ' + (item.modele||item.model||item.nom||'')).trim() : 'ce produit';
-    var price = item && item.prix ? ' à ' + Number(item.prix).toLocaleString('fr-FR') + ' FCFA' : '';
-    var msg = '👀 Regarde ' + name + price + ' sur EcoDila :\n' + url;
 
-    // 1) Web Share API si dispo (mobile)
+    if(!item){
+      // Pas de produit trouvé — fallback simple
+      var fallbackMsg = '👀 Découvre ce produit sur EcoDila :\n👉 ' + url;
+      var waUrlFallback = 'https://wa.me/?text=' + encodeURIComponent(fallbackMsg);
+      window.open(waUrlFallback, '_blank');
+      return;
+    }
+
+    // Construire le message riche
+    var name = ((item.marque||item.brand||'') + ' ' + (item.modele||item.model||item.nom||'')).trim() || 'Produit EcoDila';
+    var price = item.prix ? Number(item.prix).toLocaleString('fr-FR') + ' FCFA' : '';
+    var etat = item.etat || item.qualite || '';
+    var screen = item.screen || item.ecran || '';
+    var memory = (item.memory || item.memoire || '').split('|RAM:')[0] || '';
+    var ram = item.ram || ((item.memory||'').indexOf('|RAM:')>-1 ? (item.memory||'').split('|RAM:')[1] : '') || '';
+    var cat = item.cat || item.categorie || '';
+
+    // Détection des promos actuelles
+    var promo = '';
+    try {
+      if(item.prixOccasion && item.prixNeuf && item.prixOccasion < item.prixNeuf){
+        var pct = Math.round(((item.prixNeuf - item.prixOccasion) / item.prixNeuf) * 100);
+        if(pct >= 5) promo = ' 🏷️ -' + pct + '%';
+      }
+    } catch(e){}
+
+    // Construction du message ligne par ligne
+    var lines = [];
+    lines.push('🔥 *' + name + '*' + promo);
+    if(cat) lines.push('📦 ' + cat);
+    lines.push('');
+
+    // Specs
+    var specs = [];
+    if(memory) specs.push('💾 ' + memory);
+    if(ram) specs.push('⚡ ' + ram + ' RAM');
+    if(screen) specs.push('📱 ' + screen);
+    if(etat) specs.push('✨ ' + etat);
+    if(specs.length) {
+      lines.push(specs.join('  •  '));
+      lines.push('');
+    }
+
+    if(price){
+      lines.push('💰 *' + price + '*');
+      lines.push('');
+    }
+
+    lines.push('🛡️ Garantie 3 mois');
+    lines.push('🚚 Livraison Abidjan');
+    lines.push('💳 Paiement à la livraison');
+    lines.push('');
+    lines.push('👉 *Voir le produit & commander :*');
+    lines.push(url);
+    lines.push('');
+    lines.push('_EcoDila — Marketplace #1 de reconditionné en Côte d\'Ivoire 🇨🇮_');
+
+    var msg = lines.join('\n');
+
+    // Récupérer la première image du produit
+    var imgUrl = item.image || item.img || (item.photos && item.photos.length ? (item.photos[0].url || item.photos[0]) : '');
+    if(imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')){
+      imgUrl = window.location.origin + (imgUrl.startsWith('/') ? '' : '/') + imgUrl;
+    }
+
+    // Tentative d'attacher l'image via Web Share API niveau 2 (avec files)
+    function _shareWithImage(){
+      if(!imgUrl || !navigator.share || !navigator.canShare){
+        return _shareTextOnly();
+      }
+      // Récupérer l'image et la convertir en File pour partage
+      fetch(imgUrl)
+        .then(function(r){ return r.blob(); })
+        .then(function(blob){
+          var ext = (blob.type.split('/')[1]||'jpg').replace('jpeg','jpg');
+          var file = new File([blob], 'ecodila-' + (productId||'produit') + '.' + ext, { type: blob.type });
+          var shareData = {
+            title: name + ' | EcoDila',
+            text: msg,
+            url: url
+          };
+          // Si l'appareil supporte les fichiers, ajouter l'image
+          if(navigator.canShare({ files: [file] })){
+            shareData.files = [file];
+          }
+          return navigator.share(shareData);
+        })
+        .catch(function(err){
+          console.warn('[share] Échec partage avec image, fallback texte:', err);
+          _shareTextOnly();
+        });
+    }
+
+    function _shareTextOnly(){
+      if(navigator.share){
+        navigator.share({
+          title: name + ' | EcoDila',
+          text: msg,
+          url: url
+        }).catch(function(){
+          _ecoCopyToClipboard(msg, '✅ Message copié — colle-le sur WhatsApp');
+        });
+        return;
+      }
+      // Desktop : ouvrir WhatsApp Web
+      var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
+      window.open(waUrl, '_blank');
+    }
+
+    // Stratégie : essayer d'abord avec image (mobile moderne), sinon texte seul
     if(navigator.share){
-      navigator.share({
-        title: name + ' | EcoDila',
-        text: msg,
-        url: url
-      }).catch(function(err){
-        // Fallback copie URL
-        _ecoCopyToClipboard(url, '✅ Lien copié — partage-le sur WhatsApp');
-      });
-      return;
+      _shareWithImage();
+    } else {
+      // Desktop : ouvrir WhatsApp Web directement avec le message complet
+      // (WhatsApp affichera automatiquement l'aperçu Open Graph avec image grâce au router)
+      var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
+      window.open(waUrl, '_blank');
     }
-    // 2) WhatsApp direct
-    if(typeof window._ecoShareWhatsApp === 'function'){
-      window._ecoShareWhatsApp(msg);
-      return;
-    }
-    var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
-    window.open(waUrl, '_blank');
   };
   window._ecoSharePage = function(pageName){
     var url = window._ecoUrlPage(pageName);

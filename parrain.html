@@ -8768,8 +8768,82 @@ window._chShareProductWA = function(id){
   var parrain = typeof _getCurrentParrain==='function' ? _getCurrentParrain() : null;
   var code = parrain ? (parrain.code||'CODE') : 'CODE';
   var url = 'https://ecodila.com/?p='+(ch.product||'')+'&ref='+code;
-  var msg = encodeURIComponent('📱 *'+(ch.productName||'Produit EcoDila')+'*\n\n'+(ch.productPrice?'Prix : '+ch.productPrice+'\n\n':'')+'Commander ici 👉 '+url+'\n\n✅ Livraison rapide · Paiement sécurisé');
-  window.open('https://wa.me/?text='+msg, '_blank');
+
+  // Construction du message riche WhatsApp
+  var lines = [];
+  var name = ch.productName || 'Produit EcoDila';
+
+  lines.push('🔥 *' + name + '*');
+  lines.push('');
+
+  // Specs si disponibles
+  var specs = [];
+  if(ch.productCategory) specs.push('📦 ' + ch.productCategory);
+  if(ch.productMemory) specs.push('💾 ' + ch.productMemory);
+  if(ch.productState || ch.productEtat) specs.push('✨ ' + (ch.productState || ch.productEtat));
+  if(specs.length) {
+    lines.push(specs.join('  •  '));
+    lines.push('');
+  }
+
+  // Prix
+  if(ch.productPrice) {
+    lines.push('💰 *' + ch.productPrice + '*');
+    lines.push('');
+  }
+
+  lines.push('🛡️ Garantie 3 mois');
+  lines.push('🚚 Livraison Abidjan');
+  lines.push('💳 Paiement à la livraison');
+  lines.push('');
+  lines.push('👉 *Voir le produit & commander :*');
+  lines.push(url);
+  lines.push('');
+  lines.push('_EcoDila — Marketplace #1 de reconditionné en Côte d\'Ivoire 🇨🇮_');
+
+  var msg = lines.join('\n');
+
+  // Tentative partage avec image si l'API supporte
+  var imgUrl = ch.productImage || ch.productImg || '';
+  if(imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')){
+    imgUrl = 'https://ecodila.com' + (imgUrl.startsWith('/') ? '' : '/') + imgUrl;
+  }
+
+  function _shareTextOnly(){
+    if(navigator.share){
+      navigator.share({
+        title: name + ' | EcoDila',
+        text: msg,
+        url: url
+      }).catch(function(){
+        // Fallback : ouvrir WhatsApp
+        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+      });
+    } else {
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+    }
+  }
+
+  // Si l'image est dispo et qu'on peut partager des fichiers (mobile moderne)
+  if(imgUrl && navigator.share && navigator.canShare){
+    fetch(imgUrl)
+      .then(function(r){ return r.blob(); })
+      .then(function(blob){
+        var ext = (blob.type.split('/')[1]||'jpg').replace('jpeg','jpg');
+        var file = new File([blob], 'ecodila-' + (ch.product||'produit') + '.' + ext, { type: blob.type });
+        var shareData = { title: name + ' | EcoDila', text: msg, url: url };
+        if(navigator.canShare({ files: [file] })){
+          shareData.files = [file];
+        }
+        return navigator.share(shareData);
+      })
+      .catch(function(err){
+        console.warn('[share] Échec image, fallback texte:', err);
+        _shareTextOnly();
+      });
+  } else {
+    _shareTextOnly();
+  }
 };
 
 window._chSeeReward = function(id){
