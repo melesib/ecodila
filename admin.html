@@ -21032,6 +21032,26 @@ window._waSeqStart = function(contacts, msgFn, title){
   window._waSeqIdx = 0;
   _waSeqShowNext();
 };
+/* Synthèse vocale du message en cours dans la séquence WhatsApp */
+window._waSeqSpeak = function(){
+  var msg = window._waSeqCurrentMsg || '';
+  if(!msg || !window.speechSynthesis) return;
+  try {
+    window.speechSynthesis.cancel();
+    var clean = String(msg)
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/_([^_]+)_/g, '$1')
+      .replace(/~([^~]+)~/g, '$1')
+      .replace(/https?:\/\/\S+/g, '')
+      .replace(/\n+/g, '. ')
+      .substring(0, 800);
+    var u = new SpeechSynthesisUtterance(clean);
+    u.lang = 'fr-FR';
+    u.rate = 1.0;
+    window.speechSynthesis.speak(u);
+  } catch(e){ console.warn('[waSeq-speak]', e); }
+};
+
 window._waSeqShowNext = function(){
   var q = window._waSeqQueue || [];
   var idx = window._waSeqIdx || 0;
@@ -21056,7 +21076,14 @@ window._waSeqShowNext = function(){
     +'<span style="font-size:.7rem;color:#8892a6;font-weight:700">'+(idx+1)+'/'+total+'</span></div>'
     +'<div style="padding:.5rem;background:#1a2332;border-radius:8px;margin-bottom:.6rem">'
     +'<div style="font-weight:700;color:#e4e7eb;font-size:.82rem">'+_esc(c.nom||c.name||'Client')+'</div>'
-    +'<div style="font-size:.7rem;color:#8892a6;font-family:monospace">'+_esc(c.wa||c.tel||'')+'</div></div>';
+    +'<div style="font-size:.7rem;color:#8892a6;font-family:monospace">'+_esc(c.wa||c.tel||'')+'</div></div>'
+    +'<div style="display:flex;gap:.3rem;margin-bottom:.4rem">'
+    +'<button onclick="window._waSeqSpeak()" style="flex:1;padding:.35rem;background:rgba(139,92,246,.2);border:1px solid #8b5cf6;border-radius:5px;color:#a78bfa;font-size:.65rem;font-weight:700;cursor:pointer;font-family:inherit">🔊 Écouter</button>'
+    +'<button onclick="window.speechSynthesis&&window.speechSynthesis.cancel()" style="flex:1;padding:.35rem;background:#374151;border:none;border-radius:5px;color:#e4e7eb;font-size:.65rem;font-weight:600;cursor:pointer;font-family:inherit">⏸️ Stop</button>'
+    +'</div>';
+
+  // Stocker le message courant pour la synthèse vocale
+  window._waSeqCurrentMsg = msg;
 
   // Boutons
   var btnsContainer = document.createElement('div');
@@ -23776,6 +23803,19 @@ function _boostOpenPromoModal(product) {
       window._boostProductName = pNom;
     }
 
+    // Stocker le message pour la synthèse vocale
+    window._boostMessage = msg;
+
+    // Section vocale : permet d'écouter le message et de télécharger l'audio
+    var voiceBlock = '<div style="padding:.6rem .8rem;background:rgba(139,92,246,.08);border-bottom:1px solid #2a3548">'
+      + '<div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">'
+      +   '<div style="font-size:.7rem;color:#a78bfa;font-weight:700;flex:1;min-width:120px">🔊 Version vocale</div>'
+      +   '<button onclick="_boostSpeakMessage()" style="background:#8b5cf6;color:#fff;border:none;padding:.3rem .6rem;border-radius:5px;font-size:.7rem;font-weight:700;cursor:pointer;font-family:inherit">▶️ Écouter</button>'
+      +   '<button onclick="_boostStopSpeak()" style="background:#374151;color:#fff;border:none;padding:.3rem .6rem;border-radius:5px;font-size:.7rem;font-weight:700;cursor:pointer;font-family:inherit">⏸️ Stop</button>'
+      + '</div>'
+      + '<div style="font-size:.66rem;color:#94a3b8;line-height:1.4;margin-top:.3rem">💡 Lis le message à voix haute. Pour les clients qui ne savent pas lire — colle l\'audio sur WhatsApp en plus du texte.</div>'
+      + '</div>';
+
     var old = document.getElementById('boost-wa-modal');
     if (old) old.remove();
 
@@ -23796,6 +23836,7 @@ function _boostOpenPromoModal(product) {
         + '<b style="color:#fff;font-size:.95rem">📱 Promo WhatsApp — ' + nums.length + ' contacts</b>'
         + '<button onclick="this.closest(\'#boost-wa-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:.9rem">×</button></div>'
         + imgBlock
+        + voiceBlock
         + '<div style="padding:.6rem .8rem;background:#0f1724;border-bottom:1px solid #2a3548;font-size:.72rem;color:#8892a6">'
         + '<b style="color:var(--primary)">Message :</b> ' + bl + ' — ' + pNom + ' — ' + pPrix + ' FCFA<br>'
         + '<span style="color:#25d366">🔗 Lien produit inclus :</span> <code style="font-size:.66rem;color:#aaa">' + prodUrl + '</code></div>'
@@ -23813,6 +23854,46 @@ function _boostOpenPromoModal(product) {
 
 function _boostWaToggleAll(checked) {
     document.querySelectorAll('.boost-wa-cb').forEach(function(cb) { cb.checked = checked; });
+}
+
+/* ─── Synthèse vocale du message WhatsApp (utile pour clients analphabètes) ─── */
+function _boostSpeakMessage(){
+    var msg = window._boostMessage || '';
+    if(!msg){ showNotification('⚠️ Aucun message à lire', 'warning'); return; }
+    if(!window.speechSynthesis){
+        showNotification('⚠️ Synthèse vocale non supportée par ce navigateur', 'warning');
+        return;
+    }
+    try {
+        // Annuler toute lecture précédente
+        window.speechSynthesis.cancel();
+        // Nettoyer le message : retirer markdown WhatsApp (* _ ~)
+        // pour que la synthèse vocale lise naturellement
+        var clean = String(msg)
+            .replace(/\*([^*]+)\*/g, '$1')   // *gras*
+            .replace(/_([^_]+)_/g, '$1')      // _italique_
+            .replace(/~([^~]+)~/g, '$1')      // ~barré~
+            .replace(/https?:\/\/\S+/g, '')   // URLs (trop longues à lire)
+            .replace(/\n+/g, '. ')             // sauts de ligne
+            .substring(0, 800);                // limite navigateur
+
+        var u = new SpeechSynthesisUtterance(clean);
+        u.lang = 'fr-FR';
+        u.rate = 1.0;
+        u.pitch = 1;
+        u.volume = 1;
+        window.speechSynthesis.speak(u);
+        showNotification('▶️ Lecture en cours…', 'info');
+    } catch(e) {
+        console.error('[boost-speak]', e);
+        showNotification('❌ Erreur synthèse vocale', 'error');
+    }
+}
+
+function _boostStopSpeak(){
+    try {
+        if(window.speechSynthesis) window.speechSynthesis.cancel();
+    } catch(e){}
 }
 
 /* ─── Télécharger l'image du produit pour partage WhatsApp ───────── */

@@ -5051,14 +5051,15 @@ setTimeout(_pStart,3000);
   <div class="chat-header">
     <div class="chat-header-info">
       <div class="chat-avatar">🟢</div>
-      <div><div class="chat-name">EcoDila Support</div><div class="chat-status">● En ligne</div></div>
+      <div><div class="chat-name">EcoDila Support</div><div class="chat-status">● En ligne · 🎤 vocal disponible</div></div>
     </div>
-    <button class="chat-close" onclick="toggleChat()">✕</button>
+    <button class="chat-close" onclick="toggleChat()" aria-label="Fermer le chat">✕</button>
   </div>
   <div class="chat-body" id="chatBody"></div>
   <div class="chat-input-area">
-    <input class="chat-input" id="chatInput" placeholder="Votre message…" onkeydown="if(event.key==='Enter')sendMsg()">
-    <button class="chat-send" onclick="sendMsg()">➤</button>
+    <button class="chat-mic" id="chatMicBtn" onclick="_chatMicToggle()" title="Parler au lieu d'écrire" aria-label="Activer le micro" style="background:rgba(82,183,136,.15);border:1.5px solid rgba(82,183,136,.4);color:var(--green);width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s">🎤</button>
+    <input class="chat-input" id="chatInput" placeholder="Votre message ou parlez avec 🎤…" onkeydown="if(event.key==='Enter')sendMsg()">
+    <button class="chat-send" onclick="sendMsg()" aria-label="Envoyer">➤</button>
   </div>
 </div>
 
@@ -17152,18 +17153,424 @@ function renderReviews(){
 function openChat(initMsg){
   chatOpen=true;document.getElementById('chatWrap').classList.add('show');
   if(initMsg)addMsg(initMsg,'bot');
-  else if(chatHistory.length===0)addMsg('Bonjour ! 👋 Bienvenue chez EcoDila. Comment puis-je vous aider ?','bot');
+  else if(chatHistory.length===0){
+    addMsg('Bonjour ! 👋 Bienvenue chez EcoDila. Comment puis-je vous aider ?','bot');
+    setTimeout(function(){ _chatShowQuickActions(); }, 600);
+  }
 }
 function toggleChat(){chatOpen=!chatOpen;document.getElementById('chatWrap').classList.toggle('show',chatOpen);if(chatOpen&&chatHistory.length===0)openChat();}
-function addMsg(text,type){
+
+/* ─── Affiche un message dans le chat ─────────────────────────────
+   - text : peut contenir du HTML pré-validé (pour cartes produits, boutons)
+   - type : 'bot' | 'user' | 'system'
+   - isHtml : si true, n'échappe pas le HTML (à utiliser uniquement avec des contenus contrôlés) */
+function addMsg(text, type, isHtml){
   const time=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-  chatHistory.push({text,type,time});
+  chatHistory.push({text, type, time, isHtml: !!isHtml});
   const body=document.getElementById('chatBody');
   if(!body)return;
-  body.innerHTML=chatHistory.map(m=>'<div class="msg '+m.type+'"><div>'+_esc(m.text)+'</div><div class="msg-time">'+_esc(m.time)+'</div></div>').join('');
+  body.innerHTML=chatHistory.map(function(m){
+    var content = m.isHtml ? m.text : _esc(m.text);
+    return '<div class="msg '+m.type+'"><div>'+content+'</div><div class="msg-time">'+_esc(m.time)+'</div></div>';
+  }).join('');
   body.scrollTop=body.scrollHeight;
+
+  // Si message bot et synthèse vocale activée → lire à voix haute
+  if(type === 'bot' && window._chatVoiceOutEnabled && !isHtml){
+    _chatSpeak(text);
+  }
+  if(type === 'bot' && window._chatVoiceOutEnabled && isHtml){
+    // Pour les messages HTML, lire seulement le texte brut
+    var temp = document.createElement('div');
+    temp.innerHTML = text;
+    var plain = temp.textContent || '';
+    if(plain.trim()) _chatSpeak(plain.substring(0, 200));
+  }
 }
-function sendMsg(){const inp=document.getElementById('chatInput'),val=inp.value.trim();if(!val)return;addMsg(val,'user');inp.value='';setTimeout(()=>addMsg(BOTS[botIdx%BOTS.length],'bot'),900);botIdx++;}
+
+/* ─── Boutons d'actions rapides au démarrage ────────────────────── */
+function _chatShowQuickActions(){
+  var html = '<div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem">'
+    + '<button onclick="_chatHandleAction(\'find\')" class="chat-quick-btn" style="background:var(--green);color:#fff;border:none;padding:.4rem .7rem;border-radius:14px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600">🔍 Chercher un produit</button>'
+    + '<button onclick="_chatHandleAction(\'voicewa\')" class="chat-quick-btn" style="background:#25d366;color:#fff;border:none;padding:.4rem .7rem;border-radius:14px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600">📲 Envoyer message vocal</button>'
+    + '<button onclick="_chatHandleAction(\'order\')" class="chat-quick-btn" style="background:#3b82f6;color:#fff;border:none;padding:.4rem .7rem;border-radius:14px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600">📦 Suivre ma commande</button>'
+    + '<button onclick="_chatHandleAction(\'troc\')" class="chat-quick-btn" style="background:#f59e0b;color:#fff;border:none;padding:.4rem .7rem;border-radius:14px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600">🔄 Faire un troc</button>'
+    + '<button onclick="_chatHandleAction(\'faq\')" class="chat-quick-btn" style="background:#8b5cf6;color:#fff;border:none;padding:.4rem .7rem;border-radius:14px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600">❓ FAQ</button>'
+    + '<button onclick="_chatHandleAction(\'wa\')" class="chat-quick-btn" style="background:#0a8b4a;color:#fff;border:none;padding:.4rem .7rem;border-radius:14px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600">💬 Chat WhatsApp</button>'
+    + '</div>';
+  addMsg(html, 'bot', true);
+}
+
+/* ─── Dispatch des actions rapides ──────────────────────────────── */
+window._chatHandleAction = function(action){
+  if(action === 'find'){
+    addMsg('🔍 Cherche', 'user');
+    var html = 'Quel produit cherchez-vous ?<br><br>'
+      + '<div style="display:flex;flex-direction:column;gap:.4rem">'
+      + '<div style="font-size:.74rem;color:rgba(255,255,255,.85)">📝 Écrivez votre recherche (ex: "iPhone 12", "TV Samsung")</div>'
+      + '<div style="font-size:.74rem;color:rgba(255,255,255,.85)">🎤 Ou cliquez sur le micro pour parler</div>'
+      + '<button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.5rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;margin-top:.3rem">📲 Ou envoyer un message vocal sur WhatsApp</button>'
+      + '</div>';
+    addMsg(html, 'bot', true);
+  } else if(action === 'voicewa'){
+    addMsg('📲 Message vocal WhatsApp', 'user');
+    var html = '🎙️ <b>Envoyez un message vocal sur WhatsApp</b><br><br>'
+      + '<div style="font-size:.78rem;line-height:1.5;margin-bottom:.6rem">Idéal si vous préférez parler que d\'écrire. Sur WhatsApp :<br>'
+      + '<b>1.</b> Appuyez longtemps sur le 🎤 en bas à droite<br>'
+      + '<b>2.</b> Parlez (votre demande, votre question…)<br>'
+      + '<b>3.</b> Relâchez pour envoyer</div>'
+      + '<button onclick="_chatOpenWA(\'Bonjour 👋, je vous envoie un message vocal pour vous expliquer ce que je cherche.\')" style="background:#25d366;color:#fff;border:none;padding:.6rem 1rem;border-radius:8px;font-size:.85rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📲 Ouvrir WhatsApp pour parler</button>';
+    addMsg(html, 'bot', true);
+  } else if(action === 'order'){
+    addMsg('📦 Suivre ma commande', 'user');
+    _chatSuiviCommande();
+  } else if(action === 'troc'){
+    addMsg('🔄 Faire un troc', 'user');
+    var html = 'Vous avez un appareil à troquer ? Plusieurs options :<br><br>'
+      + '<div style="display:flex;flex-direction:column;gap:.4rem;margin-top:.4rem">'
+      + '<button onclick="window.showPage(\'troquer\');toggleChat()" style="background:var(--green);color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">📋 Estimation gratuite en ligne</button>'
+      + '<button onclick="_chatOpenWA(\'Bonjour 👋, j\\\'aimerais faire un troc avec mon appareil.\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">💬 Parler à un conseiller WhatsApp</button>'
+      + '<button onclick="_chatOpenWA(\'Bonjour 👋, je vous envoie un message vocal pour parler du troc.\')" style="background:#0a8b4a;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🎙️ Envoyer message vocal sur WhatsApp</button>'
+      + '</div>';
+    addMsg(html, 'bot', true);
+  } else if(action === 'faq'){
+    addMsg('❓ FAQ', 'user');
+    _chatShowFAQ();
+  } else if(action === 'wa'){
+    addMsg('💬 WhatsApp', 'user');
+    _chatOpenWA('Bonjour 👋, je souhaite obtenir des informations sur EcoDila.');
+  }
+};
+
+/* ─── Recherche produit ────────────────────────────────────────── */
+function _chatSearchProducts(query){
+  // Récupérer les produits via window.products (synchronisé)
+  var prods = (typeof window.products !== 'undefined' ? window.products : null) ||
+              (typeof products !== 'undefined' ? products : []);
+  if(!prods || !prods.length){
+    addMsg('🤔 Notre catalogue est en cours de chargement. Veuillez réessayer dans un instant ou nous contacter sur WhatsApp.', 'bot');
+    return;
+  }
+
+  // Normalisation : minuscules, sans accents
+  function norm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+  var q = norm(query);
+  var qWords = q.split(/\s+/).filter(function(w){ return w.length >= 2; });
+
+  // Synonymes courants en français/Côte d'Ivoire
+  var SYN = {
+    'tel': 'phone smartphone telephone',
+    'telephone': 'phone smartphone',
+    'telef': 'phone smartphone',
+    'portable': 'phone smartphone',
+    'mobile': 'phone smartphone',
+    'tele': 'tv television',
+    'tv': 'television',
+    'pc': 'ordinateur laptop',
+    'ordi': 'ordinateur laptop pc',
+    'laptop': 'ordinateur pc',
+    'ipad': 'tablette tablet',
+    'tablet': 'tablette',
+    'pas cher': 'cheap',
+    'pas chere': 'cheap',
+    'moins cher': 'cheap',
+    'recond': 'reconditionne occasion',
+    'occas': 'occasion'
+  };
+  var qExpanded = q;
+  for(var k in SYN){ if(qExpanded.indexOf(k) > -1) qExpanded += ' ' + SYN[k]; }
+  var qExpWords = qExpanded.split(/\s+/).filter(function(w){ return w.length >= 2; });
+
+  // Score chaque produit
+  var scored = prods.map(function(p){
+    var hay = norm([
+      p.nom||'', p.brand||'', p.marque||'', p.model||'', p.modele||'',
+      p.categorie||'', p.qualite||p.etat||'', p.memory||'', p.screen||'',
+      p.detail||'', p.spec||''
+    ].join(' '));
+
+    var score = 0;
+    qExpWords.forEach(function(w){
+      if(hay.indexOf(w) > -1) score += 10;
+    });
+    // Bonus si le nom contient le terme exact
+    if(qWords.length && hay.indexOf(q) > -1) score += 30;
+    return { p: p, score: score };
+  })
+  .filter(function(x){ return x.score > 0; })
+  .sort(function(a, b){ return b.score - a.score; })
+  .slice(0, 4);
+
+  if(!scored.length){
+    var html = '😔 Je n\'ai pas trouvé de produit correspondant à "<b>'+_esc(query)+'</b>".<br><br>'
+      + '<div style="display:flex;flex-direction:column;gap:.4rem">'
+      + '<button onclick="_chatOpenWA(\'Bonjour 👋, je cherche : '+_esc(query).replace(/\'/g,'&#39;')+'\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">💬 Demander à un conseiller WhatsApp</button>'
+      + '<button onclick="_chatOpenWA(\'Bonjour 👋, je vous envoie un message vocal pour vous expliquer ce que je cherche.\')" style="background:#0a8b4a;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🎙️ Envoyer un message vocal sur WhatsApp</button>'
+      + '<button onclick="window.showPage(\'acheter\');toggleChat()" style="background:var(--green);color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🛒 Voir tout le catalogue</button>'
+      + '</div>';
+    addMsg(html, 'bot', true);
+    return;
+  }
+
+  // Construire les cartes produits
+  var cards = scored.map(function(x){
+    var p = x.p;
+    var nom = (p.brand||p.marque||'') + ' ' + (p.model||p.modele||p.nom||'');
+    nom = nom.trim() || (p.nom||'Produit');
+    var prix = p.prix ? Number(p.prix).toLocaleString('fr-FR') + ' FCFA' : 'Prix sur demande';
+    var img = '';
+    if(p.photos && p.photos.length){
+      var main = p.photos.find(function(ph){return ph && ph.isMain;}) || p.photos[0];
+      if(main && (main.data || main.url)) img = main.data || main.url;
+    }
+    if(!img && p.image) img = p.image;
+    var imgHtml = img ? '<img src="'+_esc(img)+'" alt="'+_esc(nom)+'" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:60px;height:60px;background:#f3f4f6;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">📦</div>';
+    var pid = String(p.id||'');
+    return '<div onclick="window.openModal(\''+_esc(pid).replace(/\'/g,'&#39;')+'\');toggleChat();" style="display:flex;gap:.6rem;padding:.5rem;background:rgba(255,255,255,.95);border-radius:8px;cursor:pointer;border:1px solid rgba(0,0,0,.08);transition:transform .15s" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'">'
+      + imgHtml
+      + '<div style="flex:1;min-width:0;color:#0a0e1a">'
+      +   '<div style="font-weight:700;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_esc(nom)+'</div>'
+      +   '<div style="font-size:.7rem;color:#666;margin-top:.15rem">'+_esc(p.categorie||'')+(p.qualite?' · '+_esc(p.qualite):'')+'</div>'
+      +   '<div style="font-weight:800;font-size:.85rem;color:var(--green);margin-top:.2rem">'+_esc(prix)+'</div>'
+      + '</div></div>';
+  }).join('');
+
+  var resultText = scored.length === 1 ? 'J\'ai trouvé 1 produit correspondant' : 'J\'ai trouvé '+scored.length+' produits correspondants';
+  var fullHtml = '✅ '+resultText+' à "<b>'+_esc(query)+'</b>" :<br><br>'
+    + '<div style="display:flex;flex-direction:column;gap:.4rem">' + cards + '</div>'
+    + '<div style="margin-top:.6rem;font-size:.72rem;color:rgba(255,255,255,.85)">💡 Cliquez sur un produit pour voir les détails</div>'
+    + '<button onclick="_chatOpenWA(\'Bonjour 👋, je cherche : '+_esc(query).replace(/\'/g,'&#39;')+'. Pouvez-vous me conseiller ?\')" style="background:#25d366;color:#fff;border:none;padding:.45rem .7rem;border-radius:8px;font-size:.72rem;cursor:pointer;font-family:inherit;font-weight:600;margin-top:.5rem;width:100%">💬 Pas trouvé ? Parler à un conseiller</button>';
+  addMsg(fullHtml, 'bot', true);
+}
+
+/* ─── Suivi de commande ────────────────────────────────────────── */
+function _chatSuiviCommande(){
+  var connected = (typeof userLoggedIn !== 'undefined' && userLoggedIn) ||
+                  (typeof utilisateurConnecte !== 'undefined' && utilisateurConnecte);
+  if(connected){
+    var html = '✅ Pour voir l\'état de toutes vos commandes et trocs :<br><br>'
+      + '<button onclick="window.showPage(\'profil\');toggleChat()" style="background:var(--green);color:#fff;border:none;padding:.6rem 1rem;border-radius:8px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📋 Aller à mon profil</button>'
+      + '<div style="margin-top:.5rem;font-size:.72rem;color:rgba(255,255,255,.85)">Ou contactez-nous sur WhatsApp pour une réponse rapide :</div>'
+      + '<button onclick="_chatOpenWA(\'Bonjour 👋, je voudrais suivre ma commande.\')" style="background:#25d366;color:#fff;border:none;padding:.5rem .8rem;border-radius:8px;font-size:.75rem;cursor:pointer;font-family:inherit;font-weight:600;width:100%;margin-top:.4rem">💬 WhatsApp</button>';
+    addMsg(html, 'bot', true);
+  } else {
+    var html = 'Pour voir l\'état de votre commande, vous pouvez :<br><br>'
+      + '<div style="display:flex;flex-direction:column;gap:.4rem">'
+      + '<button onclick="window.showPage(\'profil\');toggleChat()" style="background:var(--green);color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🔐 Me connecter à mon profil</button>'
+      + '<button onclick="_chatOpenWA(\'Bonjour 👋, je voudrais suivre ma commande. Mon numéro est __________ et je suis __________ .\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">💬 Demander à un conseiller WhatsApp</button>'
+      + '<button onclick="_chatOpenWA(\'Bonjour 👋, je vous envoie un message vocal pour suivre ma commande.\')" style="background:#0a8b4a;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🎙️ Envoyer un message vocal sur WhatsApp</button>'
+      + '</div>';
+    addMsg(html, 'bot', true);
+  }
+}
+
+/* ─── FAQ ──────────────────────────────────────────────────────── */
+var _CHAT_FAQ = [
+  {q:'Comment commander ?', a:'Choisissez un produit, cliquez sur "Acheter" ou "Négocier", puis donnez votre nom et numéro de téléphone. Notre équipe vous rappellera dans les 24h pour finaliser. Paiement à la livraison.'},
+  {q:'Quel est le délai de livraison ?', a:'À Abidjan : 24 à 48h en moyenne. Ailleurs en Côte d\'Ivoire : 2 à 5 jours. La livraison est gratuite à Abidjan pour les commandes au-dessus de 100 000 FCFA.'},
+  {q:'Comment payer ?', a:'Paiement à la livraison en espèces, Wave, Orange Money, Moov Money ou MTN Money. Pas de paiement en ligne, vous payez quand vous recevez le produit.'},
+  {q:'Quelle garantie ?', a:'Tous nos produits reconditionnés ont une garantie de 3 mois. Vous pouvez retourner gratuitement si défaut dans les 7 jours.'},
+  {q:'Comment troquer mon ancien appareil ?', a:'Cliquez sur "Troquer" dans le menu, faites une estimation gratuite, et notre équipe vous proposera un échange contre un autre appareil.'},
+  {q:'Puis-je négocier le prix ?', a:'Oui ! Cliquez sur "Négocier" sur la page d\'un produit, faites votre proposition, et nous vous répondrons dans les 24h.'},
+  {q:'Comment devenir parrain ?', a:'Inscrivez-vous au programme parrainage gratuit. Vous gagnez 5 à 10% de commission sur chaque vente que vous nous apportez. Visitez la page Parrainage.'}
+];
+function _chatShowFAQ(){
+  var html = '❓ <b>Questions fréquentes :</b><br><br>'
+    + '<div style="display:flex;flex-direction:column;gap:.3rem">'
+    + _CHAT_FAQ.map(function(item, i){
+        return '<button onclick="_chatAnswerFAQ('+i+')" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25);padding:.4rem .6rem;border-radius:6px;font-size:.74rem;cursor:pointer;font-family:inherit;text-align:left;width:100%">'+_esc(item.q)+'</button>';
+      }).join('')
+    + '</div>'
+    + '<div style="margin-top:.5rem;font-size:.72rem;color:rgba(255,255,255,.85)">Si votre question n\'est pas listée :</div>'
+    + '<button onclick="_chatOpenWA(\'Bonjour 👋, j\\\'ai une question sur EcoDila.\')" style="background:#25d366;color:#fff;border:none;padding:.4rem .6rem;border-radius:6px;font-size:.74rem;cursor:pointer;font-family:inherit;font-weight:600;width:100%;margin-top:.3rem">💬 Demander sur WhatsApp</button>';
+  addMsg(html, 'bot', true);
+}
+window._chatAnswerFAQ = function(idx){
+  var item = _CHAT_FAQ[idx];
+  if(!item) return;
+  addMsg(item.q, 'user');
+  setTimeout(function(){ addMsg(item.a, 'bot'); }, 400);
+};
+
+/* ─── Ouvrir WhatsApp avec contexte ─────────────────────────────── */
+window._chatOpenWA = function(msg){
+  var url = 'https://wa.me/2250596275555?text=' + encodeURIComponent(msg||'Bonjour 👋');
+  window.open(url, '_blank');
+};
+
+/* ─── NLP ultra-simple : détecter l'intention ───────────────────── */
+function _chatDetectIntent(text){
+  var t = String(text||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+  // Suivi commande
+  if(/\b(commande|order|suivi|livraison|colis|quand.*recevoir|ou.*est.*ma)\b/.test(t))
+    return 'order';
+  // Troc
+  if(/\b(troc|troquer|echange|echanger|estimation)\b/.test(t))
+    return 'troc';
+  // Parrainage
+  if(/\b(parrain|parrainage|commission|gagner.*argent|filleul)\b/.test(t))
+    return 'parrain';
+  // Garantie/retour
+  if(/\b(garantie|retour|rembour|defaut|panne|casser|repar)\b/.test(t))
+    return 'garantie';
+  // Livraison
+  if(/\b(livr|delai|combien.*temps|recevoir)\b/.test(t))
+    return 'livraison';
+  // Paiement
+  if(/\b(paiement|payer|wave|orange.*money|moov|mtn)\b/.test(t))
+    return 'paiement';
+  // Bonjour/salut
+  if(/^(bonjour|salut|hello|coucou|bsr|bjr)\b/.test(t))
+    return 'greeting';
+
+  // Sinon : recherche produit (par défaut)
+  return 'search';
+}
+
+/* ─── Nouveau sendMsg intelligent ──────────────────────────────── */
+function sendMsg(){
+  var inp=document.getElementById('chatInput');
+  var val=inp.value.trim();
+  if(!val) return;
+  addMsg(val, 'user');
+  inp.value='';
+
+  setTimeout(function(){
+    var intent = _chatDetectIntent(val);
+    if(intent === 'order'){
+      _chatSuiviCommande();
+    } else if(intent === 'troc'){
+      _chatHandleAction('troc');
+    } else if(intent === 'parrain'){
+      var html = '🤝 Le programme parrainage EcoDila vous permet de gagner 5 à 10% de commissions !<br><br>'
+        + '<button onclick="window.showPage(\'parrainage\');toggleChat()" style="background:var(--green);color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;width:100%">🚀 Devenir parrain</button>';
+      addMsg(html, 'bot', true);
+    } else if(intent === 'garantie'){
+      addMsg('🛡️ Tous nos produits ont une *garantie de 3 mois*. En cas de défaut dans les 7 jours, retour gratuit. Pour un défaut spécifique, contactez-nous sur WhatsApp.', 'bot');
+    } else if(intent === 'livraison'){
+      addMsg('🚚 *Livraison* :\n• Abidjan : 24-48h, gratuite dès 100 000 FCFA\n• Côte d\'Ivoire : 2-5 jours\nPaiement à la livraison uniquement.', 'bot');
+    } else if(intent === 'paiement'){
+      addMsg('💳 Paiement à la livraison : espèces, Wave, Orange Money, Moov Money, MTN Money. Pas de paiement en ligne — vous payez quand vous recevez.', 'bot');
+    } else if(intent === 'greeting'){
+      addMsg('Bonjour ! 👋 Je peux vous aider à trouver un produit, suivre une commande, ou répondre à vos questions. Que cherchez-vous ?', 'bot');
+      setTimeout(function(){ _chatShowQuickActions(); }, 600);
+    } else {
+      // Par défaut : rechercher des produits
+      _chatSearchProducts(val);
+    }
+  }, 400);
+}
+
+/* ─── Reconnaissance vocale (Web Speech API) ────────────────────── */
+window._chatMicToggle = function(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    var html = '🎤 Votre navigateur ne supporte pas le micro intégré.<br><br>'
+      + 'Pas grave ! Vous pouvez envoyer un <b>message vocal directement sur WhatsApp</b> :'
+      + '<br><br><button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📲 Ouvrir WhatsApp pour parler</button>';
+    addMsg(html, 'bot', true);
+    return;
+  }
+  // Si déjà en train d'écouter, stopper
+  if(window._chatRec && window._chatRecActive){
+    try { window._chatRec.stop(); } catch(e){}
+    window._chatRecActive = false;
+    return;
+  }
+  var btn = document.getElementById('chatMicBtn');
+  var rec = new SR();
+  rec.lang = 'fr-FR';
+  rec.continuous = false;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+
+  // Animation visuelle : micro qui pulse en rouge
+  if(btn){
+    btn.style.background = '#ef4444';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#ef4444';
+    btn.innerHTML = '🔴';
+    btn.title = 'Écoute en cours… cliquer pour arrêter';
+  }
+
+  // Activer la synthèse vocale en sortie pour cette session (réponse vocale automatique)
+  window._chatVoiceOutEnabled = true;
+
+  var inp = document.getElementById('chatInput');
+  var finalText = '';
+
+  rec.onresult = function(ev){
+    var interim = '';
+    for(var i = ev.resultIndex; i < ev.results.length; i++){
+      var t = ev.results[i][0].transcript;
+      if(ev.results[i].isFinal) finalText += t;
+      else interim += t;
+    }
+    if(inp) inp.value = finalText + interim;
+  };
+
+  rec.onerror = function(ev){
+    console.warn('[chat-mic] erreur:', ev.error);
+    var fallbackBtn = '<br><br><button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.5rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📲 Envoyer un message vocal sur WhatsApp</button>';
+    if(ev.error === 'not-allowed' || ev.error === 'permission-denied'){
+      addMsg('🎤 Permission refusée. Pas grave !'+fallbackBtn, 'bot', true);
+    } else if(ev.error === 'no-speech'){
+      addMsg('🤔 Je n\'ai rien entendu. Réessayez en parlant plus fort, ou utilisez WhatsApp :'+fallbackBtn, 'bot', true);
+    } else if(ev.error === 'audio-capture'){
+      addMsg('🎤 Micro non détecté. Vous pouvez envoyer un message vocal sur WhatsApp :'+fallbackBtn, 'bot', true);
+    } else if(ev.error === 'network'){
+      addMsg('📡 Problème de connexion pour la reconnaissance vocale. Essayez WhatsApp :'+fallbackBtn, 'bot', true);
+    } else {
+      addMsg('🎤 Reconnaissance vocale indisponible. Pas grave :'+fallbackBtn, 'bot', true);
+    }
+    _chatMicReset();
+  };
+
+  rec.onend = function(){
+    _chatMicReset();
+    // Auto-envoi après reconnaissance
+    if(finalText.trim()){
+      // Petit délai pour laisser le temps de voir le texte
+      setTimeout(function(){
+        if(inp && inp.value.trim()){ sendMsg(); }
+      }, 300);
+    }
+  };
+
+  function _chatMicReset(){
+    if(btn){
+      btn.style.background = 'rgba(82,183,136,.15)';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'rgba(82,183,136,.4)';
+      btn.innerHTML = '🎤';
+      btn.title = 'Parler au lieu d\'écrire';
+    }
+    window._chatRecActive = false;
+  }
+
+  window._chatRec = rec;
+  window._chatRecActive = true;
+  try { rec.start(); } catch(e){
+    console.warn('[chat-mic] start failed:', e);
+    _chatMicReset();
+  }
+};
+
+/* ─── Synthèse vocale (lire les réponses du bot) ──────────────── */
+function _chatSpeak(text){
+  if(!window.speechSynthesis) return;
+  try {
+    // Annuler la lecture précédente
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(String(text||'').substring(0, 250));
+    u.lang = 'fr-FR';
+    u.rate = 1.05;
+    u.pitch = 1;
+    u.volume = 1;
+    window.speechSynthesis.speak(u);
+  } catch(e){ console.warn('[chat-speak]', e); }
+}
 function openWA(){
     var msg = encodeURIComponent('Bonjour EcoDila 👋, je souhaite obtenir des informations sur vos appareils reconditionnés.');
     var url = 'https://wa.me/2250596275555?text=' + msg;
