@@ -764,7 +764,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .chat-wrap.show{display:flex}
 .chat-header{background:var(--black);color:white;padding:.85rem 1rem;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between}
 .chat-header-info{display:flex;align-items:center;gap:.6rem}
-.chat-avatar{width:32px;height:32px;border-radius:50%;background:var(--gl);display:flex;align-items:center;justify-content:center;font-size:1rem}
+.chat-avatar{width:28px;height:28px;min-width:28px;aspect-ratio:1;border-radius:50%;background:var(--gl);display:flex;align-items:center;justify-content:center;font-size:.78rem;line-height:1;padding:0;flex-shrink:0;box-shadow:0 1px 3px rgba(82,183,136,.4)}
+.chat-close{background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;padding:.25rem;line-height:1}
+/* Bouton 🔊 lecture vocale dans le header (parfaitement rond, emoji centré) */
+.chat-voice-toggle{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;width:30px;height:30px;min-width:30px;aspect-ratio:1;border-radius:50%;cursor:pointer;font-size:.78rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;transition:background .2s,transform .15s}
+.chat-voice-toggle:hover{background:rgba(255,255,255,.2);transform:scale(1.08)}
+.chat-voice-toggle:active{transform:scale(.95)}
+.chat-voice-toggle.muted{background:rgba(239,68,68,.3);border-color:rgba(239,68,68,.5)}
+.chat-voice-toggle.muted:hover{background:rgba(239,68,68,.45)}
 .chat-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem}
 .chat-status{font-size:.7rem;color:var(--gl)}
 .chat-close{background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem}
@@ -779,7 +786,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .chat-input:focus{border-color:var(--gl)}
 .chat-send{background:var(--green);color:white;border:none;border-radius:8px;padding:.5rem .9rem;cursor:pointer;font-size:.9rem}
 /* Bouton micro style WhatsApp (rond plein vert, icône SVG blanche) */
-.chat-mic{background:#25D366;color:#fff;border:none;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s,transform .15s,box-shadow .2s;box-shadow:0 2px 6px rgba(37,211,102,.35);padding:0;position:relative}
+.chat-mic{background:#25D366;color:#fff;border:none;width:40px;height:40px;min-width:40px;aspect-ratio:1;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s,transform .15s,box-shadow .2s;box-shadow:0 2px 6px rgba(37,211,102,.35);padding:0;position:relative;line-height:0}
 .chat-mic:hover{background:#1ebe5a;transform:scale(1.05);box-shadow:0 3px 10px rgba(37,211,102,.5)}
 .chat-mic:active{transform:scale(.95)}
 .chat-mic.recording{background:#ef4444;box-shadow:0 2px 12px rgba(239,68,68,.6);animation:chatMicPulse 1.4s ease-in-out infinite}
@@ -5084,7 +5091,7 @@ setTimeout(_pStart,3000);
       <div><div class="chat-name">LIDA · EcoDila</div><div class="chat-status">● 24/7 · Équipe 8h-18h, lun-sam</div></div>
     </div>
     <div style="display:flex;align-items:center;gap:.4rem">
-      <button class="chat-voice-toggle" id="chatVoiceToggleBtn" onclick="_chatToggleVoice()" title="Activer/désactiver la lecture vocale" aria-label="Lecture vocale" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:all .2s">🔊</button>
+      <button class="chat-voice-toggle" id="chatVoiceToggleBtn" onclick="_chatToggleVoice()" title="Activer/désactiver la lecture vocale" aria-label="Lecture vocale">🔊</button>
       <button class="chat-close" onclick="toggleChat()" aria-label="Fermer le chat">✕</button>
     </div>
   </div>
@@ -17210,10 +17217,10 @@ function openChat(initMsg){
   if(initMsg)addMsg(initMsg,'bot');
   else if(chatHistory.length===0){
     addMsg(
-      'Bonjour 👋 bienvenue chez EcoDila, moi c\'est <b>LIDA</b>, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le 🎤 micro pour parler.',
+      'Bonjour 👋 bienvenue chez EcoDila, moi c\'est <b>LIDA</b>, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert <span style="display:inline-flex;align-items:center;justify-content:center;background:#25D366;width:18px;height:18px;border-radius:50%;vertical-align:middle;box-shadow:0 1px 3px rgba(37,211,102,.4)"><svg viewBox="0 0 24 24" width="11" height="11" fill="#fff" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.42 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.3 6-6.72h-1.7z"/></svg></span> pour parler.',
       'bot',
       true,
-      "Bonjour, bienvenue chez EcoDila, moi c'est LIDA, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le micro pour parler."
+      "Bonjour, bienvenue chez EcoDila, moi c'est LIDA, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert pour parler."
     );
     setTimeout(function(){ _chatShowQuickActions(); }, _chatDelay(600));
   }
@@ -17383,7 +17390,7 @@ window._chatHandleAction = function(action){
   } else if(action === 'voicewa'){
     addMsg('📲 Message vocal WhatsApp', 'user');
     var html = '😊 Cliquez sur le <b>bouton vert ci-dessous</b> pour ouvrir WhatsApp.<br><br>'
-      + '<div style="font-size:.78rem;line-height:1.5;margin-bottom:.6rem;color:rgba(255,255,255,.9)">Une fois sur WhatsApp, envoyez toutes vos demandes (par texte, message vocal ou photos) — nos assistants vous répondront rapidement.</div>'
+      + '<div style="font-size:.78rem;line-height:1.5;margin-bottom:.6rem;color:#475569">Une fois sur WhatsApp, envoyez toutes vos demandes (par texte, message vocal ou photos) — nos assistants vous répondront rapidement.</div>'
       + '<button onclick="_chatOpenWA(\'Bonjour 👋, j\\\'aimerais être assisté(e) par EcoDila.\')" style="background:#25d366;color:#fff;border:none;padding:.7rem 1rem;border-radius:8px;font-size:.9rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📲 Ouvrir WhatsApp</button>';
     addMsg(html, 'bot', true, "Cliquez sur le bouton vert ci-dessous pour ouvrir WhatsApp. Une fois sur WhatsApp, envoyez toutes vos demandes et nos assistants vous répondront rapidement.");
   } else if(action === 'order'){
@@ -17876,12 +17883,12 @@ window._chatMicToggle = function(){
       var explainHtml = '';
       if(err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'){
         explainHtml = '🎤 <b>Pour utiliser le micro</b>, il faut l\'autoriser :<br><br>'
-          + '<div style="font-size:.78rem;line-height:1.6;background:rgba(255,255,255,.1);padding:.6rem;border-radius:6px">'
+          + '<div style="font-size:.78rem;line-height:1.6;background:rgba(0,0,0,.05);padding:.6rem;border-radius:6px;color:#1f2937">'
           + '👉 Cliquez sur le <b>🔒 cadenas</b> à gauche de l\'adresse du site<br>'
           + '👉 Trouvez <b>Microphone</b> et choisissez <b>Autoriser</b><br>'
           + '👉 Rechargez la page (Cmd+R sur Mac, Ctrl+R sur PC)'
           + '</div>'
-          + '<div style="margin-top:.5rem;font-size:.78rem;color:rgba(255,255,255,.85)">Ou utilisez WhatsApp directement :</div>'
+          + '<div style="margin-top:.5rem;font-size:.78rem;color:#475569">Ou utilisez WhatsApp directement :</div>'
           + '<button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%;margin-top:.4rem">📲 Envoyer message vocal sur WhatsApp</button>';
       } else if(err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError'){
         explainHtml = '🎤 Aucun micro détecté sur votre appareil.<br><br>'
@@ -18037,8 +18044,7 @@ window._chatToggleVoice = function(){
   if(btn){
     btn.innerHTML = enabled ? '🔊' : '🔇';
     btn.title = enabled ? 'Lecture vocale activée — cliquez pour couper' : 'Lecture vocale coupée — cliquez pour activer';
-    btn.style.background = enabled ? 'rgba(255,255,255,.1)' : 'rgba(239,68,68,.3)';
-    btn.style.borderColor = enabled ? 'rgba(255,255,255,.2)' : 'rgba(239,68,68,.5)';
+    if(enabled){ btn.classList.remove('muted'); } else { btn.classList.add('muted'); }
   }
 
   // Si on désactive, arrêter immédiatement toute lecture en cours
@@ -18061,8 +18067,7 @@ function _chatSyncVoiceButton(){
   var enabled = window._chatVoiceOutEnabled;
   btn.innerHTML = enabled ? '🔊' : '🔇';
   btn.title = enabled ? 'Lecture vocale activée — cliquez pour couper' : 'Lecture vocale coupée — cliquez pour activer';
-  btn.style.background = enabled ? 'rgba(255,255,255,.1)' : 'rgba(239,68,68,.3)';
-  btn.style.borderColor = enabled ? 'rgba(255,255,255,.2)' : 'rgba(239,68,68,.5)';
+  if(enabled){ btn.classList.remove('muted'); } else { btn.classList.add('muted'); }
 }
 
 function _chatSpeak(text){
