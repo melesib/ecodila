@@ -5066,7 +5066,10 @@ setTimeout(_pStart,3000);
       <div class="chat-avatar">🟢</div>
       <div><div class="chat-name">EcoDila Support</div><div class="chat-status">● En ligne · 🎤 vocal disponible</div></div>
     </div>
-    <button class="chat-close" onclick="toggleChat()" aria-label="Fermer le chat">✕</button>
+    <div style="display:flex;align-items:center;gap:.4rem">
+      <button class="chat-voice-toggle" id="chatVoiceToggleBtn" onclick="_chatToggleVoice()" title="Activer/désactiver la lecture vocale" aria-label="Lecture vocale" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:all .2s">🔊</button>
+      <button class="chat-close" onclick="toggleChat()" aria-label="Fermer le chat">✕</button>
+    </div>
   </div>
   <div class="chat-body" id="chatBody"></div>
   <div class="chat-input-area">
@@ -11836,6 +11839,14 @@ let offers = (function(){
   }catch(e){return[];}
 }());
 let nextId=Date.now(),currentRating=0,chatOpen=false,chatHistory=[],botIdx=0,currentModalId=null,currentOfferItem=null,selectedProductForBuy=null;
+
+// Lecture vocale activée par défaut, sauf si l'utilisateur l'a désactivée dans cette session
+try {
+  var _voicePref = sessionStorage.getItem('chatVoiceMuted');
+  window._chatVoiceOutEnabled = (_voicePref !== '1');
+} catch(e){
+  window._chatVoiceOutEnabled = true;
+}
 var userLoggedIn=false,currentUser={nom:'',tel:''};
 
 // ── Filtres catégorie dynamiques (site) ──────────────────────────────────
@@ -17165,6 +17176,8 @@ function renderReviews(){
 }
 function openChat(initMsg){
   chatOpen=true;document.getElementById('chatWrap').classList.add('show');
+  // Synchroniser l'état du bouton 🔊 avec la préférence
+  _chatSyncVoiceButton();
   // Cacher la bulle d'invitation et le badge rouge à l'ouverture du chat
   var tip = document.getElementById('waFloatTip');
   if(tip) tip.classList.remove('show');
@@ -17694,8 +17707,8 @@ function _chatStartRecognition(){
     btn.title = 'Écoute en cours… cliquer pour arrêter';
   }
 
-  // Activer la synthèse vocale en sortie pour cette session (réponse vocale automatique)
-  window._chatVoiceOutEnabled = true;
+  // Note: la synthèse vocale est activée par défaut au chargement
+  // (voir _chatVoiceOutEnabled init)
 
   var inp = document.getElementById('chatInput');
   var finalText = '';
@@ -17780,6 +17793,49 @@ function _stripEmojis(text){
     // Doubles espaces
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/* Active/désactive la lecture vocale automatique des messages bot */
+window._chatToggleVoice = function(){
+  var enabled = !window._chatVoiceOutEnabled;
+  window._chatVoiceOutEnabled = enabled;
+
+  // Mémoriser dans sessionStorage
+  try {
+    sessionStorage.setItem('chatVoiceMuted', enabled ? '0' : '1');
+  } catch(e){}
+
+  // Mettre à jour le bouton dans le header
+  var btn = document.getElementById('chatVoiceToggleBtn');
+  if(btn){
+    btn.innerHTML = enabled ? '🔊' : '🔇';
+    btn.title = enabled ? 'Lecture vocale activée — cliquez pour couper' : 'Lecture vocale coupée — cliquez pour activer';
+    btn.style.background = enabled ? 'rgba(255,255,255,.1)' : 'rgba(239,68,68,.3)';
+    btn.style.borderColor = enabled ? 'rgba(255,255,255,.2)' : 'rgba(239,68,68,.5)';
+  }
+
+  // Si on désactive, arrêter immédiatement toute lecture en cours
+  if(!enabled && window.speechSynthesis){
+    try { window.speechSynthesis.cancel(); } catch(e){}
+  }
+
+  // Petit message de feedback dans le chat
+  if(enabled){
+    addMsg('🔊 Lecture vocale activée. Le bot lira ses réponses à voix haute.', 'bot');
+  } else {
+    addMsg('🔇 Lecture vocale coupée. Vous pouvez toujours lire les messages.', 'bot');
+  }
+};
+
+/* Synchronise l'état du bouton 🔊 quand le chat s'ouvre */
+function _chatSyncVoiceButton(){
+  var btn = document.getElementById('chatVoiceToggleBtn');
+  if(!btn) return;
+  var enabled = window._chatVoiceOutEnabled;
+  btn.innerHTML = enabled ? '🔊' : '🔇';
+  btn.title = enabled ? 'Lecture vocale activée — cliquez pour couper' : 'Lecture vocale coupée — cliquez pour activer';
+  btn.style.background = enabled ? 'rgba(255,255,255,.1)' : 'rgba(239,68,68,.3)';
+  btn.style.borderColor = enabled ? 'rgba(255,255,255,.2)' : 'rgba(239,68,68,.5)';
 }
 
 function _chatSpeak(text){
