@@ -18585,6 +18585,9 @@ function _chatSpeak(text, opts){
       if(typeof opts.onEnd === 'function'){ try { opts.onEnd(); } catch(e){} }
     };
     u.onerror = function(ev){
+      // Sur Chrome desktop, l'erreur "canceled" arrive parfois mais la voix démarre quand même.
+      // On ne reset pas le flag car la voix peut quand même jouer.
+      if(ev && ev.error === 'canceled') return;
       window._chatSpeakInProgress = false;
       if(typeof opts.onEnd === 'function'){ try { opts.onEnd(); } catch(e){} }
     };
@@ -18593,14 +18596,13 @@ function _chatSpeak(text, opts){
         try { opts.onBoundary(ev.charIndex, ev.name); } catch(e){}
       };
     }
-    window.speechSynthesis.speak(u);
-    // Note : on N'appelle PAS resume() en fallback. Sur Chrome desktop, ça cause
-    // une erreur "canceled" car onstart peut prendre 300-500ms à se déclencher
-    // après speak() - mais la voix démarre quand même. Si le client veut résoudre
-    // le cas Chrome mobile, il faudra une logique plus fine basée sur paused.
+    // FIX Chrome desktop : retarder speak() de 100ms après cancel() pour éviter
+    // que les deux opérations se chevauchent (cause du onerror 'canceled' immédiat)
+    setTimeout(function(){
+      try { window.speechSynthesis.speak(u); } catch(e){}
+    }, 100);
   } catch(e){
     window._chatSpeakInProgress = false;
-    console.warn('[chat-speak]', e);
   }
 }
 
