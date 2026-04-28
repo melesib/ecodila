@@ -17440,15 +17440,58 @@ function _chatRunSearch(query, prods){
   var q = norm(query);
   var qWords = q.split(/\s+/).filter(function(w){ return w.length >= 2; });
 
-  // Synonymes courants en français/Côte d'Ivoire
+  // Détection de catégorie demandée — si l'utilisateur exprime une catégorie,
+  // on filtre uniquement les produits de cette catégorie pour éviter les faux matches
+  // (ex: "télévision" ne doit pas retourner des téléphones contenant "tv" dans le détail)
+  // L'ORDRE est important : on vérifie les catégories les plus spécifiques d'abord
+  // ("ordinateur portable" avant "portable" qui est aussi un synonyme de smartphone)
+  var CATEGORY_KEYWORDS_ORDERED = [
+    ['ordinateur', ['ordinateur portable','ordinateur','laptop','macbook','mac book','ordi','ordinateurs','pc gaming','pc']],
+    ['tv', ['smart tv','television','televiseur','tele','tv','televisions']],
+    ['tablette', ['tablette','tablet','ipad','tablettes','galaxy tab']],
+    ['montre', ['apple watch','galaxy watch','smartwatch','montre','watch','montres']],
+    ['drone', ['drone','dji','drones']],
+    ['casque', ['airpods','ecouteurs','casque','headphones','casques']],
+    ['console', ['playstation','ps5','ps4','xbox','nintendo','switch','console','consoles']],
+    ['imprimante', ['imprimante','printer','imprimantes']],
+    ['appareil photo', ['appareil photo','reflex','dslr','camera']],
+    ['smartphone', ['smartphone','telephone','telef','iphone','samsung galaxy','phone','portable','mobile','tel','smartphones']]
+  ];
+
+  // Trouver la catégorie demandée (ordre = priorité aux mots les plus spécifiques)
+  var requestedCategory = null;
+  for(var idx = 0; idx < CATEGORY_KEYWORDS_ORDERED.length; idx++){
+    var cat = CATEGORY_KEYWORDS_ORDERED[idx][0];
+    var kws = CATEGORY_KEYWORDS_ORDERED[idx][1];
+    for(var i = 0; i < kws.length; i++){
+      // Match strict du mot complet (pas juste un substring)
+      var pattern = new RegExp('\\b' + kws[i].replace(/\s+/g, '\\s+') + '\\b', 'i');
+      if(pattern.test(q)){
+        requestedCategory = cat;
+        break;
+      }
+    }
+    if(requestedCategory) break;
+  }
+
+  // Pour la catégorie matchée, retrouver ses keywords pour le filtrage
+  var requestedCategoryKeywords = [];
+  if(requestedCategory){
+    for(var idx2 = 0; idx2 < CATEGORY_KEYWORDS_ORDERED.length; idx2++){
+      if(CATEGORY_KEYWORDS_ORDERED[idx2][0] === requestedCategory){
+        requestedCategoryKeywords = CATEGORY_KEYWORDS_ORDERED[idx2][1];
+        break;
+      }
+    }
+  }
+
+  // Synonymes courants en français/Côte d'Ivoire (pour enrichir la recherche)
   var SYN = {
-    'tel': 'phone smartphone telephone',
+    'tel': 'phone smartphone',
     'telephone': 'phone smartphone',
-    'telef': 'phone smartphone',
     'portable': 'phone smartphone',
     'mobile': 'phone smartphone',
     'tele': 'tv television',
-    'tv': 'television',
     'pc': 'ordinateur laptop',
     'ordi': 'ordinateur laptop pc',
     'laptop': 'ordinateur pc',
@@ -17464,23 +17507,44 @@ function _chatRunSearch(query, prods){
   for(var k in SYN){ if(qExpanded.indexOf(k) > -1) qExpanded += ' ' + SYN[k]; }
   var qExpWords = qExpanded.split(/\s+/).filter(function(w){ return w.length >= 2; });
 
-  // Score chaque produit
+  // Mots clés à exclure du scoring (trop génériques)
+  var STOPWORDS = ['je','le','la','les','un','une','des','du','de','et','ou','pour','avec','sur','dans','est','suis','recherche','cherche','veux','voudrais','besoin'];
+  qExpWords = qExpWords.filter(function(w){ return STOPWORDS.indexOf(w) === -1; });
+
+  // Score chaque produit avec une logique stricte
   var scored = prods.map(function(p){
-    var hay = norm([
-      p.nom||'', p.brand||'', p.marque||'', p.model||'', p.modele||'',
-      p.categorie||'', p.qualite||p.etat||'', p.memory||'', p.screen||'',
-      p.detail||'', p.spec||''
-    ].join(' '));
+    var prodCat = norm(p.categorie || '');
+    var prodNomMarque = norm((p.nom||'') + ' ' + (p.brand||p.marque||'') + ' ' + (p.model||p.modele||''));
+    var prodDetails = norm((p.qualite||p.etat||'') + ' ' + (p.memory||'') + ' ' + (p.screen||'') + ' ' + (p.detail||'') + ' ' + (p.spec||''));
 
     var score = 0;
+    var matchedCategory = false;
+
+    // Filtre catégorie strict : si l'utilisateur a demandé une catégorie,
+    // le produit doit appartenir à cette catégorie (ou y ressembler).
+    if(requestedCategory){
+      var catMatches = requestedCategoryKeywords.some(function(kw){
+        var pattern = new RegExp('\\b' + kw.replace(/\s+/g, '\\s+') + '\\b', 'i');
+        return pattern.test(prodCat) || pattern.test(prodNomMarque);
+      });
+      if(!catMatches) return { p: p, score: 0 }; // exclu
+      matchedCategory = true;
+      score += 100; // gros bonus catégorie
+    }
+
+    // Bonus pour les mots qui matchent le nom/marque (le plus important)
     qExpWords.forEach(function(w){
-      if(hay.indexOf(w) > -1) score += 10;
+      if(prodNomMarque.indexOf(w) > -1) score += 20;
+      else if(prodCat.indexOf(w) > -1) score += 15;
+      else if(prodDetails.indexOf(w) > -1) score += 3; // moins de poids pour les détails
     });
-    // Bonus si le nom contient le terme exact
-    if(qWords.length && hay.indexOf(q) > -1) score += 30;
+
+    // Bonus si le nom contient la phrase exacte
+    if(qWords.length >= 2 && prodNomMarque.indexOf(q) > -1) score += 50;
+
     return { p: p, score: score };
   })
-  .filter(function(x){ return x.score > 0; })
+  .filter(function(x){ return x.score >= (requestedCategory ? 100 : 15); }) // seuil minimum
   .sort(function(a, b){ return b.score - a.score; })
   .slice(0, 4);
 
@@ -17853,9 +17917,13 @@ window._chatMicToggle = function(){
     addMsg(html, 'bot', true);
     return;
   }
-  // Si déjà en train d'écouter, stopper
+  // Si déjà en train d'écouter, l'utilisateur veut arrêter et envoyer
   if(window._chatRec && window._chatRecActive){
-    try { window._chatRec.stop(); } catch(e){}
+    if(typeof window._chatRequestStopRecognition === 'function'){
+      window._chatRequestStopRecognition();
+    } else {
+      try { window._chatRec.stop(); } catch(e){}
+    }
     window._chatRecActive = false;
     return;
   }
@@ -17918,21 +17986,26 @@ function _chatStartRecognition(){
   var btn = document.getElementById('chatMicBtn');
   var rec = new SR();
   rec.lang = 'fr-FR';
-  rec.continuous = false;
+  // continuous = true : ne s'arrête pas à la première pause (laisse le client parler longtemps)
+  // Le client doit cliquer à nouveau sur le micro pour stopper et envoyer.
+  rec.continuous = true;
   rec.interimResults = true;
   rec.maxAlternatives = 1;
 
   // Animation visuelle : micro qui pulse en rouge (style WhatsApp)
   if(btn){
     _chatMicSetState('recording');
-    btn.title = 'Écoute en cours… cliquer pour arrêter';
+    btn.title = 'Écoute en cours… cliquer pour arrêter et envoyer';
   }
-
-  // Note: la synthèse vocale est activée par défaut au chargement
-  // (voir _chatVoiceOutEnabled init)
 
   var inp = document.getElementById('chatInput');
   var finalText = '';
+  // Flag : true = l'utilisateur a cliqué stop (envoi voulu)
+  //        false = la reconnaissance s'est arrêtée seule (timeout, erreur)
+  var userRequestedStop = false;
+  // Flag : la reconnaissance a-t-elle terminé naturellement ?
+  // Si Chrome timeout après silence, on relance pour permettre au client de continuer.
+  var redoCount = 0;
 
   rec.onresult = function(ev){
     var interim = '';
@@ -17941,16 +18014,19 @@ function _chatStartRecognition(){
       if(ev.results[i].isFinal) finalText += t;
       else interim += t;
     }
-    if(inp) inp.value = finalText + interim;
+    if(inp) inp.value = (finalText + interim).trim();
   };
 
   rec.onerror = function(ev){
     console.warn('[chat-mic] erreur:', ev.error);
+    // 'no-speech' ou 'aborted' pendant écoute : pas afficher d'erreur, juste ignorer
+    if(ev.error === 'no-speech' || ev.error === 'aborted'){
+      // Ne rien faire, l'écoute peut continuer ou être relancée par onend
+      return;
+    }
     var fallbackBtn = '<br><br><button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.5rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📲 Envoyer un message vocal sur WhatsApp</button>';
     if(ev.error === 'not-allowed' || ev.error === 'permission-denied'){
       addMsg('🎤 Permission refusée. Pas grave !'+fallbackBtn, 'bot', true);
-    } else if(ev.error === 'no-speech'){
-      addMsg('🤔 Je n\'ai rien entendu. Réessayez en parlant plus fort, ou utilisez WhatsApp :'+fallbackBtn, 'bot', true);
     } else if(ev.error === 'audio-capture'){
       addMsg('🎤 Micro non détecté. Vous pouvez envoyer un message vocal sur WhatsApp :'+fallbackBtn, 'bot', true);
     } else if(ev.error === 'network'){
@@ -17958,14 +18034,28 @@ function _chatStartRecognition(){
     } else {
       addMsg('🎤 Reconnaissance vocale indisponible. Pas grave :'+fallbackBtn, 'bot', true);
     }
+    userRequestedStop = true; // empêche le redémarrage
     _chatMicReset();
   };
 
   rec.onend = function(){
+    // Si l'utilisateur n'a PAS cliqué stop manuellement, c'est que Chrome a timeout sur silence.
+    // Dans ce cas, on relance la reconnaissance pour permettre à l'utilisateur de continuer
+    // à parler (jusqu'à 3 redémarrages auto pour éviter les boucles infinies).
+    if(!userRequestedStop && redoCount < 3){
+      redoCount++;
+      try {
+        rec.start();
+        return; // pas de reset, l'écoute continue
+      } catch(e){
+        // start() peut échouer si déjà en cours, on laisse tomber
+        console.warn('[chat-mic] redémarrage impossible:', e);
+      }
+    }
+
+    // Vraiment fini : reset l'UI et envoyer si du texte a été capté
     _chatMicReset();
-    // Auto-envoi après reconnaissance
-    if(finalText.trim()){
-      // Petit délai pour laisser le temps de voir le texte
+    if(finalText.trim() && userRequestedStop){
       setTimeout(function(){
         if(inp && inp.value.trim()){ sendMsg(); }
       }, 300);
@@ -17979,6 +18069,12 @@ function _chatStartRecognition(){
     }
     window._chatRecActive = false;
   }
+
+  // Exposer un helper pour forcer l'arrêt depuis _chatMicToggle
+  window._chatRequestStopRecognition = function(){
+    userRequestedStop = true;
+    try { rec.stop(); } catch(e){}
+  };
 
   window._chatRec = rec;
   window._chatRecActive = true;
