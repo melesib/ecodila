@@ -18335,11 +18335,15 @@ function _chatGetFrenchVoice(){
 
 function _chatSpeak(text){
   if(!window.speechSynthesis) return;
-  // PERF : éviter d'empiler des lectures si l'utilisateur enchaîne les messages
-  if(window._chatSpeakInProgress) return;
   try {
-    // Annuler la lecture précédente
+    // TOUJOURS annuler la lecture précédente : le nouveau message a priorité.
+    // Comportement standard d'un assistant vocal (Google, Siri) :
+    // si LIDA parle et que l'utilisateur clique sur une option, elle s'arrête
+    // pour annoncer la nouvelle action. Pas de verrou bloquant.
     window.speechSynthesis.cancel();
+    // Reset du flag puisqu'on annule l'ancienne lecture
+    window._chatSpeakInProgress = false;
+
     // Nettoyer le texte : retirer emojis, markdown, URLs avant lecture
     var clean = _stripEmojis(text);
     if(!clean) return;
