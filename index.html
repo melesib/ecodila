@@ -18105,37 +18105,26 @@ function _chatStartRecognition(){
   if(!SR) return;
   var btn = document.getElementById('chatMicBtn');
   var rec = new SR();
-  // Langue : fr-FR par défaut, mais on capture quand même tous les résultats
-  // pour gérer les accents africains/ivoiriens (l'API tente plusieurs interprétations).
   rec.lang = 'fr-FR';
-  // continuous = true : ne s'arrête pas à la première pause (laisse parler longtemps)
-  rec.continuous = true;
-  // interimResults = true : on récupère même les résultats partiels (cruciaux pour
-  // les accents non standards où isFinal n'est pas toujours déclenché)
+  // Mode "court" stable : Chrome détecte automatiquement la fin de parole
+  // et déclenche onend. Plus fiable que continuous=true qui causait
+  // des boucles d'erreurs no-speech.
+  rec.continuous = false;
   rec.interimResults = true;
-  // 5 alternatives : si l'API hésite sur la prononciation, on garde celle de meilleure confiance
-  rec.maxAlternatives = 5;
+  rec.maxAlternatives = 3;
 
   // Animation visuelle : micro qui pulse en rouge (style WhatsApp)
   if(btn){
     _chatMicSetState('recording');
-    btn.title = 'Écoute en cours… cliquer pour arrêter et envoyer';
+    btn.title = 'Écoute en cours… parlez';
   }
 
   var inp = document.getElementById('chatInput');
   var finalText = '';
-  // Conserver les meilleurs interim pour ne RIEN perdre, même si l'API ne les marque pas isFinal.
-  // Sur accent ivoirien, beaucoup de mots restent en interim et seraient perdus sinon.
   var lastInterim = '';
   var userRequestedStop = false;
-  var redoCount = 0;
-  // Tracker les indices déjà traités pour éviter les doublons (Chrome Android peut
-  // renvoyer plusieurs fois le même résultat marqué isFinal, et resultIndex redémarre
-  // à 0 quand on relance rec.start() après un timeout silence)
-  var processedIndices = {};
-  // À chaque restart, l'API redémarre les indices à 0 → on doit faire un offset.
-  // sessionId augmente à chaque relance pour avoir des clefs uniques.
-  var sessionId = 0;
+  // Flag : true si une erreur s'est produite, pour empêcher onend de réagir
+  var errorOccurred = false;
 
   rec.onresult = function(ev){
     var interim = '';
@@ -18151,12 +18140,7 @@ function _chatStartRecognition(){
       }
       var t = best.transcript;
       if(ev.results[i].isFinal){
-        // Anti-doublon : clé unique session+index
-        var key = sessionId + ':' + i;
-        if(!processedIndices[key]){
-          processedIndices[key] = true;
-          finalText += t + ' ';
-        }
+        finalText += t + ' ';
       } else {
         interim += t;
       }
@@ -18167,42 +18151,34 @@ function _chatStartRecognition(){
 
   rec.onerror = function(ev){
     console.warn('[chat-mic] erreur:', ev.error);
-    if(ev.error === 'no-speech' || ev.error === 'aborted'){
-      return;
-    }
+    errorOccurred = true;
     var fallbackBtn = '<br><br><button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.5rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📲 Envoyer un message vocal sur WhatsApp</button>';
-    if(ev.error === 'not-allowed' || ev.error === 'permission-denied'){
+    if(ev.error === 'no-speech'){
+      // Pas de son : message gentil sans bouton WhatsApp (cas courant)
+      addMsg('🤔 Je n\'ai rien entendu. Cliquez à nouveau sur le micro pour réessayer.', 'bot');
+    } else if(ev.error === 'aborted'){
+      // L'utilisateur a interrompu volontairement : silencieux
+    } else if(ev.error === 'not-allowed' || ev.error === 'permission-denied'){
       addMsg('🎤 Permission refusée. Pas grave !'+fallbackBtn, 'bot', true);
     } else if(ev.error === 'audio-capture'){
       addMsg('🎤 Micro non détecté. Vous pouvez envoyer un message vocal sur WhatsApp :'+fallbackBtn, 'bot', true);
     } else if(ev.error === 'network'){
-      addMsg('📡 Problème de connexion pour la reconnaissance vocale. Essayez WhatsApp :'+fallbackBtn, 'bot', true);
+      addMsg('📡 Problème de connexion. Essayez WhatsApp :'+fallbackBtn, 'bot', true);
     } else {
       addMsg('🎤 Reconnaissance vocale indisponible. Pas grave :'+fallbackBtn, 'bot', true);
     }
-    userRequestedStop = true;
     _chatMicReset();
   };
 
   rec.onend = function(){
-    if(!userRequestedStop && redoCount < 3){
-      redoCount++;
-      // Nouvelle session : changer sessionId pour que les indices ne se chevauchent pas
-      sessionId++;
-      try {
-        rec.start();
-        return;
-      } catch(e){
-        console.warn('[chat-mic] redémarrage impossible:', e);
-      }
-    }
+    // Si onerror a déjà géré, ne rien faire
+    if(errorOccurred) return;
 
-    // Fini : combiner final + interim, et NETTOYER les doublons mot par mot
+    // Mode normal : combiner final + interim et envoyer
     var combined = (finalText + ' ' + lastInterim);
     combined = _chatDedupeWords(combined);
     _chatMicReset();
-    if(combined && userRequestedStop){
-      // Mettre à jour l'input avec le texte combiné final+interim
+    if(combined){
       if(inp) inp.value = combined;
       setTimeout(function(){
         if(inp && inp.value.trim()){ sendMsg(); }
