@@ -17426,7 +17426,7 @@ function addMsg(text, type, isHtml, voiceText, voiceOpts){
       var temp = document.createElement('div');
       temp.innerHTML = text;
       var plain = temp.textContent || '';
-      if(plain.trim()) _chatSpeak(plain.substring(0, 200), voiceOpts);
+      if(plain.trim()) _chatSpeak(plain.substring(0, 2000), voiceOpts);
     }
   }
 }
@@ -18301,20 +18301,23 @@ window._chatMicToggle = function(){
 /* Lance la reconnaissance vocale (appelé après avoir obtenu la permission) */
 /* Nettoie les mots dupliqués collés/répétés dans la transcription vocale.
    Bug connu de Chrome Android en mode continuous : peut renvoyer "jeje cherchecherche"
-   au lieu de "je cherche". On découpe les mots collés et on enlève les doublons consécutifs. */
+   au lieu de "je cherche". On découpe les mots collés et on enlève les doublons consécutifs.
+   Aussi : normalise les variantes mal entendues de "lida" (Nina, Linda, Lyda, etc.). */
 function _chatDedupeWords(text){
   if(!text) return '';
-  // 1. Découper les mots collés du type "jeje" ou "cherchecherche" :
-  // si un mot contient lui-même répété (ex: "jeje" = "je"+"je"), on garde une seule occurrence
+  // 0. Normaliser les variantes mal entendues de "lida"
+  // La reconnaissance vocale entend souvent : nina, linda, lindl, lyda, lyla, lila, lina, lidia, lyda
+  // → on remplace par "lida" pour que l'intent detection marche
+  text = text.replace(/\b(nina|linda|lindl|lindel|lindle|lyda|lyla|lila|lina|lidia|lidya|lidi)\b/gi, 'Lida');
+  // 1. Découper les mots collés
   var cleaned = text.replace(/\b(\w{2,})\1+\b/gi, '$1');
-  // 2. Supprimer les répétitions consécutives de mots ("je je cherche cherche" → "je cherche")
+  // 2. Supprimer les répétitions consécutives de mots
   var words = cleaned.split(/\s+/);
   var result = [];
   var prev = null;
   for(var i = 0; i < words.length; i++){
     var w = words[i];
     if(!w) continue;
-    // Comparaison insensible à la casse
     if(prev && w.toLowerCase() === prev.toLowerCase()) continue;
     result.push(w);
     prev = w;
@@ -18328,24 +18331,23 @@ function _chatStartRecognition(){
   var btn = document.getElementById('chatMicBtn');
   var rec = new SR();
   rec.lang = 'fr-FR';
-  // Mode "court" stable : Chrome détecte automatiquement la fin de parole
-  // et déclenche onend. Plus fiable que continuous=true qui causait
-  // des boucles d'erreurs no-speech.
-  rec.continuous = false;
+  // Mode "continu" style WhatsApp : enregistre tant que l'utilisateur parle.
+  // Le client appuie une 2e fois sur le micro pour arrêter et envoyer la requête.
+  // Chrome n'arrête PAS automatiquement après silence : il continue jusqu'au stop manuel.
+  rec.continuous = true;
   rec.interimResults = true;
   rec.maxAlternatives = 3;
 
   // Animation visuelle : micro qui pulse en rouge (style WhatsApp)
   if(btn){
     _chatMicSetState('recording');
-    btn.title = 'Écoute en cours… parlez';
+    btn.title = 'Cliquez pour arrêter et envoyer';
   }
 
   var inp = document.getElementById('chatInput');
   var finalText = '';
   var lastInterim = '';
   var userRequestedStop = false;
-  // Flag : true si une erreur s'est produite, pour empêcher onend de réagir
   var errorOccurred = false;
 
   rec.onresult = function(ev){
@@ -18368,6 +18370,7 @@ function _chatStartRecognition(){
       }
     }
     lastInterim = interim;
+    // Affichage live dans l'input pour que l'utilisateur voie ce qui est transcrit
     if(inp) inp.value = (finalText + interim).trim();
   };
 
@@ -18376,7 +18379,11 @@ function _chatStartRecognition(){
     errorOccurred = true;
     var fallbackBtn = '<br><br><button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.5rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📲 Envoyer un message vocal sur WhatsApp</button>';
     if(ev.error === 'no-speech'){
-      // Pas de son : message gentil sans bouton WhatsApp (cas courant)
+      // En mode continu, no-speech signifie que l'utilisateur n'a rien dit pendant longtemps.
+      // On redémarre automatiquement (sauf si le user a explicitement arrêté).
+      if(!userRequestedStop){
+        try { rec.start(); errorOccurred = false; return; } catch(e){}
+      }
       addMsg('🤔 Je n\'ai rien entendu. Cliquez à nouveau sur le micro pour réessayer.', 'bot');
     } else if(ev.error === 'aborted'){
       // L'utilisateur a interrompu volontairement : silencieux
@@ -18393,10 +18400,18 @@ function _chatStartRecognition(){
   };
 
   rec.onend = function(){
-    // Si onerror a déjà géré, ne rien faire
     if(errorOccurred) return;
 
-    // Mode normal : combiner final + interim et envoyer
+    // Mode continu : onend est déclenché soit par un stop manuel (userRequestedStop)
+    // soit par un timeout interne du navigateur. Si le user n'a pas demandé stop,
+    // on relance l'écoute pour continuer à enregistrer.
+    if(!userRequestedStop){
+      try { rec.start(); return; } catch(e){
+        // Si le restart échoue, on traite comme un stop normal
+      }
+    }
+
+    // Stop manuel : combiner final + interim et envoyer
     var combined = (finalText + ' ' + lastInterim);
     combined = _chatDedupeWords(combined);
     _chatMicReset();
@@ -18405,6 +18420,8 @@ function _chatStartRecognition(){
       setTimeout(function(){
         if(inp && inp.value.trim()){ sendMsg(); }
       }, 300);
+    } else {
+      addMsg('🤔 Je n\'ai rien entendu. Cliquez à nouveau sur le micro pour réessayer.', 'bot');
     }
   };
 
@@ -18571,8 +18588,8 @@ function _chatSpeak(text, opts){
     }
   } catch(e){}
 
-  // Créer utterance simple
-  var u = new SpeechSynthesisUtterance(clean.substring(0, 600));
+  // Créer utterance simple (limite 2000 chars pour ne pas couper les longues réponses)
+  var u = new SpeechSynthesisUtterance(clean.substring(0, 2000));
   u.lang = 'fr-FR';
   u.rate = 1;
   u.pitch = 1;
