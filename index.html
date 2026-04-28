@@ -798,6 +798,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 /* Indicateur "le bot tape..." (style WhatsApp) */
 .chat-typing-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gray);animation:chatTypingPulse 1.2s ease-in-out infinite}
 @keyframes chatTypingPulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+/* Mise en avant d'une carte produit pendant que LIDA la lit à voix haute */
+.chat-product-card.highlighted{transform:scale(1.04);box-shadow:0 4px 16px rgba(82,183,136,.35);border-color:var(--green) !important;background:#fff !important;z-index:2}
 /* PERF : desactiver les animations couteuses sur low-end (prefers-reduced-motion ou CPU faible) */
 @media (prefers-reduced-motion: reduce){
   .wa-float, .wa-float::before, .wa-float-badge, .chat-mic, .chat-mic.recording::after, .chat-typing-dot{animation:none !important}
@@ -17248,27 +17250,36 @@ function toggleChat(){
   }
 }
 
-/* Helper : scroll intelligent vers un message dans le chat-body.
-   - Si le message tient dans la moitié supérieure du viewport, scroll en bas (classique)
-   - Si le message est plus grand (cartes produits, longue réponse) : scroll pour voir
-     le DÉBUT du message en haut du viewport (avec petite marge), pour que l'utilisateur
-     suive la lecture vocale en lisant depuis le haut. */
+/* Helper : scroll vers un message dans le chat-body avec animation fluide.
+   - Si le message tient dans le viewport : scroll en bas (classique)
+   - Si le message est plus haut que le viewport (cartes produits, longue réponse) :
+     scroll pour voir le DÉBUT du message en haut du viewport
+   Animation `behavior: smooth` pour éviter l'effet "freeze" du saut instantané. */
 function _chatScrollToMessage(body, msgDiv){
   if(!body || !msgDiv) return;
   try {
     var bodyHeight = body.clientHeight;
     var msgHeight = msgDiv.offsetHeight;
-    // Position du message dans le scroll container
     var msgTop = msgDiv.offsetTop;
-    if(msgHeight > bodyHeight * 0.6){
-      // Message long : scroll pour voir le début du message (avec 8px de marge en haut)
-      body.scrollTop = Math.max(0, msgTop - 8);
+    var targetScroll;
+    // Seuil 85% : on ne change de comportement QUE pour les messages vraiment longs
+    // (cartes produits multiples, longues réponses FAQ)
+    if(msgHeight > bodyHeight * 0.85){
+      // Message très long : scroll pour voir le début (8px de marge)
+      targetScroll = Math.max(0, msgTop - 8);
     } else {
-      // Message court : scroll classique en bas
-      body.scrollTop = body.scrollHeight;
+      // Message normal : scroll en bas (comportement chat classique)
+      targetScroll = body.scrollHeight;
     }
+    // Animation fluide si supportée (sinon scroll instant)
+    if(typeof body.scrollTo === 'function'){
+      try {
+        body.scrollTo({ top: targetScroll, behavior: 'smooth' });
+        return;
+      } catch(e){}
+    }
+    body.scrollTop = targetScroll;
   } catch(e){
-    // Fallback : scroll classique en cas d'erreur
     body.scrollTop = body.scrollHeight;
   }
 }
@@ -17660,7 +17671,7 @@ function _chatRunSearch(query, prods){
   }
 
   // Construire les cartes produits
-  var cards = scored.map(function(x){
+  var cards = scored.map(function(x, idx){
     var p = x.p;
     var nom = (p.brand||p.marque||'') + ' ' + (p.model||p.modele||p.nom||'');
     nom = nom.trim() || (p.nom||'Produit');
@@ -17673,7 +17684,7 @@ function _chatRunSearch(query, prods){
     if(!img && p.image) img = p.image;
     var imgHtml = img ? '<img src="'+_esc(img)+'" alt="'+_esc(nom)+'" loading="lazy" decoding="async" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#f3f4f6">' : '<div style="width:60px;height:60px;background:#f3f4f6;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">📦</div>';
     var pid = String(p.id||'');
-    return '<div onclick="_chatOpenProductFromChat(\''+_esc(pid).replace(/\'/g,'&#39;')+'\')" style="display:flex;gap:.6rem;padding:.5rem;background:rgba(255,255,255,.95);border-radius:8px;cursor:pointer;border:1px solid rgba(0,0,0,.08);transition:transform .15s" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'">'
+    return '<div data-chat-product-card="'+idx+'" onclick="_chatOpenProductFromChat(\''+_esc(pid).replace(/\'/g,'&#39;')+'\')" class="chat-product-card" style="display:flex;gap:.6rem;padding:.5rem;background:rgba(255,255,255,.95);border-radius:8px;cursor:pointer;border:1px solid rgba(0,0,0,.08);transition:transform .3s ease, box-shadow .3s ease, border-color .3s ease">'
       + imgHtml
       + '<div style="flex:1;min-width:0;color:#0a0e1a">'
       +   '<div style="font-weight:700;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_esc(nom)+'</div>'
@@ -17708,6 +17719,59 @@ function _chatRunSearch(query, prods){
   var voiceText = voiceParts.join(' ');
 
   addMsg(fullHtml, 'bot', true, voiceText);
+
+  // Mise en avant séquentielle des cartes pendant que LIDA les énumère.
+  // Optimisé low-end : utilise transform CSS (GPU) + setTimeout simple.
+  // Si la voix est désactivée, on saute (pas besoin d'animation).
+  if(window._chatVoiceOutEnabled && scored.length > 1){
+    _chatHighlightProductsSequentially(scored.length);
+  }
+}
+
+/* Met en avant chaque carte produit successivement, en synchro avec la lecture vocale.
+   Premier produit après ~2.5s (le bot dit d'abord "J'ai trouvé X produits"),
+   puis 3.5s par carte (durée moyenne de "Marque Modèle à PRIX francs CFA, négociable et troc possible").
+   Tient compte des connexions lentes : sur 2G/3G, on accélère pour ne pas désynchroniser. */
+function _chatHighlightProductsSequentially(count){
+  // Délais adaptatifs selon la connexion
+  var slow = _chatIsSlowConnection();
+  var initialDelay = slow ? 1500 : 2500; // temps avant le 1er produit
+  var perCard = slow ? 2500 : 3500;       // durée par produit énuméré
+
+  // Annuler une animation précédente si elle existe
+  if(window._chatHighlightTimers){
+    window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
+  }
+  window._chatHighlightTimers = [];
+
+  for(var i = 0; i < count; i++){
+    (function(idx){
+      var t = setTimeout(function(){
+        // Retirer toute mise en avant précédente
+        var allCards = document.querySelectorAll('.chat-product-card');
+        allCards.forEach(function(c){ c.classList.remove('highlighted'); });
+        // Mettre en avant la carte actuelle
+        var card = document.querySelector('.chat-product-card[data-chat-product-card="'+idx+'"]');
+        if(card){
+          card.classList.add('highlighted');
+          // Scroll doux vers cette carte (sur mobile c'est bien visible)
+          try {
+            if(typeof card.scrollIntoView === 'function'){
+              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          } catch(e){}
+        }
+      }, initialDelay + idx * perCard);
+      window._chatHighlightTimers.push(t);
+    })(i);
+  }
+
+  // Retirer la dernière mise en avant après la fin de la lecture
+  var endT = setTimeout(function(){
+    var allCards = document.querySelectorAll('.chat-product-card');
+    allCards.forEach(function(c){ c.classList.remove('highlighted'); });
+  }, initialDelay + count * perCard + 500);
+  window._chatHighlightTimers.push(endT);
 }
 
 /* ─── Suivi de commande ────────────────────────────────────────── */
