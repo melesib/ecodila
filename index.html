@@ -775,7 +775,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .chat-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem}
 .chat-status{font-size:.7rem;color:var(--gl)}
 .chat-close{background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem}
-.chat-body{background:white;border:1px solid var(--border);border-top:none;height:280px;overflow-y:auto;padding:.9rem;display:flex;flex-direction:column;gap:.6rem}
+.chat-body{background:white;border:1px solid var(--border);border-top:none;height:380px;overflow-y:auto;padding:.9rem;display:flex;flex-direction:column;gap:.6rem}
 .msg{max-width:82%;padding:.55rem .8rem;border-radius:12px;font-size:.82rem;line-height:1.45}
 .msg.bot{background:var(--cream);color:#1a2332;align-self:flex-start;border-radius:4px 12px 12px 12px}
 .msg.bot a, .msg.bot button{color:inherit}
@@ -17207,25 +17207,37 @@ function openChat(initMsg){
   var badge = document.querySelector('.wa-float-badge');
   if(badge) badge.style.display = 'none';
 
-  // Si historique existe et que le chatBody est vide (cas de réouverture après fermeture),
-  // restaurer les messages précédents
-  var body = document.getElementById('chatBody');
-  if(body && body.children.length === 0 && chatHistory.length > 0){
-    _chatRenderAll();
+  // Toujours afficher le message d'accueil quand on (r)ouvre le chat,
+  // même si l'utilisateur a déjà eu une conversation précédente.
+  // Cela évite que le client tombe sur les options sans contexte.
+  if(initMsg){
+    addMsg(initMsg,'bot');
+    return;
   }
 
-  if(initMsg)addMsg(initMsg,'bot');
-  else if(chatHistory.length===0){
-    addMsg(
-      'Bonjour 👋 bienvenue chez EcoDila, je suis <b>LIDA</b>, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert <span style="display:inline-flex;align-items:center;justify-content:center;background:#25D366;width:18px;height:18px;border-radius:50%;vertical-align:middle;box-shadow:0 1px 3px rgba(37,211,102,.4)"><svg viewBox="0 0 24 24" width="11" height="11" fill="#fff" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.42 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.3 6-6.72h-1.7z"/></svg></span> pour parler.',
-      'bot',
-      true,
-      "Bonjour, bienvenue chez EcoDila, je suis LIDA, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert pour parler."
-    );
-    // Délai plus long (~1.5s) pour laisser le temps au bot de commencer à lire le "Bonjour"
-    // (les boutons seront affichés sans interrompre la lecture car voiceText=' ' dans _chatShowQuickActions)
-    setTimeout(function(){ _chatShowQuickActions(); }, _chatDelay(1500));
-  }
+  // Réinitialiser l'historique pour repartir avec un message d'accueil propre.
+  // (l'ancien historique reste dans la session mais le DOM est rafraîchi)
+  chatHistory.length = 0;
+  var body = document.getElementById('chatBody');
+  if(body) body.innerHTML = '';
+
+  addMsg(
+    'Bonjour 👋 bienvenue chez EcoDila, je suis <b>LIDA</b>, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert <span style="display:inline-flex;align-items:center;justify-content:center;background:#25D366;width:18px;height:18px;border-radius:50%;vertical-align:middle;box-shadow:0 1px 3px rgba(37,211,102,.4)"><svg viewBox="0 0 24 24" width="11" height="11" fill="#fff" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.42 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.3 6-6.72h-1.7z"/></svg></span> pour parler.',
+    'bot',
+    true,
+    "Bonjour, bienvenue chez EcoDila, je suis LIDA, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert pour parler."
+  );
+
+  // Force scroll en haut pour bien voir le message d'accueil
+  // (sinon le scroll automatique met le focus en bas et masque le Bonjour)
+  setTimeout(function(){
+    var bd = document.getElementById('chatBody');
+    if(bd) bd.scrollTop = 0;
+  }, 50);
+
+  // Délai pour laisser la voix démarrer la lecture du "Bonjour" avant d'afficher les options
+  // (sur connexion lente, on garde 1500ms pour que la voix ait le temps d'enchaîner)
+  setTimeout(function(){ _chatShowQuickActions(); }, _chatDelay(1500));
 }
 function toggleChat(){
   chatOpen=!chatOpen;
@@ -17235,7 +17247,11 @@ function toggleChat(){
     if(tip) tip.classList.remove('show');
     var badge = document.querySelector('.wa-float-badge');
     if(badge) badge.style.display = 'none';
-    if(chatHistory.length===0) openChat();
+    // Toujours déclencher openChat pour montrer le message d'accueil et lancer la voix
+    openChat();
+  } else {
+    // Le chat se ferme : couper toute lecture en cours
+    if(window.speechSynthesis){ try { window.speechSynthesis.cancel(); } catch(e){} }
   }
 }
 
@@ -17274,11 +17290,19 @@ function addMsg(text, type, isHtml, voiceText){
     body.removeChild(body.firstChild);
   }
 
-  // Scroll fluide vers le bas (requestAnimationFrame pour laisser le navigateur respirer)
-  if(window.requestAnimationFrame){
-    requestAnimationFrame(function(){ body.scrollTop = body.scrollHeight; });
-  } else {
-    body.scrollTop = body.scrollHeight;
+  // Scroll intelligent : si l'utilisateur consulte un ancien message (scrollé vers le haut),
+  // on ne force PAS le scroll vers le bas. Sinon on suit la conversation.
+  // Tolérance : si l'utilisateur est à <80px du bas, on considère qu'il "suit"
+  var nearBottom = (body.scrollHeight - body.scrollTop - body.clientHeight) < 80;
+  // Pour les messages user (qu'il vient d'envoyer), on scroll TOUJOURS en bas
+  // Pour les messages bot, on scroll seulement s'il est près du bas
+  var shouldScroll = (type === 'user') || nearBottom;
+  if(shouldScroll){
+    if(window.requestAnimationFrame){
+      requestAnimationFrame(function(){ body.scrollTop = body.scrollHeight; });
+    } else {
+      body.scrollTop = body.scrollHeight;
+    }
   }
 
   // Lecture vocale si activée
@@ -18194,6 +18218,40 @@ function _chatSyncVoiceButton(){
   if(enabled){ btn.classList.remove('muted'); } else { btn.classList.add('muted'); }
 }
 
+/* Cache des voix françaises disponibles (rempli au chargement pour démarrage rapide) */
+window._chatVoiceCache = null;
+function _chatGetFrenchVoice(){
+  if(window._chatVoiceCache !== null) return window._chatVoiceCache;
+  if(!window.speechSynthesis) return null;
+  try {
+    var voices = window.speechSynthesis.getVoices();
+    if(!voices || !voices.length){
+      window._chatVoiceCache = null;
+      return null;
+    }
+    // Priorité : voix fr-FR > fr-* > toute voix avec 'french' dans le nom
+    var preferred = voices.find(function(v){ return v.lang === 'fr-FR'; })
+                || voices.find(function(v){ return v.lang && v.lang.indexOf('fr') === 0; })
+                || voices.find(function(v){ return v.name && /french|fran[cç]ais/i.test(v.name); });
+    window._chatVoiceCache = preferred || null;
+    return window._chatVoiceCache;
+  } catch(e){ return null; }
+}
+
+/* Précharge les voix au chargement de la page (résout le lag du 1er speak() sur mobile) */
+(function _preloadVoices(){
+  if(!window.speechSynthesis) return;
+  // Forcer le chargement (certains navigateurs ne chargent que sur demande)
+  try { window.speechSynthesis.getVoices(); } catch(e){}
+  // Re-tenter quand l'événement voiceschanged se déclenche (Chrome mobile)
+  if('onvoiceschanged' in window.speechSynthesis){
+    window.speechSynthesis.onvoiceschanged = function(){
+      window._chatVoiceCache = null; // invalider le cache pour relire
+      _chatGetFrenchVoice();
+    };
+  }
+})();
+
 function _chatSpeak(text){
   if(!window.speechSynthesis) return;
   // PERF : éviter d'empiler des lectures si l'utilisateur enchaîne les messages
@@ -18209,10 +18267,20 @@ function _chatSpeak(text){
     u.rate = 1.05;
     u.pitch = 1;
     u.volume = 1;
+    // Sélection explicite de la voix française pré-chargée (évite le lag de chargement)
+    var voice = _chatGetFrenchVoice();
+    if(voice) u.voice = voice;
     u.onstart = function(){ window._chatSpeakInProgress = true; };
     u.onend = function(){ window._chatSpeakInProgress = false; };
     u.onerror = function(){ window._chatSpeakInProgress = false; };
     window.speechSynthesis.speak(u);
+    // Workaround Chrome mobile : si après 200ms speak() n'a pas démarré,
+    // forcer un resume() qui relance la file d'attente.
+    setTimeout(function(){
+      if(window.speechSynthesis && !window._chatSpeakInProgress){
+        try { window.speechSynthesis.resume(); } catch(e){}
+      }
+    }, 200);
   } catch(e){
     window._chatSpeakInProgress = false;
     console.warn('[chat-speak]', e);
