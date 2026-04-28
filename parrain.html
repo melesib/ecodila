@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#0b7a3e">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -374,7 +374,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .pill-no{background:rgba(255,80,80,.08);color:#ff6b6b;border:1px solid rgba(255,80,80,.2);}
 
 /* ── LEADERBOARD ── */
-.lb-row{display:flex;align-items:center;gap:.65rem;padding:.65rem .75rem;border-radius:10px;margin-bottom:.38rem;background:var(--bg2);border:1px solid var(--border);transition:transform .35s cubic-bezier(.34,1.56,.64,1),background .4s,border-color .4s,box-shadow .4s;}
+.lb-row{display:flex;align-items:center;gap:.65rem;padding:.65rem .75rem;border-radius:10px;margin-bottom:.38rem;background:var(--bg2);border:1px solid var(--border);}
 .lb-row.me{border-color:var(--p1);background:var(--glow2);}
 .lb-rank{width:25px;height:25px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.72rem;border-radius:50%;}
 .lb-rank.t1,.lb-rank.lb-r1{background:linear-gradient(135deg,#f0c040,#ffd976);color:#111;}
@@ -383,302 +383,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .lb-rank.tx,.lb-rank.lb-rx{background:var(--card);border:1px solid var(--border);color:var(--muted);}
 .lb-name{flex:1;font-weight:600;font-size:clamp(.72rem,2.8vw,.8rem);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .lb-pts{font-weight:700;font-size:.78rem;color:var(--p1);white-space:nowrap;}
-
-/* 🆕 ANIMATIONS LIVE — esprit jeu vidéo */
-@keyframes lb-rise {
-  0%   { transform:translateY(8px) scale(.98); background:rgba(0,255,136,.04); }
-  30%  { transform:translateY(-4px) scale(1.02); background:rgba(0,255,136,.18); border-color:rgba(0,255,136,.6); box-shadow:0 0 14px rgba(0,255,136,.4); }
-  100% { transform:translateY(0) scale(1); }
-}
-@keyframes lb-fall {
-  0%   { transform:translateY(-8px) scale(1); background:rgba(255,51,68,.04); }
-  30%  { transform:translateY(4px) scale(.98); background:rgba(255,51,68,.15); border-color:rgba(255,51,68,.55); box-shadow:0 0 14px rgba(255,51,68,.35); }
-  100% { transform:translateY(0) scale(1); }
-}
-@keyframes lb-arrow-pulse {
-  0%,100% { transform:scale(1); opacity:1; }
-  50%     { transform:scale(1.18); opacity:.9; }
-}
-.lb-anim-up { animation: lb-rise 1.1s cubic-bezier(.34,1.56,.64,1) both; }
-.lb-anim-down { animation: lb-fall 1.1s cubic-bezier(.4,.0,.2,1) both; }
-.lb-move-up, .lb-move-down { animation: lb-arrow-pulse 1.2s ease-in-out infinite; }
-
-/* Performance: reduce motion si demandé par l'utilisateur */
-@media (prefers-reduced-motion: reduce){
-  .lb-row, .lb-anim-up, .lb-anim-down { animation:none !important; transition:none !important; }
-  .lb-move-up, .lb-move-down { animation:none !important; }
-}
-
-/* 🆕 ═══ HÉRO PARRAIN — Podium 3D chevauchant ═══ */
-.par-hero {
-  background: linear-gradient(180deg, rgba(255,215,0,.06) 0%, rgba(102,153,255,.04) 50%, rgba(0,255,136,.04) 100%);
-  border: 1px solid rgba(255,215,0,.25);
-  border-radius: 14px;
-  padding: 1rem .85rem .85rem;
-  position: relative;
-  overflow: hidden;
-}
-.par-hero::before {
-  content: '';
-  position: absolute;
-  top: -50%; left: -10%;
-  width: 120%; height: 200%;
-  background: radial-gradient(ellipse at center, rgba(255,215,0,.08) 0%, transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-}
-.par-hero-title {
-  text-align: center;
-  font-size: .75rem;
-  font-weight: 700;
-  color: #f9a825;
-  letter-spacing: .03em;
-  text-transform: uppercase;
-  margin-bottom: .9rem;
-  position: relative; z-index: 1;
-}
-/* Container du podium */
-.par-podium {
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 0;
-  padding: 0 .3rem;
-  position: relative; z-index: 1;
-  min-height: 130px;
-}
-.par-podium-card {
-  flex: 1;
-  max-width: 110px;
-  background: var(--card);
-  border-radius: 10px;
-  padding: .55rem .35rem .5rem;
-  text-align: center;
-  position: relative;
-  box-shadow: 0 4px 12px rgba(0,0,0,.4);
-  /* 🔧 transition spécifique : seulement opacity et box-shadow au hover.
-     Le transform est géré par les classes .par-podium-1/2/3 et NE doit PAS
-     être en transition (sinon repaint constant + saut au re-render). */
-  transition: box-shadow .2s ease, opacity .2s ease;
-  will-change: auto;
-}
-.par-podium-card:hover {
-  box-shadow: 0 6px 18px rgba(0,0,0,.55);
-}
-
-/* 1er — au centre, plus grand, avance vers l'avant */
-.par-podium-1 {
-  z-index: 3;
-  transform: scale(1.08);
-  margin: 0 -10px;
-  border: 2px solid #f0c040;
-  background: linear-gradient(180deg, rgba(240,192,64,.18) 0%, var(--card) 60%);
-  box-shadow: 0 6px 20px rgba(240,192,64,.35), 0 0 0 1px rgba(240,192,64,.1) inset;
-}
-.par-podium-1 .par-podium-medal { font-size: 2.2rem; }
-.par-podium-1 .par-podium-rank { color: #f0c040; }
-
-/* 2e — à gauche, légèrement reculé */
-.par-podium-2 {
-  z-index: 2;
-  transform: scale(.92) translateY(8px);
-  border: 1px solid rgba(168,184,204,.55);
-  background: linear-gradient(180deg, rgba(168,184,204,.12) 0%, var(--card) 60%);
-}
-.par-podium-2 .par-podium-medal { font-size: 1.8rem; }
-.par-podium-2 .par-podium-rank { color: #c8d8ec; }
-
-/* 3e — à droite, plus reculé */
-.par-podium-3 {
-  z-index: 1;
-  transform: scale(.85) translateY(14px);
-  border: 1px solid rgba(200,128,80,.55);
-  background: linear-gradient(180deg, rgba(200,128,80,.12) 0%, var(--card) 60%);
-}
-.par-podium-3 .par-podium-medal { font-size: 1.6rem; }
-.par-podium-3 .par-podium-rank { color: #e0a070; }
-
-.par-podium-medal {
-  line-height: 1;
-  margin-bottom: .25rem;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,.4));
-}
-.par-podium-rank {
-  font-size: .58rem;
-  font-weight: 800;
-  letter-spacing: .04em;
-  margin-bottom: .25rem;
-  text-transform: uppercase;
-}
-.par-podium-name {
-  font-size: .68rem;
-  font-weight: 700;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: .15rem;
-  line-height: 1.2;
-}
-.par-podium-pts {
-  font-family: 'Space Mono', monospace;
-  font-size: .68rem;
-  font-weight: 800;
-  color: var(--p1);
-}
-
-/* 🔧 Animation d'entrée des cartes podium — REWRITE CORRECT
-   Le bug précédent : l'animation finissait à transform:none (implicite),
-   écrasant le scale/translateY défini dans .par-podium-1/2/3.
-   Solution : chaque carte a sa propre keyframe qui termine sur SES valeurs finales.
-   + .anim-once : flag JS pour qu'elle ne rejoue pas au re-render (anti-rame). */
-
-@keyframes podium-pop-1 {
-  0%   { opacity: 0; transform: translateY(20px) scale(.7); }
-  60%  { opacity: 1; transform: translateY(-4px) scale(1.13); }
-  100% { opacity: 1; transform: scale(1.08); } /* reste à scale(1.08) comme défini */
-}
-@keyframes podium-pop-2 {
-  0%   { opacity: 0; transform: translateY(28px) scale(.65); }
-  60%  { opacity: 1; transform: translateY(4px) scale(.97); }
-  100% { opacity: 1; transform: scale(.92) translateY(8px); }
-}
-@keyframes podium-pop-3 {
-  0%   { opacity: 0; transform: translateY(34px) scale(.6); }
-  60%  { opacity: 1; transform: translateY(10px) scale(.9); }
-  100% { opacity: 1; transform: scale(.85) translateY(14px); }
-}
-
-/* 🔧 Les animations ne s'appliquent QUE quand la classe .anim-once est présente.
-   Cette classe est ajoutée au 1er render, retirée après animation pour
-   ne plus jamais rejouer (évite le "rame" lors des re-renders du polling). */
-.par-podium-1.anim-once { animation: podium-pop-1 .5s cubic-bezier(.34,1.4,.64,1) .15s both; }
-.par-podium-2.anim-once { animation: podium-pop-2 .5s cubic-bezier(.34,1.4,.64,1) 0s both; }
-.par-podium-3.anim-once { animation: podium-pop-3 .5s cubic-bezier(.34,1.4,.64,1) .25s both; }
-
-/* Carte du parrain (Mon rang) */
-.par-hero-me {
-  margin-top: 1rem;
-  padding: .65rem .85rem;
-  background: linear-gradient(135deg, var(--glow2) 0%, rgba(0,255,136,.06) 100%);
-  border: 1px solid var(--p1);
-  border-radius: 10px;
-  position: relative; z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: .7rem;
-  cursor: pointer;
-  transition: transform .2s, border-color .2s;
-}
-.par-hero-me:hover { transform: scale(1.01); border-color: rgba(0,255,136,.8); }
-
-.par-hero-me-rank {
-  background: var(--p1);
-  color: #0a0e14;
-  font-weight: 800;
-  font-size: 1.05rem;
-  width: 2.4rem; height: 2.4rem;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 0 12px rgba(0,255,136,.4);
-}
-.par-hero-me-info { flex: 1; min-width: 0; }
-.par-hero-me-label {
-  font-size: .58rem;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  color: var(--muted);
-  font-weight: 700;
-}
-.par-hero-me-msg {
-  font-size: .72rem;
-  font-weight: 600;
-  color: var(--text);
-  line-height: 1.35;
-  margin-top: .15rem;
-}
-.par-hero-me-pts {
-  font-family: 'Space Mono', monospace;
-  font-size: .82rem;
-  font-weight: 800;
-  color: var(--p1);
-  white-space: nowrap;
-}
-
-/* Mini-bandeau concours intégré */
-.par-hero-concours {
-  margin-top: .8rem;
-  padding: .55rem .8rem;
-  background: linear-gradient(135deg, rgba(255,215,0,.12), rgba(255,170,0,.05));
-  border: 1px solid rgba(255,215,0,.35);
-  border-radius: 9px;
-  position: relative; z-index: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: .7rem;
-  transition: transform .2s;
-}
-.par-hero-concours:hover { transform: scale(1.01); }
-.par-hero-concours-icon {
-  font-size: 1.4rem;
-  filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
-}
-.par-hero-concours-text { flex: 1; min-width: 0; }
-.par-hero-concours-title {
-  font-size: .68rem;
-  font-weight: 700;
-  color: #f9a825;
-  margin-bottom: .15rem;
-  line-height: 1.25;
-}
-.par-hero-concours-msg {
-  font-size: .62rem;
-  color: var(--muted);
-  line-height: 1.35;
-}
-.par-hero-concours-gain {
-  font-family: 'Space Mono', monospace;
-  font-size: .8rem;
-  font-weight: 800;
-  color: #f0c040;
-  white-space: nowrap;
-}
-
-/* Bouton "Voir tout" en bas */
-.par-hero-footer {
-  margin-top: .7rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: .58rem;
-  color: var(--muted);
-  position: relative; z-index: 1;
-}
-.par-hero-share-btn {
-  background: rgba(37,211,102,.15);
-  border: 1px solid rgba(37,211,102,.35);
-  color: #25d366;
-  font-size: .6rem;
-  font-weight: 700;
-  padding: .3rem .55rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-/* Mobile responsive */
-@media (max-width: 380px){
-  .par-podium-card { padding: .45rem .25rem .4rem; max-width: 90px; }
-  .par-podium-1 .par-podium-medal { font-size: 1.9rem; }
-  .par-podium-2 .par-podium-medal, .par-podium-3 .par-podium-medal { font-size: 1.5rem; }
-  .par-podium-name { font-size: .62rem; }
-}
-@media (prefers-reduced-motion: reduce){
-  .par-podium-1, .par-podium-2, .par-podium-3 { animation: none !important; }
-  .par-podium-card, .par-hero-me, .par-hero-concours { transition: none !important; }
-}
 
 /* ── SIMULATOR ── */
 .sim-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:clamp(.85rem,3.5vw,1.1rem);}
@@ -1138,10 +842,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       </div>
     </div>
 
-    <!-- ══════ 🆕 VUE HÉRO PARRAIN — Top 3 + Concours + Mon rang ══════ -->
-    <div id="par-hero-block" style="display:none;margin-bottom:.7rem"></div>
-
-    <!-- ══ ANCIENNES BANNIÈRES (gardées pour compatibilité, masquées par défaut) ══ -->
+    <!-- ══ BANNIÈRE CLASSEMENT PARRAINS (affiché sur dashboard) ══ -->
     <div id="dash-lb-banner" style="display:none;background:linear-gradient(135deg,rgba(255,215,0,.08) 0%,rgba(0,255,136,.06) 100%);border:1px solid rgba(255,215,0,.25);border-radius:12px;padding:.75rem .9rem;margin-bottom:.6rem;cursor:pointer" onclick="showPage('leaderboard',null,'bn-leaderboard')">
       <div style="display:flex;align-items:center;gap:.7rem">
         <div id="dash-lb-emoji" style="font-size:1.8rem;line-height:1;flex-shrink:0">🏅</div>
@@ -1156,9 +857,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         </div>
       </div>
     </div>
-
-    <!-- ══ BANDEAU CONCOURS PODIUM (dynamique) ══ -->
-    <div id="concours-banner" style="display:none;margin-bottom:.6rem"></div>
 
     <!-- Ligne 1 : activité (4 cards) -->
     <div class="stats-grid" style="margin-bottom:.4rem">
@@ -1204,7 +902,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       <div class="stitle">🎯 Objectifs <span>du mois</span></div>
       <div class="prog-wrap"><div class="prog-hdr"><span class="prog-lbl">Ventes mensuelles</span><span class="prog-pct" id="prog-ventes-pct">—</span></div><div class="prog-track"><div class="prog-fill" id="prog-ventes-fill" data-w="0"></div></div></div>
       <div class="prog-wrap"><div class="prog-hdr"><span class="prog-lbl">Filleuls actifs</span><span class="prog-pct" id="prog-filleuls-pct">—</span></div><div class="prog-track"><div class="prog-fill" id="prog-filleuls-fill" data-w="0"></div></div></div>
-      <div class="prog-wrap" style="margin-bottom:0"><div class="prog-hdr"><span class="prog-lbl" id="prog-palier-label">Vers Gold</span><span class="prog-pct" id="prog-palier-pct">—</span></div><div class="prog-track"><div class="prog-fill" id="prog-palier-fill" data-w="0"></div></div></div>
+      <div class="prog-wrap" style="margin-bottom:0"><div class="prog-hdr"><span class="prog-lbl">Vers Gold</span><span class="prog-pct" id="prog-palier-pct">—</span></div><div class="prog-track"><div class="prog-fill" id="prog-palier-fill" data-w="0"></div></div></div>
     </div>
       <div class="card">
         <div class="stitle" style="font-size:.8rem;margin-bottom:.55rem;">📈 Ventes 7j</div>
@@ -1582,9 +1280,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="page" id="page-leaderboard">
     <div class="stitle">🏆 Classement <span>parrains</span></div>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:.75rem;padding:.4rem .6rem;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
-      🏅 Système <strong style="color:var(--p1)">Ascension</strong> · activité × multiplicateur + bonus jalons · Top 10 parrains
+      🏅 Classé par <strong style="color:var(--p1)">nombre de ventes</strong> — 1 vente = 1 point · Top 10 parrains actifs
     </div>
-    <div id="my-score-detail" style="display:none;margin-bottom:.8rem"></div>
     <div id="par-top-grid"></div>
   </div>
 
@@ -2188,69 +1885,29 @@ window._d = {
     perf.maxLimitUsers = 150;
     perf.maxLimitVisitors = 100;
     perf.maxLimitProductViews = 100;
-    /* 🆕 On NE FORCE PAS shouldReduceAnimations sur low-end : les animations
-       naturelles sont fluides même sur Tecno. On désactive seulement les
-       animations VRAIMENT lourdes (infinite loops, glows, shimmers).
-       shouldReduceAnimations ne s'active QUE si l'utilisateur l'a demandé via OS. */
+    perf.shouldReduceAnimations = true;
   }
 
   /* ── 5. Exposer globalement ── */
   window._perf = perf;
-  /* _noCardAnim désactive les anim de carte au render — ne s'active QUE si l'OS demande reduced-motion */
   window._noCardAnim = perf.shouldReduceAnimations;
 
-  /* ── 6. CSS perf — DEUX MODES :
-     A) reduce-motion (OS): animations ULTRA courtes (respect du choix utilisateur)
-     B) low-end-perf : animations gardées NATURELLES, mais on désactive les
-        animations infinies/lourdes qui drainent CPU/GPU sans valeur ajoutée. */
-  try {
-    var style = document.createElement('style');
-    var css = '';
-
-    /* Mode A : OS prefers-reduced-motion = respect strict du choix utilisateur */
-    if (perf.shouldReduceAnimations) {
+  /* ── 6. Appliquer classe CSS pour désactiver animations lourdes ── */
+  if (perf.shouldReduceAnimations) {
+    try {
       document.documentElement.classList.add('reduce-motion');
-      css +=
-        /* Animations courtes mais perceptibles (200ms au lieu de 0.01ms qui sautait) */
+      /* Injecter CSS pour désactiver animations/transitions lourdes */
+      var style = document.createElement('style');
+      style.textContent =
         '.reduce-motion *,.reduce-motion *::before,.reduce-motion *::after{' +
-        'animation-duration:200ms !important;animation-iteration-count:1 !important;' +
-        'transition-duration:150ms !important;}' +
-        /* Désactiver complètement les animations infinies */
-        '.reduce-motion .ch-glow,.reduce-motion .ch-flame,.reduce-motion .ch-spin,' +
-        '.reduce-motion .ch-shimmer,.reduce-motion .ch-ripple,' +
-        '.reduce-motion .lb-arrow-pulse,' +
-        '.reduce-motion .par-hero-glow::before,.reduce-motion .par-hero-glow::after' +
-        '{animation:none !important}';
-    }
-
-    /* Mode B : low-end ou slow conn = on garde la fluidité, on coupe les coûteuses */
-    if (perf.isLowEndDevice || perf.isSlowConnection) {
-      document.documentElement.classList.add('low-end-perf');
-      css +=
-        /* Désactiver UNIQUEMENT les animations infinies très coûteuses en GPU/CPU
-           (glows, shimmers, sparkles) — elles tournent en boucle 24/7 et ne servent
-           pas à comprendre l'interface */
-        '.low-end-perf .ch-glow,.low-end-perf .ch-flame,.low-end-perf .ch-spin,' +
-        '.low-end-perf .ch-shimmer,.low-end-perf .ch-ripple,' +
-        '.low-end-perf .lb-arrow-pulse' +
-        '{animation:none !important}' +
-        /* Désactiver les pseudo-éléments décoratifs lourds (radial gradients animés) */
-        '.low-end-perf .par-hero-glow::before,' +
-        '.low-end-perf .par-hero-glow::after' +
-        '{display:none !important}' +
-        /* Réduire la complexité des box-shadows en hover (économie GPU) */
-        '.low-end-perf .par-card:hover,' +
-        '.low-end-perf .pr-card:hover' +
-        '{box-shadow:0 2px 8px rgba(0,0,0,.15) !important}';
-      /* Les animations "one-shot" (fadeIn, slideIn, podium-pop, countUp) restent
-         intactes pour conserver le feeling fluide et naturel de l'app. */
-    }
-
-    if (css) {
-      style.textContent = css;
+        'animation-duration:0.01ms !important;animation-iteration-count:1 !important;' +
+        'transition-duration:0.01ms !important;scroll-behavior:auto !important;}' +
+        /* Garder quelques transitions UI essentielles */
+        '.reduce-motion .nav-item,.reduce-motion .btn-p,.reduce-motion .btn-s,' +
+        '.reduce-motion button{transition:background-color 0.1s !important}';
       document.head.appendChild(style);
-    }
-  } catch(e){}
+    } catch(e){}
+  }
 
   console.log('[Perf]', {
     lowEnd: perf.isLowEndDevice,
@@ -2258,28 +1915,6 @@ window._d = {
     reducedMotion: perf.shouldReduceAnimations,
     limits: {orders:perf.maxLimitOrders, users:perf.maxLimitUsers}
   });
-
-  /* 🆕 Silence des console.log info sur low-end pour économiser CPU/mémoire.
-     On garde warn et error qui restent utiles pour diagnostiquer.
-     Désactivable en posant window._verbose = true avant load. */
-  if (perf.isLowEndDevice && !window._verbose) {
-    try {
-      var _origLog = console.log;
-      console.log = function(){
-        /* Garder les logs critiques même sur low-end */
-        var first = arguments[0];
-        if (typeof first === 'string' && (
-          first.indexOf('⚠️') !== -1 ||
-          first.indexOf('❌') !== -1 ||
-          first.indexOf('[Perf]') !== -1 ||
-          first.indexOf('[Auth]') !== -1
-        )) {
-          return _origLog.apply(console, arguments);
-        }
-        /* Silencieux pour les logs informatifs */
-      };
-    } catch(e){}
-  }
 })();
 
 /* ══════════════════════════════════════════════════════════════
@@ -2373,9 +2008,6 @@ async function _sbInit() {
         var p = window._perf || {maxLimitOrders:300, maxLimitUsers:500, maxLimitVisitors:500, maxLimitProductViews:500};
         console.log('[Djassa] Phase 2 — limites:', {orders:p.maxLimitOrders, users:p.maxLimitUsers});
 
-        /* 🔐 Récupérer le parrain courant TOUT DE SUITE pour scoping notifs */
-        var parrain0 = _getCurrentParrain();
-
         var r2 = await Promise.all([
           _sb.from('orders').select('*').order('created_at',{ascending:false}).limit(p.maxLimitOrders),
           _sb.from('users').select('*').limit(p.maxLimitUsers),
@@ -2385,12 +2017,7 @@ async function _sbInit() {
           _sb.from('challenges').select('*'),
           _sb.from('parrain_paiements').select('*'),
           _sb.from('parrain_statuts').select('*'),
-          /* 🔐 SÉCURITÉ : RPC pour ne récupérer QUE les notifs du parrain courant
-             (au lieu de toutes les notifs de tous les parrains) */
-          (parrain0 ?
-            _sb.rpc('get_my_notifications', { p_parrain_id: parrain0.id, p_parrain_code: parrain0.code || null })
-            : Promise.resolve({ data: [], error: null })
-          ),
+          _sb.from('notifications').select('*').order('created_at',{ascending:false}),
           _sb.from('products').select('*').eq('is_active',true).order('created_at',{ascending:false}),
           _sb.from('avis').select('*').order('created_at',{ascending:false}),
           _sb.from('product_views').select('*').order('created_at',{ascending:false}).limit(p.maxLimitProductViews)
@@ -2417,6 +2044,7 @@ async function _sbInit() {
            Chaque clé snapshot est suffixée par l'ID du parrain connecté
            pour éviter toute fuite de notifications entre parrains qui
            partagent un même appareil. */
+        var parrain0 = _getCurrentParrain();
         var _curPid = parrain0 && parrain0.id ? parrain0.id : null;
 
         /* Préfixe scopé par parrain pour toutes les clés de cette session */
@@ -3862,21 +3490,12 @@ function syncLoadData(){
     const ventes  = totalVentes;   /* ← somme réelle cmd+troc+neg via lien parrain */
     const filActifs = filleuls.filter(f => f.statut==='Actif').length;
     const filTarget = filleuls.length;
-    const palRaw  = (parrain.palier||'Silver').toLowerCase();
-    /* 🔧 FIX : normaliser le palier (gérer la faute "Platinium" qui existe en BDD) */
-    const pal = (palRaw === 'platinium') ? 'platinum' : palRaw;
-    /* 🔧 FIX : seuil cible selon le palier actuel
-       - Silver → vise Gold (gThr)
-       - Gold → vise Platinum (pThr)
-       - Platinum → MAX (rien à viser) */
-    const vTarget = (pal==='gold') ? pThr : (pal==='platinum' ? 0 : gThr);
-    const vW  = Math.min(100, vTarget>0 ? Math.round(ventes/vTarget*100) : 100);
+    const pal     = (parrain.palier||'Silver').toLowerCase();
+    const vTarget = (pal==='gold') ? pThr : gThr;
+    const vW  = Math.min(100, vTarget>0 ? Math.round(ventes/vTarget*100) : 0);
     const fW  = Math.min(100, filTarget>0 ? Math.round(filActifs/filTarget*100) : 0);
-    /* 🔧 FIX : reste calculé par rapport au BON seuil (vTarget), pas toujours gThr */
-    const reste = Math.max(0, vTarget - ventes);
-    /* 🔧 FIX : label adapté au palier actuel */
+    const reste = Math.max(0, gThr - ventes);
     const next  = pal==='silver' ? 'Gold 🌞' : pal==='gold' ? 'Platinum 💎' : 'MAX';
-    const palierLabel = pal==='platinum' ? 'Palier MAX 👑' : 'Vers ' + next;
 
     const _s = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
     const _w = (id,w) => { const e=document.getElementById(id); if(e){ e.dataset.w=w; e.style.width=w+'%'; }};
@@ -3888,19 +3507,12 @@ function syncLoadData(){
     _w('ch-filleuls-fill',fW);
 
     /* Objectifs dashboard */
-    _s('prog-ventes-pct',   ventes+'/'+(vTarget||gThr));
+    _s('prog-ventes-pct',   ventes+'/'+vTarget);
     _w('prog-ventes-fill',  vW);
     _s('prog-filleuls-pct', filActifs+'/'+filTarget);
     _w('prog-filleuls-fill',fW);
-    /* 🔧 FIX : label palier dynamique + texte adapté au palier */
-    _s('prog-palier-label', palierLabel);
-    if (pal === 'platinum') {
-      _s('prog-palier-pct', '👑 Palier le plus haut atteint !');
-      _w('prog-palier-fill', 100);
-    } else {
-      _s('prog-palier-pct',   reste>0 ? reste+' vente'+(reste>1?'s':'')+' pour '+next : '🎉 Atteint !');
-      _w('prog-palier-fill',  vW);
-    }
+    _s('prog-palier-pct',   reste>0 ? reste+' vente'+(reste>1?'s':'')+' pour '+next : '🎉 Atteint !');
+    _w('prog-palier-fill',  vW);
 
     /* Popup challenge : remplir dynamiquement depuis les vrais challenges */
     (function(){
@@ -3994,46 +3606,9 @@ function syncLoadData(){
 
   // ── Leaderboard depuis les parrains actifs ──
   _renderLeaderboard(parrain);
-  if(typeof _renderMyScoreDetail === 'function') _renderMyScoreDetail(parrain);
-
-  /* 🆕 ASCENSION : vérifier streak hebdo si le parrain a une vente cette semaine */
-  try {
-    if (typeof _parrainGetCurrentWeekKey !== 'function') throw new Error('no-week-fn');
-    var myComms = (window._d && window._d.commissions || []).filter(function(c){
-      return c.parrainId === parrain.id || c.parrain_id === parrain.id;
-    });
-    if (myComms.length > 0) {
-      var currentWeek = _parrainGetCurrentWeekKey();
-      var hasVenteThisWeek = myComms.some(function(c){
-        var ts = new Date(c.created_at || c.created || 0);
-        if (!ts || isNaN(ts.getTime())) return false;
-        var d = new Date(Date.UTC(ts.getFullYear(), ts.getMonth(), ts.getDate()));
-        var day = d.getUTCDay() || 7;
-        d.setUTCDate(d.getUTCDate() + 4 - day);
-        var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-        var weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-        var wk = d.getUTCFullYear() + '-W' + String(weekNum).padStart(2, '0');
-        return wk === currentWeek;
-      });
-      if (hasVenteThisWeek && parrain.last_vente_week !== currentWeek) {
-        if (typeof _parrainUpdateStreak === 'function') _parrainUpdateStreak(parrain.id);
-      }
-    }
-  } catch(e){ /* silencieux : fonction pas encore chargée ou pas de commissions */ }
 
   // ── Bannière classement sur le dashboard (rang + leader + motivation) ──
   if(typeof _renderRankBannerDashboard === 'function') _renderRankBannerDashboard(parrain);
-  if(typeof _concoursRenderBannerP === 'function') _concoursRenderBannerP(parrain);
-  /* 🆕 Vue héro podium (Top 3 + mon rang + concours actif) */
-  /* 🆕 Defer le hero block en requestIdleCallback pour ne pas bloquer
-     le rendu initial sur smartphones lents. Fallback setTimeout si non supporté. */
-  if(typeof _renderHeroBlock === 'function') {
-    if (typeof requestIdleCallback === 'function') {
-      requestIdleCallback(function(){ _renderHeroBlock(parrain); }, { timeout: 2000 });
-    } else {
-      setTimeout(function(){ _renderHeroBlock(parrain); }, 100);
-    }
-  }
 
   // ── Filleuls ──
   _renderFilleuls(filleuls, parrain);
@@ -4068,41 +3643,14 @@ function syncLoadData(){
    - Moyenne progressions en cours = jusqu'à 30 pts
      (moyenne des % de progression sur tous les challenges actifs où le parrain
       participe, quelle que soit la quantité de challenges — équitable)
-   - 1 filleul actif              = 8 pts  (activité < 30j, non frauduleux)
-
-   🆕 SYSTÈME ASCENSION v3 : 3 couches progressives pour motivation maximum
-   Couche 1 — ACTIVITÉ : tout le monde est classé (pas d'exclusion)
-   Couche 2 — MULTIPLICATEUR : bonus par palier de ventes
-   Couche 3 — JALONS : gros bonus ponctuels pour célébrer les étapes
+   - 1 filleul actif              = 5 pts  (activité < 30j, non frauduleux)
 
    Adaptable : modifier les constantes POINTS_* ci-dessous.
    ──────────────────────────────────────────────────────────── */
-
-/* ══ COUCHE 1 — ACTIVITÉ (tout le monde compte) ══ */
-var POINTS_PAR_VENTE          = 25;  /* Action concrète */
-var POINTS_FILLEUL_INSCRIT    = 10;  /* 🆕 Un nouveau filleul inscrit (même inactif) */
-var POINTS_FILLEUL_ACTIF      = 15;  /* Filleul actif dans les 30 derniers jours */
-var POINTS_CHALLENGE_EC       = 20;  /* 🆕 Juste participer à un challenge actif */
-var POINTS_MAX_CHALLENGE_EC   = 30;  /* Points supplémentaires selon progression (0-30) */
-
-/* ══ COUCHE 2 — MULTIPLICATEURS (récompense l'effort cumulé) ══ */
-var MULTIPLICATEURS_VENTES = [
-  { minVentes: 10, mult: 2.0, label: '×2.0 · Étoile 🌟' },
-  { minVentes: 5,  mult: 1.5, label: '×1.5 · Expert 💎' },
-  { minVentes: 3,  mult: 1.2, label: '×1.2 · Actif ⚡'  }
-];
-
-/* ══ COUCHE 3 — JALONS (dopamine ponctuelle) ══ */
-var BONUS_1ERE_VENTE          = 50;   /* Sprint 🚀 : 1er vendeur de la période concours (équilibré : dépassé dès 3 ventes) */
-var BONUS_CHALLENGE_FINI      = 80;   /* Par challenge terminé et récompensé */
-var BONUS_STREAK_3_SEMAINES   = 100;  /* Activité régulière 3 semaines de suite */
-var BONUS_TOP3_CONCOURS       = 200;  /* Actif 1 mois après Top 3 concours */
-
-/* ══ COMPATIBILITÉ — anciennes constantes pour le reste du code ══ */
-var POINTS_PAR_CHALLENGE      = BONUS_CHALLENGE_FINI;  /* alias */
-var POINTS_PAR_FILLEUL        = POINTS_FILLEUL_ACTIF;  /* alias */
-var POINTS_BONUS_1ERE_VENTE   = BONUS_1ERE_VENTE;      /* alias */
-var MIN_VENTES_ELIGIBLE       = 0;    /* 🆕 Plus de seuil strict — tous classés */
+var POINTS_PAR_VENTE         = 10;
+var POINTS_PAR_CHALLENGE     = 50;
+var POINTS_MAX_CHALLENGE_EC  = 30;   /* max pts pour LA MOYENNE des challenges en cours (100% moyen = 30 pts) */
+var POINTS_PAR_FILLEUL       = 5;
 
 /* Helper : compte les filleuls actifs d'un parrain donné */
 function _parrainCountFilleulsActifs(parrain, allUsers) {
@@ -4130,763 +3678,72 @@ function _parrainCountFilleulsActifs(parrain, allUsers) {
   return count;
 }
 
-function _parrainComputeScore(parrain, challenges, allUsers, opts) {
-  opts = opts || {};
-  if (!parrain) return {
-    total: 0, ventes: 0,
-    challengesCompletes: 0, challengesEnCours: 0, challengesParticipes: 0,
-    pointsChallengesEnCours: 0, avgProgressPct: 0,
-    filleulsActifs: 0, filleulsInscrits: 0,
-    eligible: false, bonusVente: 0,
-    pointsBase: 0, multiplicateur: 1, bonusJalons: 0,
-    multLabel: '', nextMultAt: null, nextMultMult: null,
-    hasStreak: false, streakSemaines: 0,
-    hasTop3Bonus: false
-  };
+function _parrainComputeScore(parrain, challenges, allUsers) {
+  if (!parrain) return { total: 0, ventes: 0, challengesCompletes: 0, challengesEnCours: 0, pointsChallengesEnCours: 0, avgProgressPct: 0, filleulsActifs: 0 };
 
   var ventes = parrain.ventes || 0;
   var code   = parrain.code || '';
 
-  /* 🆕 ASCENSION : tous classés (pas de seuil strict), mais le score montre qui mérite le top */
-  var eligible = ventes >= MIN_VENTES_ELIGIBLE;
-
-  /* ── COUCHE 1 — ACTIVITÉ ── */
-
-  /* Challenges TERMINÉS (Couche 3 · bonus) */
+  /* Compter les challenges TERMINÉS (récompense versée) */
   var challengesCompletes = 0;
-  /* Challenges EN COURS (Couche 1 · points base + Couche 1 · progression) */
-  var progressPcts = [];
-  var challengesEnCours = 0;
+  /* Collecter les % de progression de tous les challenges actifs auxquels
+     le parrain participe, pour en faire la moyenne */
+  var progressPcts = [];       /* % de progression par challenge en cours */
+  var challengesEnCours = 0;   /* Nombre de challenges où le parrain participe */
 
   if (Array.isArray(challenges)) {
     challenges.forEach(function(ch) {
       if (!ch) return;
+
+      /* Challenge terminé avec récompense versée → compte séparément (50 pts) */
       if (ch.rewardsPaidParrains && ch.rewardsPaidParrains[code]) {
         challengesCompletes++;
-        return;
+        return; // Pas de double-compte
       }
-      if (ch.status === 'active') {
-        /* Normaliser leaderboard si JSON string */
-        var lb = ch.leaderboard;
-        if (lb && typeof lb === 'string') {
-          try { lb = JSON.parse(lb); } catch(e) { lb = []; }
-        }
-        if (!Array.isArray(lb) || !lb.length) return;
 
-        var myEntry = lb.find(function(p) { return p && p.code === code; });
-        if (myEntry) {
+      /* Challenge en cours (active) avec progression du parrain */
+      if (ch.status === 'active' && Array.isArray(ch.leaderboard) && ch.leaderboard.length) {
+        var myEntry = ch.leaderboard.find(function(p) { return p && p.code === code; });
+        if (myEntry && myEntry.progress > 0) {
           var objectif = parseInt(ch.objectif) || 1;
-          var prog = (typeof myEntry.progress === 'number' && myEntry.progress >= 0)
-            ? myEntry.progress
-            : 1; /* Si pas de progress numérique mais entry présent → participant */
-          if (prog > 0) {
-            var pct = Math.min(100, (prog / objectif) * 100);
-            progressPcts.push(pct);
-            challengesEnCours++;
-          }
+          var pct = Math.min(100, (myEntry.progress / objectif) * 100);
+          progressPcts.push(pct);
+          challengesEnCours++;
         }
       }
     });
   }
-  var challengesParticipes = challengesCompletes + challengesEnCours;
 
-  /* Progression moyenne → points en plus */
+  /* MOYENNE des progressions → convertie en points */
   var avgProgressPct = 0;
-  var pointsProgression = 0;
+  var pointsEnCours  = 0;
   if (progressPcts.length > 0) {
     var sumPct = progressPcts.reduce(function(s, p) { return s + p; }, 0);
     avgProgressPct = sumPct / progressPcts.length;
-    pointsProgression = Math.round((avgProgressPct / 100) * POINTS_MAX_CHALLENGE_EC);
+    /* avgProgressPct est 0-100, on mappe sur POINTS_MAX_CHALLENGE_EC */
+    pointsEnCours = Math.round((avgProgressPct / 100) * POINTS_MAX_CHALLENGE_EC);
   }
 
-  /* Filleuls */
+  /* Compter les filleuls actifs */
   var filleulsActifs = _parrainCountFilleulsActifs(parrain, allUsers);
-  var filleulsInscrits = 0;
-  if (Array.isArray(allUsers) && code) {
-    allUsers.forEach(function(u){
-      if (!u) return;
-      var refCode = u.refCode || u.codeParrain || u.parrainCode || u.refParrain || '';
-      var couponCode = u.couponCode || '';
-      if ((refCode === code) || (!refCode && couponCode === code)) {
-        if (!(u.bloque && u.suspiciousIp)) filleulsInscrits++;
-      }
-    });
-  }
 
-  /* ── COUCHE 1 — Points de base ── */
-  var pointsBase =
+  var total =
       (ventes * POINTS_PAR_VENTE) +
-      (filleulsInscrits * POINTS_FILLEUL_INSCRIT) +
-      (filleulsActifs * POINTS_FILLEUL_ACTIF) +
-      (challengesEnCours * POINTS_CHALLENGE_EC) +
-      pointsProgression;
-
-  /* ── COUCHE 2 — Multiplicateur selon ventes ── */
-  var multiplicateur = 1.0;
-  var multLabel = '';
-  var nextMultAt = MULTIPLICATEURS_VENTES[MULTIPLICATEURS_VENTES.length - 1].minVentes;
-  var nextMultMult = MULTIPLICATEURS_VENTES[MULTIPLICATEURS_VENTES.length - 1].mult;
-
-  /* MULTIPLICATEURS_VENTES est trié par minVentes décroissant */
-  for (var i = 0; i < MULTIPLICATEURS_VENTES.length; i++) {
-    if (ventes >= MULTIPLICATEURS_VENTES[i].minVentes) {
-      multiplicateur = MULTIPLICATEURS_VENTES[i].mult;
-      multLabel = MULTIPLICATEURS_VENTES[i].label;
-      /* Trouver le prochain palier */
-      if (i > 0) {
-        nextMultAt = MULTIPLICATEURS_VENTES[i-1].minVentes;
-        nextMultMult = MULTIPLICATEURS_VENTES[i-1].mult;
-      } else {
-        nextMultAt = null; /* déjà au max */
-        nextMultMult = null;
-      }
-      break;
-    }
-  }
-
-  var pointsMultiplies = Math.round(pointsBase * multiplicateur);
-
-  /* ── COUCHE 3 — Jalons / Bonus ponctuels ── */
-  var bonus1ereVente = (ventes >= 1) ? BONUS_1ERE_VENTE : 0;
-  var bonusChallenges = challengesCompletes * BONUS_CHALLENGE_FINI;
-
-  /* Streak : récupérer depuis parrain.streak_semaines (persisté) */
-  var streakSemaines = parseInt(parrain.streak_semaines) || 0;
-  var hasStreak = streakSemaines >= 3;
-  var bonusStreak = hasStreak ? BONUS_STREAK_3_SEMAINES : 0;
-
-  /* Top 3 bonus actif */
-  var hasTop3Bonus = false;
-  try {
-    if (parrain.bonus_top3_active && parrain.bonus_top3_until) {
-      var untilTs = new Date(parrain.bonus_top3_until).getTime();
-      if (untilTs > Date.now()) hasTop3Bonus = true;
-    }
-  } catch(e){}
-  var bonusTop3 = hasTop3Bonus ? BONUS_TOP3_CONCOURS : 0;
-
-  var bonusJalons = bonus1ereVente + bonusChallenges + bonusStreak + bonusTop3;
-
-  /* ── TOTAL ── */
-  var total = pointsMultiplies + bonusJalons;
+      (challengesCompletes * POINTS_PAR_CHALLENGE) +
+      pointsEnCours +
+      (filleulsActifs * POINTS_PAR_FILLEUL);
 
   return {
     total: total,
     ventes: ventes,
-    eligible: eligible,
-
-    /* Couche 1 — détail */
-    pointsBase: pointsBase,
-    pointsVentes: ventes * POINTS_PAR_VENTE,
-    pointsFilleulsInscrits: filleulsInscrits * POINTS_FILLEUL_INSCRIT,
-    pointsFilleulsActifs: filleulsActifs * POINTS_FILLEUL_ACTIF,
-    pointsChallengesEC: challengesEnCours * POINTS_CHALLENGE_EC,
-    pointsProgression: pointsProgression,
-
-    filleulsInscrits: filleulsInscrits,
-    filleulsActifs: filleulsActifs,
     challengesCompletes: challengesCompletes,
     challengesEnCours: challengesEnCours,
-    challengesParticipes: challengesParticipes,
+    pointsChallengesEnCours: pointsEnCours,
     avgProgressPct: Math.round(avgProgressPct),
-    pointsChallengesEnCours: pointsProgression, /* alias rétro-compat */
-
-    /* Couche 2 — détail */
-    multiplicateur: multiplicateur,
-    multLabel: multLabel,
-    nextMultAt: nextMultAt,
-    nextMultMult: nextMultMult,
-    pointsMultiplies: pointsMultiplies,
-
-    /* Couche 3 — détail */
-    bonusVente: bonus1ereVente,
-    bonus1ereVente: bonus1ereVente,
-    bonusChallenges: bonusChallenges,
-    bonusStreak: bonusStreak,
-    bonusTop3: bonusTop3,
-    bonusJalons: bonusJalons,
-    hasStreak: hasStreak,
-    streakSemaines: streakSemaines,
-    hasTop3Bonus: hasTop3Bonus
+    filleulsActifs: filleulsActifs
   };
 }
 window._parrainComputeScore = _parrainComputeScore;
-
-/* ══ 🆕 FONCTION DE TRI HIÉRARCHIQUE ══
-   Ordre de priorité strict :
-   1. Éligibilité (≥ 1 vente) — non éligibles en bas
-   2. Ventes (desc)
-   3. Participation challenges (desc) ← critère de départage
-   4. Challenges finis (desc)
-   5. Filleuls actifs (desc)
-   6. Score total (desc)
-   7. CA généré (desc, si dispo) */
-/* ══ TRI ASCENSION — Tous les parrains sont classés ══
-   Ordre de priorité :
-   1. Score total (desc) — le score reflète déjà la hiérarchie
-   2. Ventes (desc) — critère de départage concret
-   3. Participation challenges (desc) — engagement
-   4. Challenges finis (desc)
-   5. Filleuls actifs (desc)
-   6. CA généré (desc, si dispo) */
-function _parrainSortByRank(a, b) {
-  /* Score total d'abord — c'est la Bible */
-  if ((b._score||0) !== (a._score||0)) return (b._score||0) - (a._score||0);
-
-  /* Ventes */
-  if ((b.ventes||0) !== (a.ventes||0)) return (b.ventes||0) - (a.ventes||0);
-
-  /* Participation challenges */
-  if ((b._challengesParticipes||0) !== (a._challengesParticipes||0))
-    return (b._challengesParticipes||0) - (a._challengesParticipes||0);
-
-  /* Challenges finis */
-  if ((b._challengesCompletes||0) !== (a._challengesCompletes||0))
-    return (b._challengesCompletes||0) - (a._challengesCompletes||0);
-
-  /* Filleuls actifs */
-  if ((b._filleulsActifs||0) !== (a._filleulsActifs||0))
-    return (b._filleulsActifs||0) - (a._filleulsActifs||0);
-
-  /* CA en dernier recours */
-  return (b._ca||0) - (a._ca||0);
-}
-window._parrainSortByRank = _parrainSortByRank;
-
-/* ══ STREAK HEBDOMADAIRE — Récompense la constance ══
-   À chaque vente validée, on vérifie si c'est une nouvelle semaine.
-   Si oui, on incrémente le streak. Si la semaine précédente est sautée, reset. */
-function _parrainGetCurrentWeekKey() {
-  var now = new Date();
-  /* Calcul du numéro de semaine ISO simplifié : "YYYY-WW" */
-  var d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-  var day = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - day);
-  var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  var weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-  return d.getUTCFullYear() + '-W' + String(weekNum).padStart(2, '0');
-}
-window._parrainGetCurrentWeekKey = _parrainGetCurrentWeekKey;
-
-async function _parrainUpdateStreak(parrainId) {
-  try {
-    if (!parrainId || typeof _sb === 'undefined') return;
-    var p = (window._d && window._d.parrains || []).find(function(x){ return x.id === parrainId; });
-    if (!p) return;
-
-    var currentWeek = _parrainGetCurrentWeekKey();
-    var lastWeek = p.last_vente_week || '';
-
-    /* Déjà comptabilisé cette semaine → rien à faire */
-    if (lastWeek === currentWeek) return;
-
-    /* Calcul de la semaine précédente */
-    var getPrevWeek = function(weekKey) {
-      if (!weekKey) return '';
-      var m = weekKey.match(/^(\d{4})-W(\d{2})$/);
-      if (!m) return '';
-      var year = parseInt(m[1]);
-      var week = parseInt(m[2]);
-      if (week === 1) return (year - 1) + '-W52';
-      return year + '-W' + String(week - 1).padStart(2, '0');
-    };
-
-    var expectedPrevWeek = getPrevWeek(currentWeek);
-    var newStreak;
-
-    if (lastWeek === expectedPrevWeek) {
-      /* Continuité : on incrémente */
-      newStreak = (parseInt(p.streak_semaines) || 0) + 1;
-    } else {
-      /* Trou dans la régularité : reset à 1 (cette semaine compte) */
-      newStreak = 1;
-    }
-
-    /* Mettre à jour Supabase */
-    await _sb.from('parrains').update({
-      streak_semaines: newStreak,
-      last_vente_week: currentWeek
-    }).eq('id', parrainId);
-
-    /* Mettre à jour cache local */
-    if (window._d && window._d.parrains) {
-      var idx = window._d.parrains.findIndex(function(x){ return x.id === parrainId; });
-      if (idx >= 0) {
-        window._d.parrains[idx].streak_semaines = newStreak;
-        window._d.parrains[idx].last_vente_week = currentWeek;
-      }
-    }
-
-    /* Notification si jalon atteint */
-    if (newStreak === 3) {
-      try {
-        if (typeof showSmartNotif === 'function') {
-          showSmartNotif('🔥 Streak 3 semaines ! Bonus de ' + BONUS_STREAK_3_SEMAINES + ' points débloqué.', 'success');
-        }
-      } catch(e){}
-    }
-
-    console.log('[Streak]', p.nom, '→ semaine', newStreak);
-  } catch(e) {
-    console.warn('[Streak] Erreur:', e);
-  }
-}
-window._parrainUpdateStreak = _parrainUpdateStreak;
-
-/* ══ AFFICHAGE "VOTRE SCORE DÉTAILLÉ" — Transparence totale Ascension ══ */
-function _renderMyScoreDetail(parrain) {
-  var box = document.getElementById('my-score-detail');
-  if (!box || !parrain) return;
-
-  var challenges = (window._d && window._d.challenges) || [];
-  var allUsers   = (window._d && window._d.users) || [];
-  var sc = _parrainComputeScore(parrain, challenges, allUsers);
-
-  /* 🆕 Tracking rang : compare avec le rang précédent stocké */
-  var rankInfo = _getRankEvolution(parrain, challenges, allUsers);
-
-  /* Prochain multiplicateur */
-  var nextMultText = '';
-  if (sc.nextMultAt) {
-    var ventesManquantes = sc.nextMultAt - sc.ventes;
-    nextMultText = '🎯 Encore <strong style="color:#f9a825">' + ventesManquantes + ' vente' + (ventesManquantes>1?'s':'') + '</strong> pour débloquer <strong>×' + sc.nextMultMult + '</strong>';
-  } else if (sc.multiplicateur >= 2) {
-    nextMultText = '👑 Multiplicateur maximum atteint !';
-  } else {
-    nextMultText = '💡 Faites 3 ventes pour débloquer un multiplicateur';
-  }
-
-  /* Progression streak */
-  var streakText = '';
-  if (sc.streakSemaines === 0) {
-    streakText = '🌱 Faites au moins une vente par semaine pour démarrer un streak';
-  } else if (sc.streakSemaines < 3) {
-    streakText = '🔥 Streak : <strong>' + sc.streakSemaines + '/3 semaines</strong> — continuez pour gagner ' + BONUS_STREAK_3_SEMAINES + ' pts';
-  } else {
-    streakText = '🏆 <strong style="color:var(--p1)">Streak ' + sc.streakSemaines + ' semaines !</strong> Bonus ' + BONUS_STREAK_3_SEMAINES + ' pts actif';
-  }
-
-  var html = '';
-  html += '<div style="background:linear-gradient(135deg,rgba(0,255,136,.07),rgba(102,153,255,.05));border:1px solid rgba(0,255,136,.25);border-radius:12px;padding:1rem .9rem">';
-
-  /* En-tête avec score total + flèche évolution + bouton aide */
-  html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.6rem;gap:.5rem;flex-wrap:wrap">';
-  html += '<div style="font-size:.75rem;font-weight:700;color:var(--p1);display:flex;align-items:center;gap:.4rem">📊 Votre score Ascension';
-  /* 🆕 Bouton aide */
-  html += '<button onclick="window._showScoringHelp&&window._showScoringHelp()" style="background:rgba(102,153,255,.15);border:1px solid rgba(102,153,255,.3);color:#6699ff;border-radius:50%;width:1.3rem;height:1.3rem;font-size:.65rem;cursor:pointer;font-weight:700" title="Comment fonctionne le scoring ?">?</button>';
-  html += '</div>';
-  html += '<div style="display:flex;align-items:center;gap:.4rem">';
-  /* 🆕 Flèche évolution rang (vert=monte, rouge=descend, orange=stagne) */
-  if (rankInfo.evolutionLabel) {
-    var border = '1px solid ' + rankInfo.color + '40'; /* alpha 25% */
-    html += '<span class="rank-evol-badge" style="font-size:.7rem;color:' + rankInfo.color + ';font-weight:700;background:' + rankInfo.bg + ';border:' + border + ';padding:.15rem .45rem;border-radius:6px;white-space:nowrap" title="' + rankInfo.tooltip + '">' + rankInfo.evolutionLabel + '</span>';
-  }
-  html += '<div style="font-family:Space Mono,monospace;font-size:1.5rem;font-weight:800;color:var(--text)">' + sc.total.toLocaleString('fr-FR') + ' <span style="font-size:.65rem;color:var(--muted);font-weight:400">pts</span></div>';
-  html += '</div>';
-  html += '</div>';
-
-  /* Couche 1 — Activité */
-  html += '<div style="margin-bottom:.7rem">';
-  html += '<div style="font-size:.66rem;color:var(--muted);margin-bottom:.3rem;font-weight:700">🟢 Couche 1 · Activité <span style="color:var(--text)">' + sc.pointsBase.toLocaleString('fr-FR') + ' pts</span></div>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem;font-size:.68rem">';
-  html += '<div>🛒 ' + sc.ventes + ' vente' + (sc.ventes>1?'s':'') + ' <span style="color:var(--muted)">(' + sc.pointsVentes + ')</span></div>';
-  html += '<div>📥 ' + sc.filleulsInscrits + ' filleul' + (sc.filleulsInscrits>1?'s':'') + ' inscrit' + (sc.filleulsInscrits>1?'s':'') + ' <span style="color:var(--muted)">(' + sc.pointsFilleulsInscrits + ')</span></div>';
-  html += '<div>👥 ' + sc.filleulsActifs + ' filleul' + (sc.filleulsActifs>1?'s':'') + ' actif' + (sc.filleulsActifs>1?'s':'') + ' <span style="color:var(--muted)">(' + sc.pointsFilleulsActifs + ')</span></div>';
-  html += '<div>🎯 ' + sc.challengesEnCours + ' challenge' + (sc.challengesEnCours>1?'s':'') + ' actif' + (sc.challengesEnCours>1?'s':'') + ' <span style="color:var(--muted)">(' + (sc.pointsChallengesEC + sc.pointsProgression) + ')</span></div>';
-  html += '</div>';
-  html += '</div>';
-
-  /* Couche 2 — Multiplicateur */
-  html += '<div style="margin-bottom:.7rem;padding:.5rem .6rem;background:rgba(255,170,0,.05);border:1px solid rgba(255,170,0,.2);border-radius:7px">';
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem">';
-  html += '<div style="font-size:.66rem;color:var(--muted);font-weight:700">🟡 Couche 2 · Multiplicateur</div>';
-  if (sc.multLabel) {
-    html += '<div style="font-size:.72rem;font-weight:800;color:#f9a825">' + sc.multLabel + '</div>';
-  } else {
-    html += '<div style="font-size:.68rem;color:var(--muted)">×1 (pas encore actif)</div>';
-  }
-  html += '</div>';
-  html += '<div style="font-size:.66rem;color:var(--text);line-height:1.4">' + nextMultText + '</div>';
-  if (sc.multiplicateur > 1) {
-    html += '<div style="font-size:.62rem;color:var(--muted);margin-top:.2rem">→ Votre activité passe de ' + sc.pointsBase + ' à <strong>' + sc.pointsMultiplies + ' pts</strong></div>';
-  }
-  html += '</div>';
-
-  /* Couche 3 — Jalons */
-  html += '<div style="padding:.5rem .6rem;background:rgba(156,119,221,.05);border:1px solid rgba(156,119,221,.2);border-radius:7px;margin-bottom:.7rem">';
-  html += '<div style="font-size:.66rem;color:var(--muted);margin-bottom:.3rem;font-weight:700">🟣 Couche 3 · Jalons <span style="color:var(--text)">' + sc.bonusJalons.toLocaleString('fr-FR') + ' pts</span></div>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem;font-size:.65rem">';
-  html += '<div>' + (sc.bonus1ereVente > 0 ? '✅' : '⬜') + ' 1ère vente (+' + BONUS_1ERE_VENTE + ')</div>';
-  html += '<div>🎯 ' + sc.challengesCompletes + '× challenge fini (+' + sc.bonusChallenges + ')</div>';
-  html += '<div title="Série de semaines consécutives avec au moins 1 vente">' + (sc.hasStreak ? '🔥' : '⬜') + ' Streak 3 sem. (+' + (sc.hasStreak ? BONUS_STREAK_3_SEMAINES : 0) + ')</div>';
-  html += '<div>' + (sc.hasTop3Bonus ? '👑' : '⬜') + ' Top 3 concours (+' + (sc.hasTop3Bonus ? BONUS_TOP3_CONCOURS : 0) + ')</div>';
-  html += '</div>';
-
-  /* 🆕 Barre de progression streak (visuelle) */
-  var streakPct = Math.min(100, (sc.streakSemaines / 3) * 100);
-  var streakColor = sc.hasStreak ? '#ff6b35' : (sc.streakSemaines > 0 ? '#ffaa00' : '#666');
-  html += '<div style="margin-top:.5rem;padding:.4rem .5rem;background:rgba(255,107,53,.04);border:1px dashed rgba(255,107,53,.2);border-radius:5px">';
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:.62rem;margin-bottom:.25rem">';
-  html += '<span style="color:var(--muted);font-weight:700">🔥 Streak hebdomadaire</span>';
-  html += '<span style="color:' + streakColor + ';font-weight:700">' + sc.streakSemaines + '/3 semaines</span>';
-  html += '</div>';
-  /* Barre 3 segments */
-  html += '<div style="display:flex;gap:3px;height:6px">';
-  for (var sw = 1; sw <= 3; sw++) {
-    var filled = sw <= sc.streakSemaines;
-    html += '<div style="flex:1;border-radius:3px;background:' + (filled ? streakColor : 'rgba(255,255,255,.06)') + ';transition:background .3s"></div>';
-  }
-  html += '</div>';
-  /* Texte explicatif */
-  html += '<div style="margin-top:.3rem;font-size:.6rem;color:var(--muted);line-height:1.4">' + streakText + '</div>';
-  html += '</div>';
-
-  html += '</div>';
-
-  /* 🆕 Astuces personnalisées */
-  var tips = _generatePersonalTips(sc, parrain);
-  if (tips.length > 0) {
-    html += '<div style="padding:.6rem .7rem;background:linear-gradient(135deg,rgba(255,170,0,.06),rgba(255,107,53,.04));border:1px solid rgba(255,170,0,.3);border-radius:7px">';
-    html += '<div style="font-size:.66rem;color:#f9a825;margin-bottom:.4rem;font-weight:700">💡 Astuces pour gagner plus de points</div>';
-    html += '<div style="display:flex;flex-direction:column;gap:.3rem;font-size:.66rem;line-height:1.45">';
-    tips.forEach(function(tip){
-      html += '<div style="display:flex;gap:.4rem;align-items:flex-start"><span style="flex-shrink:0">' + tip.icon + '</span><span>' + tip.text + '</span></div>';
-    });
-    html += '</div>';
-    html += '</div>';
-  }
-
-  html += '</div>';
-  box.innerHTML = html;
-  box.style.display = 'block';
-}
-window._renderMyScoreDetail = _renderMyScoreDetail;
-
-/* ════════════════════════════════════════════════════════════════════
-   🆕 Tracking de l'évolution du rang
-   On stocke le score précédent en localStorage par parrain.
-   Comparer le score actuel vs précédent → flèche ⬆️ ou ⬇️ ou ➡️
-   ════════════════════════════════════════════════════════════════════ */
-function _getRankEvolution(parrain, challenges, allUsers) {
-  if (!parrain || !parrain.id) return {evolutionLabel: ''};
-  var SK = 'ecodila_rank_track_' + parrain.id;
-  var sc = _parrainComputeScore(parrain, challenges, allUsers);
-  var currentScore = sc.total;
-  var nowTs = Date.now();
-
-  /* Calcul du rang actuel */
-  var allParrains = (_lsGet(_SK.PARS) || []).filter(function(p){ return p && p.statut === 'Actif'; });
-  var enriched = allParrains.map(function(p){
-    var s = _parrainComputeScore(p, challenges, allUsers);
-    return { id: p.id, score: s.total };
-  });
-  enriched.sort(function(a,b){ return b.score - a.score; });
-  var currentRank = enriched.findIndex(function(p){ return p.id === parrain.id; }) + 1;
-
-  /* Lire la dernière mesure (rang + score + timestamp) */
-  var prevData = null;
-  try {
-    var raw = localStorage.getItem(SK);
-    if (raw) prevData = JSON.parse(raw);
-  } catch(e){}
-
-  /* Si pas de précédent OU si plus de 24h : enregistrer + ne pas afficher de flèche */
-  if (!prevData || (nowTs - (prevData.ts || 0)) > 24 * 3600 * 1000) {
-    try {
-      localStorage.setItem(SK, JSON.stringify({
-        rank: currentRank,
-        score: currentScore,
-        ts: nowTs
-      }));
-    } catch(e){}
-    return {evolutionLabel: ''};
-  }
-
-  var prevRank = prevData.rank || 0;
-  var prevScore = prevData.score || 0;
-
-  /* Couleurs : 🟢 vert si progresse · 🔴 rouge si recule · 🟠 orange si stagne */
-  var COLOR_UP    = '#00cc66'; /* vert */
-  var BG_UP       = 'rgba(0,255,136,.15)';
-  var COLOR_DOWN  = '#ff3344'; /* rouge */
-  var BG_DOWN     = 'rgba(255,51,68,.15)';
-  var COLOR_STAB  = '#ffaa00'; /* orange */
-  var BG_STAB     = 'rgba(255,170,0,.15)';
-
-  /* Comparer rang d'abord (priorité), puis score si rang inchangé */
-  if (currentRank < prevRank && prevRank > 0) {
-    /* MONTE : meilleur rang */
-    var places = prevRank - currentRank;
-    return {
-      evolutionLabel: '⬆️ +' + places,
-      color: COLOR_UP,
-      bg: BG_UP,
-      tooltip: 'Vous êtes monté de ' + places + ' place' + (places>1?'s':'') + ' depuis hier (rang ' + prevRank + ' → ' + currentRank + ')'
-    };
-  } else if (currentRank > prevRank) {
-    /* DESCEND : moins bon rang */
-    var places2 = currentRank - prevRank;
-    return {
-      evolutionLabel: '⬇️ -' + places2,
-      color: COLOR_DOWN,
-      bg: BG_DOWN,
-      tooltip: 'Vous avez perdu ' + places2 + ' place' + (places2>1?'s':'') + ' depuis hier (rang ' + prevRank + ' → ' + currentRank + ')'
-    };
-  } else if (currentScore > prevScore) {
-    /* Même rang mais score en hausse → progression positive (vert) */
-    var diffUp = currentScore - prevScore;
-    return {
-      evolutionLabel: '⬆️ +' + diffUp + ' pts',
-      color: COLOR_UP,
-      bg: BG_UP,
-      tooltip: 'Même rang qu\'hier mais +' + diffUp + ' point' + (diffUp>1?'s':'') + ' gagné' + (diffUp>1?'s':'')
-    };
-  } else if (currentScore < prevScore) {
-    /* Même rang mais score en baisse → recul (rouge) */
-    var diffDown = prevScore - currentScore;
-    return {
-      evolutionLabel: '⬇️ -' + diffDown + ' pts',
-      color: COLOR_DOWN,
-      bg: BG_DOWN,
-      tooltip: 'Même rang qu\'hier mais ' + diffDown + ' point' + (diffDown>1?'s':'') + ' perdu' + (diffDown>1?'s':'')
-    };
-  } else {
-    /* STAGNE : ni rang ni score n'ont changé (orange) */
-    return {
-      evolutionLabel: '➡️ stable',
-      color: COLOR_STAB,
-      bg: BG_STAB,
-      tooltip: 'Rang et score identiques à hier — bougez pour progresser !'
-    };
-  }
-}
-window._getRankEvolution = _getRankEvolution;
-
-/* ════════════════════════════════════════════════════════════════════
-   🆕 Génération d'astuces personnalisées selon ce qui manque au parrain
-   ════════════════════════════════════════════════════════════════════ */
-function _generatePersonalTips(sc, parrain) {
-  var tips = [];
-
-  /* Astuce PRIORITÉ MAX : pas de bonus 1ère vente (nouveau parrain) */
-  if (sc.bonus1ereVente === 0 && sc.ventes === 0) {
-    tips.push({
-      icon: '🎁',
-      text: 'Faites votre <strong>1ère vente</strong> pour débloquer le bonus de bienvenue (+' + BONUS_1ERE_VENTE + ' pts).'
-    });
-  }
-
-  /* Astuce 1 : pas encore de multiplicateur */
-  if (sc.multiplicateur < 1.2 && sc.ventes < 3) {
-    var manque = 3 - sc.ventes;
-    tips.push({
-      icon: '⚡',
-      text: 'Atteignez <strong>3 ventes</strong> pour débloquer le multiplicateur ⚡ Actif (×1.2). Il vous manque <strong>' + manque + ' vente' + (manque>1?'s':'') + '</strong>.'
-    });
-  } else if (sc.multiplicateur >= 1.2 && sc.multiplicateur < 1.5 && sc.ventes < 5) {
-    var manque2 = 5 - sc.ventes;
-    tips.push({
-      icon: '💎',
-      text: 'Plus que <strong>' + manque2 + ' vente' + (manque2>1?'s':'') + '</strong> pour passer au multiplicateur 💎 Expert (×1.5). Vos points seront boostés.'
-    });
-  } else if (sc.multiplicateur >= 1.5 && sc.multiplicateur < 2 && sc.ventes < 10) {
-    var manque3 = 10 - sc.ventes;
-    tips.push({
-      icon: '🌟',
-      text: 'Encore <strong>' + manque3 + ' vente' + (manque3>1?'s':'') + '</strong> pour le multiplicateur ultime 🌟 Étoile (×2.0).'
-    });
-  }
-
-  /* Astuce 2 : pas de filleuls actifs */
-  if (sc.filleulsActifs === 0) {
-    tips.push({
-      icon: '👥',
-      text: 'Partagez votre lien de parrainage : chaque <strong>filleul actif</strong> rapporte +' + POINTS_FILLEUL_ACTIF + ' pts (et +' + POINTS_FILLEUL_INSCRIT + ' à l\'inscription).'
-    });
-  }
-
-  /* Astuce 3 : pas de challenges en cours */
-  if (sc.challengesEnCours === 0 && sc.challengesCompletes === 0) {
-    tips.push({
-      icon: '🎯',
-      text: 'Participez aux <strong>challenges</strong> en allant dans l\'onglet "Défis". Chaque challenge actif = +' + POINTS_CHALLENGE_EC + ' pts + bonus selon votre progression.'
-    });
-  } else if (sc.challengesEnCours > 0 && sc.avgProgressPct < 50) {
-    tips.push({
-      icon: '🚀',
-      text: 'Vous avez <strong>' + sc.challengesEnCours + ' challenge' + (sc.challengesEnCours>1?'s':'') + ' en cours</strong> (' + Math.round(sc.avgProgressPct) + '% de progression moy.). Plus vous avancez, plus vous gagnez (jusqu\'à ' + POINTS_MAX_CHALLENGE_EC + ' pts par challenge).'
-    });
-  }
-
-  /* Astuce 4 : pas de streak */
-  if (sc.streakSemaines === 0) {
-    tips.push({
-      icon: '🔥',
-      text: 'Faites <strong>au moins 1 vente par semaine</strong> pendant 3 semaines consécutives pour gagner le bonus Streak (+' + BONUS_STREAK_3_SEMAINES + ' pts).'
-    });
-  } else if (sc.streakSemaines === 1 || sc.streakSemaines === 2) {
-    var manqueSt = 3 - sc.streakSemaines;
-    tips.push({
-      icon: '🔥',
-      text: 'Streak en cours (<strong>' + sc.streakSemaines + '/3 semaines</strong>). Encore <strong>' + manqueSt + ' semaine' + (manqueSt>1?'s':'') + '</strong> avec une vente pour gagner +' + BONUS_STREAK_3_SEMAINES + ' pts.'
-    });
-  }
-
-  /* Astuce 5 : pas de bonus Top 3 concours actif */
-  if (!sc.hasTop3Bonus && sc.ventes >= 3) {
-    tips.push({
-      icon: '🏆',
-      text: 'Visez le <strong>Top 3 d\'un concours</strong> pour gagner +' + BONUS_TOP3_CONCOURS + ' pts pendant 30 jours. Voir l\'onglet "Concours".'
-    });
-  }
-
-  /* Si parrain top niveau (tout débloqué), encourager à maintenir */
-  if (tips.length === 0) {
-    tips.push({
-      icon: '⭐',
-      text: '<strong>Excellent !</strong> Vous avez débloqué tous les bonus principaux. Continuez à vendre pour rester en haut du classement et viser le Top 3 du prochain concours.'
-    });
-  }
-
-  /* Limiter à 4 astuces max pour ne pas saturer */
-  return tips.slice(0, 4);
-}
-window._generatePersonalTips = _generatePersonalTips;
-
-/* ════════════════════════════════════════════════════════════════════
-   🆕 Modal "Comment fonctionne le scoring"
-   ════════════════════════════════════════════════════════════════════ */
-function _showScoringHelp() {
-  var html = '';
-  html += '<div style="font-size:.78rem;line-height:1.6;color:var(--text)">';
-
-  html += '<div style="margin-bottom:1rem;padding:.7rem .8rem;background:linear-gradient(135deg,rgba(0,255,136,.08),rgba(102,153,255,.05));border:1px solid rgba(0,255,136,.2);border-radius:8px">';
-  html += '<strong style="color:var(--p1)">📊 Score Ascension EcoDila</strong><br>';
-  html += 'Votre score se calcule en 3 couches successives :';
-  html += '</div>';
-
-  /* Couche 1 */
-  html += '<div style="margin-bottom:.8rem;padding:.6rem .8rem;background:rgba(0,255,136,.04);border-left:3px solid var(--p1);border-radius:6px">';
-  html += '<div style="font-weight:700;color:var(--p1);margin-bottom:.4rem">🟢 Couche 1 — Activité</div>';
-  html += '<div style="font-size:.7rem;line-height:1.55">';
-  html += '🛒 <strong>+' + POINTS_PAR_VENTE + ' pts</strong> par vente<br>';
-  html += '📥 <strong>+' + POINTS_FILLEUL_INSCRIT + ' pts</strong> par filleul inscrit<br>';
-  html += '👥 <strong>+' + POINTS_FILLEUL_ACTIF + ' pts</strong> par filleul actif (30 derniers jours)<br>';
-  html += '🎯 <strong>+' + POINTS_CHALLENGE_EC + ' pts</strong> par challenge actif (+ jusqu\'à ' + POINTS_MAX_CHALLENGE_EC + ' pts selon votre progression)';
-  html += '</div></div>';
-
-  /* Couche 2 */
-  html += '<div style="margin-bottom:.8rem;padding:.6rem .8rem;background:rgba(255,170,0,.05);border-left:3px solid #f9a825;border-radius:6px">';
-  html += '<div style="font-weight:700;color:#f9a825;margin-bottom:.4rem">🟡 Couche 2 — Multiplicateur</div>';
-  html += '<div style="font-size:.7rem;line-height:1.55">';
-  html += 'Votre activité (Couche 1) est <strong>multipliée</strong> selon votre nombre de ventes :<br>';
-  html += '⚡ <strong>3+ ventes</strong> → ×1.2 (Actif)<br>';
-  html += '💎 <strong>5+ ventes</strong> → ×1.5 (Expert)<br>';
-  html += '🌟 <strong>10+ ventes</strong> → ×2.0 (Étoile)<br>';
-  html += '<em style="color:var(--muted)">Plus vous vendez, plus vos points sont boostés.</em>';
-  html += '</div></div>';
-
-  /* Couche 3 */
-  html += '<div style="margin-bottom:.8rem;padding:.6rem .8rem;background:rgba(156,119,221,.05);border-left:3px solid #9c77dd;border-radius:6px">';
-  html += '<div style="font-weight:700;color:#9c77dd;margin-bottom:.4rem">🟣 Couche 3 — Jalons (bonus uniques)</div>';
-  html += '<div style="font-size:.7rem;line-height:1.55">';
-  html += '🎁 <strong>+' + BONUS_1ERE_VENTE + ' pts</strong> à votre 1ère vente<br>';
-  html += '🎯 <strong>+' + BONUS_CHALLENGE_FINI + ' pts</strong> par challenge terminé<br>';
-  html += '🔥 <strong>+' + BONUS_STREAK_3_SEMAINES + ' pts</strong> pour 3 semaines consécutives avec vente <em style="color:var(--muted);font-size:.65rem">(voir détail ci-dessous)</em><br>';
-  html += '👑 <strong>+' + BONUS_TOP3_CONCOURS + ' pts</strong> pendant 30 jours si Top 3 d\'un concours';
-  html += '</div></div>';
-
-  /* 🆕 Section dédiée Streak — explication détaillée */
-  html += '<div style="margin-bottom:1rem;padding:.7rem .8rem;background:linear-gradient(135deg,rgba(255,107,53,.08),rgba(255,170,0,.04));border:1px solid rgba(255,107,53,.25);border-radius:8px">';
-  html += '<div style="font-weight:700;color:#ff6b35;margin-bottom:.5rem;display:flex;align-items:center;gap:.4rem">🔥 Qu\'est-ce qu\'un Streak ?</div>';
-  html += '<div style="font-size:.7rem;line-height:1.6">';
-  html += 'Le <strong>Streak</strong> est une série de <strong>semaines consécutives</strong> où vous avez fait au moins <strong>1 vente</strong>. C\'est une récompense pour la <strong>régularité</strong>.<br><br>';
-  html += '<strong style="color:#ff6b35">📅 Comment ça marche :</strong><br>';
-  html += '• <strong>Semaine 1</strong> avec 1 vente → Streak = 1 🌱<br>';
-  html += '• <strong>Semaine 2</strong> consécutive avec 1 vente → Streak = 2 🔥<br>';
-  html += '• <strong>Semaine 3</strong> consécutive avec 1 vente → <strong style="color:var(--p1)">Bonus +' + BONUS_STREAK_3_SEMAINES + ' pts débloqué !</strong> 🏆<br><br>';
-  html += '<strong style="color:#ff3344">⚠️ Attention :</strong> si vous sautez une semaine sans vente, le streak <strong>retombe à 0</strong>. La semaine débute le <strong>lundi</strong>.';
-  html += '</div></div>';
-
-  /* Formule */
-  html += '<div style="padding:.7rem .8rem;background:rgba(102,153,255,.06);border:1px solid rgba(102,153,255,.25);border-radius:8px;font-size:.72rem">';
-  html += '<div style="font-weight:700;color:#6699ff;margin-bottom:.4rem">🧮 Formule complète</div>';
-  html += '<code style="display:block;font-family:Space Mono,monospace;background:var(--darker);padding:.4rem .6rem;border-radius:5px;font-size:.7rem;line-height:1.5">';
-  html += 'Score total = (Couche 1 × Couche 2) + Couche 3<br>';
-  html += '= (Activité × Multiplicateur) + Bonus jalons';
-  html += '</code>';
-  html += '</div>';
-
-  html += '<div style="margin-top:.8rem;font-size:.66rem;color:var(--muted);text-align:center;line-height:1.5">';
-  html += '💡 Le score est mis à jour en temps réel.<br>Les flèches ⬆️⬇️ comparent votre rang à celui d\'hier.<br>';
-  html += '🟢 vert = vous progressez · 🔴 rouge = vous reculez · 🟠 orange = stable';
-  html += '</div>';
-
-  html += '</div>';
-
-  /* Afficher la modal — création DOM directe (pattern utilisé dans parrain.html) */
-  var existing = document.getElementById('scoring-help-modal');
-  if (existing) existing.remove();
-
-  var overlay = document.createElement('div');
-  overlay.id = 'scoring-help-modal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(5px);z-index:9991;display:flex;align-items:center;justify-content:center;padding:.8rem';
-  overlay.onclick = function(e){ if(e.target === overlay) overlay.remove(); };
-
-  var box = document.createElement('div');
-  box.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;padding:0';
-
-  box.innerHTML =
-    '<div style="position:sticky;top:0;background:var(--bg);padding:.9rem 1.2rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;z-index:1">' +
-      '<div style="font-size:.95rem;font-weight:800">💡 Comment fonctionne le scoring</div>' +
-      '<button onclick="document.getElementById(\'scoring-help-modal\').remove()" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;padding:0 .3rem">&times;</button>' +
-    '</div>' +
-    '<div style="padding:1rem 1.2rem">' + html + '</div>' +
-    '<div style="padding:.7rem 1.2rem;border-top:1px solid var(--border);text-align:center">' +
-      '<button onclick="document.getElementById(\'scoring-help-modal\').remove()" style="background:var(--p1);color:#0a0e14;border:none;padding:.55rem 1.4rem;border-radius:8px;font-weight:700;font-size:.78rem;cursor:pointer">Compris !</button>' +
-    '</div>';
-
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
-}
-window._showScoringHelp = _showScoringHelp;
-
-/* ════════════════════════════════════════════════════════════════════
-   🆕 Helper : flèche d'évolution inline (utilisée dans le leaderboard top 10)
-   ════════════════════════════════════════════════════════════════════ */
-function _renderRankEvolutionInline(parrain, challenges, allUsers) {
-  if (!parrain || !parrain.id) return '';
-  try {
-    var info = _getRankEvolution(parrain, challenges, allUsers);
-    if (!info.evolutionLabel) return '';
-    return ' <span style="font-size:.6rem;color:' + info.color + ';font-weight:700;background:' + info.bg + ';padding:.05rem .25rem;border-radius:3px" title="' + info.tooltip + '">' + info.evolutionLabel + '</span>';
-  } catch(e) { return ''; }
-}
-window._renderRankEvolutionInline = _renderRankEvolutionInline;
-
-/* ══ RGPD : ANONYMISATION DES AUTRES PARRAINS ══
-   Le BO parrain ne doit PAS afficher les noms complets des autres parrains.
-   Règle :
-   - Mon propre nom → affiché en entier
-   - Autres parrains → 1er prénom + initiales du reste
-   Ex : "Jean Pierre Kouassi" → "Jean P. K."
-        "Dakouri" → "Dakouri" (un seul mot, reste intact)
-        "Marie-Claire Dago" → "Marie-Claire D." */
-function _anonymizeParrainName(fullName, isMe) {
-  if (isMe) return fullName || 'Vous';
-  if (!fullName) return 'Anonyme';
-  var clean = String(fullName).trim();
-  if (!clean) return 'Anonyme';
-  var parts = clean.split(/\s+/);
-  if (parts.length <= 1) return parts[0];
-  var first = parts[0];
-  var initials = parts.slice(1)
-    .filter(function(w){ return w.length > 0; })
-    .map(function(w){ return w.charAt(0).toUpperCase() + '.'; })
-    .join(' ');
-  return first + (initials ? ' ' + initials : '');
-}
-window._anonymizeParrainName = _anonymizeParrainName;
 
 /* ── Bannière classement sur le dashboard ──
    Affiche le rang du parrain + qui est 1er + un message adapté.
@@ -4986,788 +3843,6 @@ function _renderRankBannerDashboard(moi) {
   banner.style.display = 'block';
 }
 window._renderRankBannerDashboard = _renderRankBannerDashboard;
-
-/* ══════════════════════════════════════════════════════════════
-   🆕 HÉRO PARRAIN — Vue podium chevauchante au top du BO
-   Affiche : Top 3 (podium 3D) + rang du parrain + concours actif
-   Boost motivation immédiate à l'ouverture du dashboard.
-   ══════════════════════════════════════════════════════════════ */
-async function _renderHeroBlock(moi) {
-  var box = document.getElementById('par-hero-block');
-  if (!box || !moi) return;
-
-  /* Charger les données nécessaires */
-  var challenges = [];
-  var allUsers = [];
-  try { challenges = _sbRead('ecodila_challenges') || []; } catch(e){}
-  try { allUsers = _sbRead('ecodila_users') || []; } catch(e){}
-
-  /* Calculer le classement complet (parrains actifs uniquement) */
-  var pars = (_lsGet(_SK.PARS)||[]).filter(function(p){ return p.statut==='Actif'; });
-  if (!pars.length) { box.style.display = 'none'; return; }
-
-  var scored = pars.map(function(p){
-    var sc = _parrainComputeScore(p, challenges, allUsers);
-    return Object.assign({}, p, { _score: sc });
-  }).sort(function(a,b){
-    if ((b._score.total||0) !== (a._score.total||0)) return (b._score.total||0) - (a._score.total||0);
-    if ((b._score.challengesCompletes||0) !== (a._score.challengesCompletes||0)) return (b._score.challengesCompletes||0) - (a._score.challengesCompletes||0);
-    if ((b._score.pointsChallengesEnCours||0) !== (a._score.pointsChallengesEnCours||0)) return (b._score.pointsChallengesEnCours||0) - (a._score.pointsChallengesEnCours||0);
-    if ((b._score.filleulsActifs||0) !== (a._score.filleulsActifs||0)) return (b._score.filleulsActifs||0) - (a._score.filleulsActifs||0);
-    return (b._score.ventes||0) - (a._score.ventes||0);
-  });
-
-  var myIdx = scored.findIndex(function(s){ return s.id === moi.id; });
-  var myRank = myIdx + 1;
-  var total = scored.length;
-
-  /* RGPD : anonymiser les noms (sauf le mien) */
-  function anonName(p, isMe) {
-    if (isMe) return 'Moi';
-    if (typeof _anonymizeParrainName === 'function') {
-      return _anonymizeParrainName(p.nom || 'Anonyme', false);
-    }
-    var nom = (p.nom || 'Anonyme').split(' ')[0];
-    if (nom.length > 8) nom = nom.substring(0, 7) + '.';
-    return nom;
-  }
-
-  /* Construire le podium top 3 */
-  var top3 = scored.slice(0, 3);
-  var podiumHtml = '';
-  if (top3.length >= 1) {
-    /* Layout : 2e à gauche, 1er au centre, 3e à droite */
-    var p1 = top3[0];
-    var p2 = top3.length >= 2 ? top3[1] : null;
-    var p3 = top3.length >= 3 ? top3[2] : null;
-
-    podiumHtml += '<div class="par-podium">';
-    /* 2e */
-    if (p2) {
-      var p2Me = p2.id === moi.id;
-      podiumHtml += '<div class="par-podium-card par-podium-2"' + (p2Me ? ' style="ring-color:var(--p1)"' : '') + '>';
-      podiumHtml += '<div class="par-podium-medal">🥈</div>';
-      podiumHtml += '<div class="par-podium-rank">2e place</div>';
-      podiumHtml += '<div class="par-podium-name"' + (p2Me ? ' style="color:var(--p1)"' : '') + '>' + anonName(p2, p2Me) + '</div>';
-      podiumHtml += '<div class="par-podium-pts">' + (p2._score.total||0) + ' pts</div>';
-      podiumHtml += '</div>';
-    } else {
-      podiumHtml += '<div class="par-podium-card par-podium-2" style="opacity:.4"><div class="par-podium-medal">🥈</div><div class="par-podium-rank">À conquérir</div><div class="par-podium-name">—</div><div class="par-podium-pts">0 pts</div></div>';
-    }
-    /* 1er */
-    var p1Me = p1.id === moi.id;
-    podiumHtml += '<div class="par-podium-card par-podium-1"' + (p1Me ? ' style="ring-color:var(--p1)"' : '') + '>';
-    podiumHtml += '<div class="par-podium-medal">👑</div>';
-    podiumHtml += '<div class="par-podium-rank">1er place</div>';
-    podiumHtml += '<div class="par-podium-name"' + (p1Me ? ' style="color:var(--p1)"' : '') + '>' + anonName(p1, p1Me) + '</div>';
-    podiumHtml += '<div class="par-podium-pts">' + (p1._score.total||0) + ' pts</div>';
-    podiumHtml += '</div>';
-    /* 3e */
-    if (p3) {
-      var p3Me = p3.id === moi.id;
-      podiumHtml += '<div class="par-podium-card par-podium-3"' + (p3Me ? ' style="ring-color:var(--p1)"' : '') + '>';
-      podiumHtml += '<div class="par-podium-medal">🥉</div>';
-      podiumHtml += '<div class="par-podium-rank">3e place</div>';
-      podiumHtml += '<div class="par-podium-name"' + (p3Me ? ' style="color:var(--p1)"' : '') + '>' + anonName(p3, p3Me) + '</div>';
-      podiumHtml += '<div class="par-podium-pts">' + (p3._score.total||0) + ' pts</div>';
-      podiumHtml += '</div>';
-    } else {
-      podiumHtml += '<div class="par-podium-card par-podium-3" style="opacity:.4"><div class="par-podium-medal">🥉</div><div class="par-podium-rank">À conquérir</div><div class="par-podium-name">—</div><div class="par-podium-pts">0 pts</div></div>';
-    }
-    podiumHtml += '</div>';
-  }
-
-  /* Carte "Mon rang" avec message motivant */
-  var meHtml = '';
-  if (myRank > 0) {
-    var myScore = scored[myIdx]._score.total;
-    var meEmoji, meMsg;
-    if (myRank === 1) {
-      meEmoji = '👑';
-      meMsg = 'Vous êtes <strong>1er du classement</strong> ! Maintenez votre rythme pour rester en tête.';
-    } else if (myRank === 2) {
-      var pts1 = scored[0]._score.total - myScore;
-      meEmoji = '🥈';
-      meMsg = 'Vous êtes <strong>2e</strong> · Plus que <strong style="color:var(--p1)">' + pts1 + ' pts</strong> pour atteindre la 1ère place !';
-    } else if (myRank === 3) {
-      var pts2 = scored[1]._score.total - myScore;
-      meEmoji = '🥉';
-      meMsg = 'Vous êtes <strong>3e</strong> · Plus que <strong style="color:var(--p1)">' + pts2 + ' pts</strong> pour grimper d\'une place !';
-    } else if (myRank <= 10) {
-      var ptsTop3 = scored[2]._score.total - myScore;
-      meEmoji = '🔥';
-      meMsg = 'Vous êtes <strong>' + myRank + 'e</strong> sur ' + total + ' · Plus que <strong style="color:var(--p1)">' + ptsTop3 + ' pts</strong> pour entrer dans le Top 3 !';
-    } else {
-      var ptsTop10 = (scored[9] ? scored[9]._score.total - myScore : 0);
-      meEmoji = '💪';
-      meMsg = 'Vous êtes <strong>' + myRank + 'e</strong> sur ' + total + (ptsTop10 > 0 ? ' · Plus que <strong style="color:var(--p1)">' + ptsTop10 + ' pts</strong> pour entrer dans le Top 10 !' : ' · Continuez à progresser !');
-    }
-    meHtml = '<div class="par-hero-me" onclick="showPage(\'leaderboard\',null,\'bn-leaderboard\')">';
-    meHtml += '<div class="par-hero-me-rank">' + meEmoji + '</div>';
-    meHtml += '<div class="par-hero-me-info">';
-    meHtml += '<div class="par-hero-me-label">Mon rang</div>';
-    meHtml += '<div class="par-hero-me-msg">' + meMsg + '</div>';
-    meHtml += '</div>';
-    meHtml += '<div class="par-hero-me-pts">' + myScore + ' pts</div>';
-    meHtml += '</div>';
-  }
-
-  /* Mini-bandeau concours actif (si dispo) — avec CACHE 60s pour éviter
-     re-fetch à chaque render sur 2G/3G. Le cache est invalidé manuellement
-     via window._heroConcoursCache.ts = 0 si nécessaire. */
-  var concoursHtml = '';
-  try {
-    if (typeof _sb !== 'undefined' && _sb && _sb.from) {
-      var cache = window._heroConcoursCache;
-      var concList;
-      var nowTs = Date.now();
-      var pf = window._perf || {};
-      /* Cache plus long sur low-end / slow conn pour éviter requêtes inutiles */
-      var cacheTtl = (pf.isLowEndDevice || pf.isSlowConnection) ? 120000 : 60000;
-
-      if (cache && cache.data && (nowTs - cache.ts) < cacheTtl) {
-        concList = cache.data;
-      } else {
-        /* Skip totalement le fetch sur slow-2g pour ne pas bloquer l'affichage */
-        var ec = (navigator.connection && navigator.connection.effectiveType) || '';
-        if (ec === 'slow-2g') {
-          concList = (cache && cache.data) || [];
-        } else {
-          var concR = await _sb.from('parrain_concours')
-            .select('id, nom, date_fin, recompense_1er, recompense_2eme, recompense_3eme, statut')
-            .eq('statut', 'active')
-            .order('date_fin', { ascending: true })
-            .limit(1);
-          concList = (concR && concR.data) || [];
-          window._heroConcoursCache = { ts: nowTs, data: concList };
-        }
-      }
-      if (concList.length > 0) {
-        var c = concList[0];
-        var msLeft = new Date(c.date_fin).getTime() - Date.now();
-        var daysLeft = Math.floor(msLeft / (24 * 3600 * 1000));
-        var hoursLeft = Math.floor((msLeft % (24 * 3600 * 1000)) / (3600 * 1000));
-        var timeLeft;
-        if (daysLeft > 0) timeLeft = daysLeft + 'j ' + hoursLeft + 'h restants';
-        else if (hoursLeft > 0) timeLeft = hoursLeft + 'h restantes';
-        else timeLeft = 'Se termine bientôt !';
-
-        /* Calculer le gain potentiel selon le rang dans le concours */
-        var r1 = parseInt(c.recompense_1er) || 0;
-        var r2 = parseInt(c.recompense_2eme) || 0;
-        var r3 = parseInt(c.recompense_3eme) || 0;
-        var gainPotentiel = 0;
-        var gainLabel = '';
-        if (myRank === 1) { gainPotentiel = r1; gainLabel = '🥇 Si vous gardez la 1ère place'; }
-        else if (myRank === 2) { gainPotentiel = r2; gainLabel = '🥈 Si vous gardez la 2e place'; }
-        else if (myRank === 3) { gainPotentiel = r3; gainLabel = '🥉 Si vous gardez la 3e place'; }
-        else { gainPotentiel = r1; gainLabel = '🏆 Top 1 · jusqu\'à'; }
-
-        concoursHtml = '<div class="par-hero-concours" onclick="if(typeof _concoursOpenPage===\'function\')_concoursOpenPage()">';
-        concoursHtml += '<div class="par-hero-concours-icon">🏆</div>';
-        concoursHtml += '<div class="par-hero-concours-text">';
-        concoursHtml += '<div class="par-hero-concours-title">' + (c.nom || 'Concours en cours') + '</div>';
-        concoursHtml += '<div class="par-hero-concours-msg">' + gainLabel + ' · ⏱️ ' + timeLeft + '</div>';
-        concoursHtml += '</div>';
-        concoursHtml += '<div class="par-hero-concours-gain">+' + gainPotentiel.toLocaleString('fr-FR') + ' F</div>';
-        concoursHtml += '</div>';
-      }
-    }
-  } catch(eC){ /* silent */ }
-
-  /* Footer avec bouton partage */
-  var footerHtml = '<div class="par-hero-footer">';
-  footerHtml += '<button class="par-hero-share-btn" onclick="event.stopPropagation();if(typeof _lbShareRank===\'function\')_lbShareRank()">📱 Partager mon rang</button>';
-  footerHtml += '<span style="cursor:pointer" onclick="showPage(\'leaderboard\',null,\'bn-leaderboard\')">Voir le classement complet →</span>';
-  footerHtml += '</div>';
-
-  /* Assembler le tout */
-  var html = '<div class="par-hero">';
-  html += '<div class="par-hero-title">🏆 Top Parrains · Classement live</div>';
-  html += podiumHtml;
-  html += meHtml;
-  html += concoursHtml;
-  html += footerHtml;
-  html += '</div>';
-
-  /* 🔧 ANTI-RAME : ne re-render le DOM QUE si le contenu a réellement changé.
-     Sinon le polling toutes les 90s recréait les éléments → animations qui
-     rejouaient en boucle = effet "rame" lors des transitions de rang. */
-  var hash = (myRank|0) + '|' + scored.length + '|' +
-             top3.map(function(t){ return (t.id||'')+':'+(t._score && t._score.total||0); }).join(',');
-  if (window._heroLastHash === hash) {
-    /* Rien n'a changé — ne pas toucher au DOM (préserve les anims terminées) */
-    return;
-  }
-
-  /* Détection : 1er render (anim oui) ou re-render (transition douce sans pop) */
-  var isFirstRender = !box.innerHTML || !box.querySelector('.par-hero');
-  window._heroLastHash = hash;
-
-  box.innerHTML = html;
-  box.style.display = 'block';
-
-  /* 🔧 Animation podium UNIQUEMENT au 1er render (.anim-once),
-     puis on retire la classe pour qu'elle ne rejoue pas. */
-  if (isFirstRender) {
-    try {
-      var cards = box.querySelectorAll('.par-podium-card');
-      cards.forEach(function(c){ c.classList.add('anim-once'); });
-      /* Retirer .anim-once après la fin de l'animation (.5s + .25s delay max = 750ms) */
-      setTimeout(function(){
-        cards.forEach(function(c){ c.classList.remove('anim-once'); });
-      }, 900);
-    } catch(eA){}
-  }
-  /* Lors d'un re-render (changement de rang) : transitions CSS naturelles
-     gérées par les transforms définis dans .par-podium-1/2/3 sans rebond. */
-}
-window._renderHeroBlock = _renderHeroBlock;
-
-/* ══════════════════════════════════════════════════════════════
-   🏆 CONCOURS PODIUM — BO Parrain
-   Affiche un bandeau "Concours en cours" sur le dashboard +
-   une page dédiée avec classement live.
-   ══════════════════════════════════════════════════════════════ */
-
-window._concoursCacheP = { list: [], lastLoad: 0 };
-
-async function _concoursLoadP() {
-  try {
-    /* Charger concours actifs + récents (terminés ou payés, pour historique) */
-    var r = await _sb.from('parrain_concours')
-      .select('*')
-      .in('statut', ['active','ended','paid'])
-      .order('date_debut', { ascending: false })
-      .limit(20);
-    if (r.error) { console.warn('[ConcoursP] Load:', r.error.message); return []; }
-    window._concoursCacheP.list = r.data || [];
-    window._concoursCacheP.lastLoad = Date.now();
-    return window._concoursCacheP.list;
-  } catch(e){ console.error('[ConcoursP]', e); return []; }
-}
-
-/* Calculer le classement d'un concours côté parrain (utilise les mêmes fonctions) */
-function _concoursComputeClassementP(concours) {
-  if (!concours) return { classement: [], caGenere: 0 };
-
-  var start = new Date(concours.date_debut).getTime();
-  var end = new Date(concours.date_fin).getTime();
-  var critere = concours.critere || 'score';
-  var minVentes = concours.min_ventes_eligibilite || 0;
-
-  var parrains = (_lsGet(_SK.PARS) || []).filter(function(p){ return p.statut === 'Actif'; });
-
-  /* RGPD : exclure ceux qui ont désactivé leur affichage public */
-  parrains = parrains.filter(function(p){
-    if (!p || !p.rgpd_prefs) return true;
-    try {
-      var prefs = typeof p.rgpd_prefs === 'string' ? JSON.parse(p.rgpd_prefs) : p.rgpd_prefs;
-      return !(prefs && prefs.leaderboard === false);
-    } catch(e){ return true; }
-  });
-
-  var allComms = window._d && window._d.commissions ? window._d.commissions : [];
-  var caGenere = 0;
-
-  /* 🆕 1ère vente globale de la période (pour le bonus Sprint 🚀) */
-  var firstSaleParrainIdP = null;
-  var firstSaleTsP = Infinity;
-  allComms.forEach(function(c){
-    var ts = new Date(c.created_at || c.created || 0).getTime();
-    if (ts >= start && ts <= end && ts < firstSaleTsP) {
-      firstSaleTsP = ts;
-      firstSaleParrainIdP = c.parrainId || c.parrain_id;
-    }
-  });
-
-  var enriched = parrains.map(function(p){
-    var myComms = allComms.filter(function(c){
-      if (c.parrainId !== p.id && c.parrain_id !== p.id) return false;
-      var ts = new Date(c.created_at || c.created || 0).getTime();
-      return ts >= start && ts <= end;
-    });
-    var ventesPeriode = myComms.length;
-    var caPeriode = myComms.reduce(function(s,c){ return s + (c.prix || c.montant || 0); }, 0);
-    caGenere += caPeriode;
-
-    /* 🆕 CORRECTION : score concours = activité UNIQUEMENT dans la période */
-    var code = p.code || '';
-    var chs = (window._d && window._d.challenges) || [];
-    var us  = (window._d && window._d.users) || [];
-
-    /* Challenges actifs pendant la période — calcul DYNAMIQUE de la progression */
-    var challengesCompletesPeriode = 0;
-    var challengesEnCoursPeriode = 0;
-    var progressPcts = [];
-
-    /* Helper : recalcule la progression du challenge pour ce parrain (période) */
-    var _calcProgP = function(ch) {
-      if (!ch) return 0;
-
-      /* 🆕 PRIORITÉ : lire ch.leaderboard si présent (mis à jour par le système) */
-      if (Array.isArray(ch.leaderboard) && ch.leaderboard.length) {
-        var lbEntry = ch.leaderboard.find(function(pl){ return pl && pl.code === code; });
-        if (lbEntry && typeof lbEntry.progress === 'number' && lbEntry.progress >= 0) {
-          return lbEntry.progress;
-        }
-      }
-
-      switch(ch.type) {
-        case 'ventes':
-        case 'flash':
-          return ventesPeriode;
-        case 'parrainage':
-        case 'filleuls_actifs':
-        case 'nouveaux_clients':
-          var c = 0;
-          us.forEach(function(u){
-            if (!u) return;
-            var refCode = u.refCode || u.codeParrain || u.parrainCode || u.refParrain || '';
-            var couponCode = u.couponCode || '';
-            if ((refCode !== code) && !(!refCode && couponCode === code)) return;
-            if (u.bloque && u.suspiciousIp) return;
-            var ts = new Date(u.dateCreation || u.created || u.dateInscription || 0).getTime();
-            if (ts >= start && ts <= end) c++;
-          });
-          return c;
-        case 'visites':
-        case 'trafic_source':
-          var visitors = (window._d && window._d.visitors) || [];
-          return visitors.filter(function(v){
-            if (!v) return false;
-            var c = v.parrainCode || v.refCode || '';
-            if (c !== code) return false;
-            var ts = new Date(v.created_at || v.date || 0).getTime();
-            return ts >= start && ts <= end;
-          }).length;
-        default:
-          return 0;
-      }
-    };
-
-    if (Array.isArray(chs)) {
-      chs.forEach(function(ch){
-        if (!ch) return;
-        if (ch.rewardsPaidParrains && ch.rewardsPaidParrains[code]) {
-          var tsPaid = new Date(ch.rewardsPaidAt || ch.endDate || ch.updated_at || 0).getTime();
-          if (tsPaid >= start && tsPaid <= end) challengesCompletesPeriode++;
-          return;
-        }
-        if (ch.status === 'active') {
-          var tsChStart = new Date(ch.startDate || ch.start_date || ch.created_at || 0).getTime();
-          if (tsChStart <= end) {
-            var prog = _calcProgP(ch);
-            if (prog > 0) {
-              var objectif = parseInt(ch.objectif) || 1;
-              progressPcts.push(Math.min(100, (prog / objectif) * 100));
-              challengesEnCoursPeriode++;
-            }
-          }
-        }
-      });
-    }
-    var challengesParticipesPeriode = challengesCompletesPeriode + challengesEnCoursPeriode;
-
-    var avgProgressPct = progressPcts.length ? progressPcts.reduce(function(s,x){return s+x;},0) / progressPcts.length : 0;
-    var pointsProgression = Math.round((avgProgressPct / 100) * POINTS_MAX_CHALLENGE_EC);
-
-    /* Filleuls période */
-    var filleulsActifsPeriode = 0;
-    var filleulsInscritsPeriode = 0;
-    if (Array.isArray(us) && code) {
-      us.forEach(function(u){
-        if (!u) return;
-        var refCode = u.refCode || u.codeParrain || u.parrainCode || u.refParrain || '';
-        var couponCode = u.couponCode || '';
-        if ((refCode !== code) && !(!refCode && couponCode === code)) return;
-        if (u.bloque && u.suspiciousIp) return;
-        var tsInscription = new Date(u.dateCreation || u.created || u.dateInscription || 0).getTime() || 0;
-        if (tsInscription >= start && tsInscription <= end) filleulsInscritsPeriode++;
-        var tsLogin = new Date(u.lastLogin || u.lastActive || 0).getTime() || 0;
-        var tsAct = Math.max(tsLogin, tsInscription);
-        if (tsAct >= start && tsAct <= end) filleulsActifsPeriode++;
-      });
-    }
-
-    /* Couche 1 */
-    var pointsBase = (ventesPeriode * POINTS_PAR_VENTE) +
-                     (filleulsInscritsPeriode * POINTS_FILLEUL_INSCRIT) +
-                     (filleulsActifsPeriode * POINTS_FILLEUL_ACTIF) +
-                     (challengesEnCoursPeriode * POINTS_CHALLENGE_EC) +
-                     pointsProgression;
-
-    /* Couche 2 */
-    var multiplicateur = 1.0;
-    for (var mi = 0; mi < MULTIPLICATEURS_VENTES.length; mi++) {
-      if (ventesPeriode >= MULTIPLICATEURS_VENTES[mi].minVentes) {
-        multiplicateur = MULTIPLICATEURS_VENTES[mi].mult;
-        break;
-      }
-    }
-    var pointsMultiplies = Math.round(pointsBase * multiplicateur);
-
-    /* Couche 3 — Sprint au 1er vendeur + challenges finis période */
-    var bonusSprintP = (firstSaleParrainIdP && firstSaleParrainIdP === p.id) ? BONUS_1ERE_VENTE : 0;
-    var bonusChal = challengesCompletesPeriode * BONUS_CHALLENGE_FINI;
-    var bonusJalons = bonusSprintP + bonusChal;
-
-    var total = pointsMultiplies + bonusJalons;
-
-    /* 🆕 Calculer le timestamp de la PREMIÈRE activité du parrain dans la période */
-    var firstActivityTs = Infinity;
-    /* Première vente */
-    myComms.forEach(function(c){
-      var ts = new Date(c.created_at || c.created || 0).getTime();
-      if (ts >= start && ts <= end && ts < firstActivityTs) firstActivityTs = ts;
-    });
-    /* Premier filleul inscrit */
-    if (Array.isArray(us) && code) {
-      us.forEach(function(u){
-        if (!u) return;
-        var refCode = u.refCode || u.codeParrain || u.parrainCode || u.refParrain || '';
-        var couponCode = u.couponCode || '';
-        if ((refCode !== code) && !(!refCode && couponCode === code)) return;
-        if (u.bloque && u.suspiciousIp) return;
-        var ts = new Date(u.dateCreation || u.created || u.dateInscription || 0).getTime();
-        if (ts >= start && ts <= end && ts < firstActivityTs) firstActivityTs = ts;
-      });
-    }
-    /* Premier visiteur */
-    var visAll = (window._d && window._d.visitors) || [];
-    if (Array.isArray(visAll) && code) {
-      visAll.forEach(function(v){
-        if (!v) return;
-        var vCode = v.parrainCode || v.refCode || '';
-        if (vCode !== code) return;
-        var ts = new Date(v.created_at || v.date || 0).getTime();
-        if (ts >= start && ts <= end && ts < firstActivityTs) firstActivityTs = ts;
-      });
-    }
-
-    return {
-      id: p.id, code: p.code, nom: p.nom,
-      ventes: ventesPeriode, ca: caPeriode, score: total,
-      hasSprintBonus: bonusSprintP > 0,
-      challengesParticipes: challengesParticipesPeriode,
-      challengesCompletes: challengesCompletesPeriode,
-      filleulsActifs: filleulsActifsPeriode,
-      firstActivityTs: firstActivityTs, /* 🆕 */
-      _eligible: ventesPeriode >= minVentes
-    };
-  });
-
-  var eligibles = enriched.filter(function(x){ return x._eligible; });
-  /* 🆕 Tri Ascension + fallback "premier à avoir commencé" (plus juste que alphabétique) */
-  var _firstActTie = function(a, b) {
-    var ta = (typeof a.firstActivityTs === 'number' && isFinite(a.firstActivityTs)) ? a.firstActivityTs : Infinity;
-    var tb = (typeof b.firstActivityTs === 'number' && isFinite(b.firstActivityTs)) ? b.firstActivityTs : Infinity;
-    if (ta !== tb) return ta - tb;
-    var na = (a.nom||'').toLowerCase(), nb = (b.nom||'').toLowerCase();
-    if (na < nb) return -1;
-    if (na > nb) return 1;
-    return 0;
-  };
-  eligibles.sort(function(a,b){
-    if (critere === 'ventes') {
-      if ((b.ventes||0) !== (a.ventes||0)) return (b.ventes||0) - (a.ventes||0);
-    } else if (critere === 'ca') {
-      if ((b.ca||0) !== (a.ca||0)) return (b.ca||0) - (a.ca||0);
-    } else { /* score */
-      if ((b.score||0) !== (a.score||0)) return (b.score||0) - (a.score||0);
-    }
-    /* Tiebreakers communs */
-    if ((b.ventes||0) !== (a.ventes||0)) return (b.ventes||0) - (a.ventes||0);
-    if ((b.challengesParticipes||0) !== (a.challengesParticipes||0)) return (b.challengesParticipes||0) - (a.challengesParticipes||0);
-    if ((b.challengesCompletes||0) !== (a.challengesCompletes||0)) return (b.challengesCompletes||0) - (a.challengesCompletes||0);
-    if ((b.filleulsActifs||0) !== (a.filleulsActifs||0)) return (b.filleulsActifs||0) - (a.filleulsActifs||0);
-    if ((b.score||0) !== (a.score||0)) return (b.score||0) - (a.score||0);
-    return _firstActTie(a, b);
-  });
-
-  return { classement: eligibles, caGenere: caGenere };
-}
-window._concoursComputeClassementP = _concoursComputeClassementP;
-
-/* ── BANDEAU Dashboard — concours actif le plus proche ── */
-async function _concoursRenderBannerP(parrain) {
-  var banner = document.getElementById('concours-banner');
-  if (!banner || !parrain) return;
-
-  /* 🆕 Déclencher les notifs J-1 côté parrain aussi (idempotent, pas de double-envoi)
-     THROTTLED : maximum 1 appel toutes les 5 minutes pour économiser les RPC sur 2G/3G */
-  try {
-    var nowJ1 = Date.now();
-    var lastJ1 = window._lastNotifJ1Call || 0;
-    if (_sb && typeof _sb.rpc === 'function' && (nowJ1 - lastJ1) > 300000) {
-      window._lastNotifJ1Call = nowJ1;
-      /* Skip totalement sur slow-2g */
-      var ec1 = (navigator.connection && navigator.connection.effectiveType) || '';
-      if (ec1 !== 'slow-2g') {
-        _sb.rpc('notify_concours_ending').then(function(){}).catch(function(){});
-      }
-    }
-  } catch(e){}
-
-  await _concoursLoadP();
-  var list = window._concoursCacheP.list || [];
-  var actifs = list.filter(function(c){ return c.statut === 'active'; });
-  if (actifs.length === 0) {
-    banner.style.display = 'none';
-    return;
-  }
-
-  /* Prendre le premier actif (le plus récent) */
-  var c = actifs[0];
-  var cls = _concoursComputeClassementP(c);
-  var myRank = cls.classement.findIndex(function(x){ return x.id === parrain.id; }) + 1;
-  var isEligible = myRank > 0;
-  var top3Montants = [
-    parseFloat(c.recompense_1er) || 0,
-    parseFloat(c.recompense_2eme) || 0,
-    parseFloat(c.recompense_3eme) || 0
-  ];
-  var myGain = (myRank >= 1 && myRank <= 3) ? top3Montants[myRank-1] : 0;
-
-  var end = new Date(c.date_fin).getTime();
-  var remaining = Math.max(0, end - Date.now());
-  var days = Math.floor(remaining / (24*3600*1000));
-  var hours = Math.floor((remaining / (3600*1000)) % 24);
-  var timeLabel = days > 0 ? days + 'j ' + hours + 'h' : hours + 'h';
-
-  var medal = myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : myRank > 0 ? '#'+myRank : '—';
-  var titleText = isEligible
-    ? (myRank <= 3 ? '🏆 Vous êtes dans le podium !' : '🏆 ' + medal + ' Grimpez dans le podium')
-    : '🏆 Concours en cours — participez !';
-  var subText = isEligible
-    ? (myRank <= 3
-        ? 'Actuellement <strong style="color:#ffd700">' + medal + '</strong> — vous gagneriez <strong>' + myGain.toLocaleString('fr-FR') + ' F</strong>'
-        : 'Rang <strong>' + medal + '</strong> — le Top 3 gagne 🥇 ' + top3Montants[0].toLocaleString('fr-FR') + ' F · 🥈 ' + top3Montants[1].toLocaleString('fr-FR') + ' F · 🥉 ' + top3Montants[2].toLocaleString('fr-FR') + ' F')
-    : '<strong>' + c.nom + '</strong> — 🥇 ' + top3Montants[0].toLocaleString('fr-FR') + ' F · 🥈 ' + top3Montants[1].toLocaleString('fr-FR') + ' F · 🥉 ' + top3Montants[2].toLocaleString('fr-FR') + ' F (min ' + (c.min_ventes_eligibilite||0) + ' ventes)';
-
-  banner.innerHTML =
-    '<div style="background:linear-gradient(135deg,rgba(255,215,0,.12),rgba(255,170,0,.06));border:1px solid rgba(255,215,0,.3);border-radius:12px;padding:.8rem 1rem;cursor:pointer;transition:transform .15s" onclick="_concoursOpenPage()" onmouseover="this.style.transform=\'scale(1.01)\'" onmouseout="this.style.transform=\'scale(1)\'">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap">' +
-        '<div style="flex:1;min-width:200px">' +
-          '<div style="font-size:.85rem;font-weight:800;color:#ffd700;margin-bottom:.15rem">' + titleText + '</div>' +
-          '<div style="font-size:.72rem;color:var(--text);line-height:1.4">' + subText + '</div>' +
-        '</div>' +
-        '<div style="text-align:right">' +
-          '<div style="font-size:.62rem;color:var(--muted)">Temps restant</div>' +
-          '<div style="font-family:Space Mono,monospace;font-size:.9rem;font-weight:800;color:#ffd700">⏳ ' + timeLabel + '</div>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
-  banner.style.display = 'block';
-}
-window._concoursRenderBannerP = _concoursRenderBannerP;
-
-/* ── Ouvrir la page concours complète (modal) ── */
-window._concoursOpenPage = async function() {
-  var parrain = typeof _getCurrentParrain === 'function' ? _getCurrentParrain() : null;
-  if (!parrain) return;
-
-  /* Construire le modal */
-  var overlay = document.createElement('div');
-  overlay.id = 'concours-modal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(5px);z-index:9990;display:flex;align-items:center;justify-content:center;padding:.8rem';
-  overlay.onclick = function(e){ if(e.target === overlay) overlay.remove(); };
-
-  var box = document.createElement('div');
-  box.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;padding:0';
-
-  box.innerHTML =
-    '<div style="position:sticky;top:0;background:var(--bg);padding:1rem 1.2rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;z-index:1">' +
-      '<div><div style="font-size:1rem;font-weight:800">🏆 Concours Podium</div><div style="font-size:.68rem;color:var(--muted);margin-top:.1rem">Récompenses Top 3 par période</div></div>' +
-      '<button onclick="document.getElementById(\'concours-modal\').remove()" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button>' +
-    '</div>' +
-    '<div id="concours-content" style="padding:1rem 1.2rem"><div style="padding:2rem;text-align:center;color:var(--muted)">⏳ Chargement…</div></div>';
-
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
-
-  /* Charger et afficher */
-  await _concoursLoadP();
-  var list = window._concoursCacheP.list || [];
-  var actifs = list.filter(function(c){ return c.statut === 'active'; });
-  var finis  = list.filter(function(c){ return c.statut === 'paid'; });
-
-  var content = document.getElementById('concours-content');
-  if (!content) return;
-
-  var html = '';
-
-  /* 🆕 HISTORIQUE PERSONNEL — total gagné en concours */
-  try {
-    var myGainsR = await _sb.from('parrain_commissions')
-      .select('comm, produit, created, created_at, detail, orderId')
-      .eq('parrainId', parrain.id)
-      .eq('sourceType', 'concours')
-      .order('created_at', { ascending: false })
-      .limit(20);
-    var myGains = (myGainsR && myGainsR.data) || [];
-    /* Fallback camelCase → parrain_id snake_case */
-    if (!myGains.length) {
-      try {
-        var myGainsR2 = await _sb.from('parrain_commissions')
-          .select('comm, produit, created, created_at, detail, orderId')
-          .eq('parrain_id', parrain.id)
-          .eq('sourceType', 'concours')
-          .order('created_at', { ascending: false })
-          .limit(20);
-        myGains = (myGainsR2 && myGainsR2.data) || [];
-      } catch(eg){}
-    }
-
-    var totalGagne = myGains.reduce(function(s,g){ return s + (parseFloat(g.comm) || 0); }, 0);
-    var nbConcours = myGains.length;
-
-    if (nbConcours > 0 || totalGagne > 0) {
-      html += '<div style="background:linear-gradient(135deg,rgba(255,215,0,.12),rgba(0,255,136,.04));border:1px solid rgba(255,215,0,.3);border-radius:10px;padding:.9rem 1rem;margin-bottom:1.2rem">';
-      html += '<div style="font-size:.78rem;font-weight:700;color:#ffd700;margin-bottom:.4rem">🏆 Mon historique concours</div>';
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.7rem">';
-      html += '<div style="background:var(--darker);border-radius:7px;padding:.5rem .7rem">';
-      html += '<div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em">Total gagné</div>';
-      html += '<div style="font-family:Space Mono,monospace;font-size:1.1rem;font-weight:800;color:#ffd700">' + totalGagne.toLocaleString('fr-FR') + ' F</div>';
-      html += '</div>';
-      html += '<div style="background:var(--darker);border-radius:7px;padding:.5rem .7rem">';
-      html += '<div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em">Concours remportés</div>';
-      html += '<div style="font-family:Space Mono,monospace;font-size:1.1rem;font-weight:800;color:var(--p1)">' + nbConcours + '</div>';
-      html += '</div>';
-      html += '</div>';
-
-      /* Liste des derniers gains */
-      if (myGains.length > 0) {
-        html += '<div style="font-size:.65rem;color:var(--muted);margin-bottom:.3rem;font-weight:700">Derniers gains :</div>';
-        html += '<div style="display:flex;flex-direction:column;gap:.25rem;max-height:10rem;overflow-y:auto">';
-        myGains.slice(0, 5).forEach(function(g){
-          var dt = new Date(g.created_at || g.created || 0);
-          var dtFmt = dt.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'2-digit'});
-          var libelle = (g.produit || g.detail || 'Gain concours');
-          /* Nettoyer le préfixe "🏆 Gain concours · " pour afficher plus court */
-          libelle = libelle.replace(/^🏆\s*Gain concours\s*·?\s*/, '');
-          html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem .5rem;background:rgba(255,215,0,.03);border-radius:5px;font-size:.7rem">';
-          html += '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:.5rem">' + libelle + ' <span style="color:var(--muted);font-size:.62rem">' + dtFmt + '</span></span>';
-          html += '<span style="color:#ffd700;font-weight:700;white-space:nowrap">+' + (parseFloat(g.comm)||0).toLocaleString('fr-FR') + ' F</span>';
-          html += '</div>';
-        });
-        html += '</div>';
-      }
-      html += '</div>';
-    }
-  } catch(ehg) {
-    console.warn('[Concours] Historique perso:', ehg);
-  }
-
-  if (actifs.length === 0 && finis.length === 0) {
-    html += '<div style="padding:2rem;text-align:center;color:var(--muted)"><div style="font-size:2rem;margin-bottom:.5rem">🏆</div><div style="font-weight:700;color:var(--text)">Aucun concours pour le moment</div><div style="font-size:.78rem;margin-top:.3rem">Restez actif, les concours reviennent régulièrement !</div></div>';
-  } else {
-    /* Concours actifs */
-    if (actifs.length > 0) {
-      html += '<div style="font-size:.82rem;font-weight:700;margin-bottom:.6rem;color:#ffd700">🔥 Concours en cours</div>';
-      actifs.forEach(function(c){
-        html += _concoursRenderCardP(c, parrain, true);
-      });
-    }
-
-    /* Concours passés (historique) */
-    if (finis.length > 0) {
-      html += '<div style="font-size:.82rem;font-weight:700;margin:1.2rem 0 .6rem;color:var(--muted)">📜 Concours passés</div>';
-      finis.slice(0, 5).forEach(function(c){
-        html += _concoursRenderCardP(c, parrain, false);
-      });
-    }
-  }
-
-  content.innerHTML = html;
-};
-
-function _concoursRenderCardP(c, parrain, showLeaderboard) {
-  var cls = _concoursComputeClassementP(c);
-  var myRank = cls.classement.findIndex(function(x){ return x.id === parrain.id; }) + 1;
-  var medal = myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : myRank > 0 ? '#'+myRank : '—';
-  var top3 = [
-    parseFloat(c.recompense_1er) || 0,
-    parseFloat(c.recompense_2eme) || 0,
-    parseFloat(c.recompense_3eme) || 0
-  ];
-
-  var end = new Date(c.date_fin).getTime();
-  var remaining = Math.max(0, end - Date.now());
-  var days = Math.floor(remaining / (24*3600*1000));
-  var hours = Math.floor((remaining / (3600*1000)) % 24);
-  var timeLabel = c.statut === 'paid' ? '✅ Terminé' : days > 0 ? '⏳ ' + days + 'j ' + hours + 'h' : '⏳ ' + hours + 'h';
-
-  var critLabel = c.critere === 'ventes' ? 'Ventes' : c.critere === 'ca' ? 'CA' : 'Score';
-
-  var html = '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:.8rem;margin-bottom:.8rem">';
-
-  /* Header */
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">';
-  html += '<div style="font-size:.85rem;font-weight:800">' + (c.nom||'Concours') + '</div>';
-  html += '<div style="font-size:.65rem;color:var(--muted)">' + timeLabel + ' · ' + critLabel + '</div>';
-  html += '</div>';
-
-  /* Mon rang */
-  if (myRank > 0) {
-    var myGain = (myRank >= 1 && myRank <= 3) ? top3[myRank-1] : 0;
-    html += '<div style="padding:.5rem .7rem;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.25);border-radius:7px;margin-bottom:.5rem;font-size:.75rem">';
-    html += 'Vous êtes <strong style="color:#ffd700">' + medal + '</strong>';
-    if (myGain > 0) html += ' · Gain actuel : <strong style="color:var(--p1)">' + myGain.toLocaleString('fr-FR') + ' F</strong>';
-    html += '</div>';
-  } else if (showLeaderboard) {
-    html += '<div style="padding:.5rem .7rem;background:rgba(102,153,255,.05);border:1px solid rgba(102,153,255,.15);border-radius:7px;margin-bottom:.5rem;font-size:.72rem;color:var(--text)">💡 Min <strong>' + (c.min_ventes_eligibilite||0) + ' vente(s)</strong> pour être éligible au podium.</div>';
-  }
-
-  /* Podium avec montants */
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.35rem;margin-bottom:.5rem">';
-  html += '<div style="text-align:center;padding:.4rem;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.25);border-radius:7px"><div style="font-size:.85rem">🥇</div><div style="font-size:.7rem;font-weight:700;color:#ffd700">' + top3[0].toLocaleString('fr-FR') + ' F</div></div>';
-  html += '<div style="text-align:center;padding:.4rem;background:rgba(192,192,192,.08);border:1px solid rgba(192,192,192,.25);border-radius:7px"><div style="font-size:.85rem">🥈</div><div style="font-size:.7rem;font-weight:700;color:#c0c0c0">' + top3[1].toLocaleString('fr-FR') + ' F</div></div>';
-  html += '<div style="text-align:center;padding:.4rem;background:rgba(205,127,50,.08);border:1px solid rgba(205,127,50,.25);border-radius:7px"><div style="font-size:.85rem">🥉</div><div style="font-size:.7rem;font-weight:700;color:#cd7f32">' + top3[2].toLocaleString('fr-FR') + ' F</div></div>';
-  html += '</div>';
-
-  /* Classement (top 10) */
-  if (showLeaderboard && cls.classement.length > 0) {
-    html += '<div style="margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border)">';
-    html += '<div style="font-size:.7rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">Top 10 live</div>';
-    cls.classement.slice(0, 10).forEach(function(x, i){
-      var r = i + 1;
-      var m = r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : '#'+r;
-      var isMe = x.id === parrain.id;
-      var bg = isMe ? 'background:rgba(0,255,136,.08);border-left:3px solid var(--p1)' : '';
-      html += '<div style="display:flex;justify-content:space-between;padding:.3rem .5rem;' + bg + ';border-radius:5px;margin-bottom:.15rem;font-size:.72rem">';
-      /* 🔒 RGPD : Anonymiser sauf soi-même */
-      var displayName = _anonymizeParrainName(x.nom, isMe);
-      if (isMe) displayName += ' (vous)';
-      html += '<span>' + m + ' ' + displayName + '</span>';
-      var val = c.critere === 'ventes' ? x.ventes + ' ventes' : c.critere === 'ca' ? x.ca.toLocaleString('fr-FR')+' F' : x.score + ' pts';
-      html += '<span style="color:var(--muted)">' + val + '</span>';
-      html += '</div>';
-    });
-    html += '</div>';
-  }
-
-  /* Gagnants (si payé) */
-  if (c.statut === 'paid' && c.gagnants) {
-    var gags = Array.isArray(c.gagnants) ? c.gagnants : (typeof c.gagnants === 'string' ? JSON.parse(c.gagnants) : []);
-    if (gags.length > 0) {
-      html += '<div style="margin-top:.5rem;padding:.5rem;background:rgba(0,255,136,.04);border-radius:7px;font-size:.7rem">';
-      html += '<strong style="color:var(--p1)">🏆 Gagnants :</strong><br>';
-      gags.forEach(function(g){
-        var m = g.rang === 1 ? '🥇' : g.rang === 2 ? '🥈' : '🥉';
-        var n = g.parrainId === parrain.id ? g.nom + ' (vous)' : (g.nom||'').split(' ')[0] + '...';
-        html += '<div style="display:flex;justify-content:space-between;margin-top:.15rem">';
-        html += '<span>' + m + ' ' + n + '</span>';
-        html += '<span>' + (g.montant||0).toLocaleString('fr-FR') + ' F</span>';
-        html += '</div>';
-      });
-      html += '</div>';
-    }
-  }
-
-  html += '</div>';
-  return html;
-}
 
 /* ════════════════════════════════════════════════════════════════
    NOTIFICATIONS CLASSEMENT — partage + changements de rang
@@ -6039,61 +4114,28 @@ function _renderLeaderboard(moi){
     });
   } catch(e){}
 
-  /* 🆕 Classer avec la nouvelle logique : VENTES D'ABORD + PARTICIPATION CHALLENGES */
+  /* Classer par SCORE décroissant (en excluant les opt-out) */
   const pars = (_lsGet(_SK.PARS)||[])
     .filter(p=>p.statut==='Actif')
     .filter(p=>!_rgpdOptedOut[p.id] || p.id === moi.id) // L'user voit toujours sa propre position
     .map(function(p){
       var sc = _parrainComputeScore(p, challenges, allUsers);
-      return Object.assign({}, p, {
-        _score: sc,
-        _ventes: sc.ventes,
-        _challengesParticipes: sc.challengesParticipes,
-        _challengesCompletes: sc.challengesCompletes,
-        _filleulsActifs: sc.filleulsActifs,
-        _scoreTotal: sc.total,
-        _multLabel: sc.multLabel,
-        _hasStreak: sc.hasStreak,
-        _hasTop3Bonus: sc.hasTop3Bonus
-      });
+      return Object.assign({}, p, {_score: sc});
     })
     .sort(function(a,b){
-      /* Ascension : score total d'abord (tous classés) */
-      if ((b._scoreTotal||0) !== (a._scoreTotal||0)) return (b._scoreTotal||0) - (a._scoreTotal||0);
-      /* Ventes */
-      if ((b._ventes||0) !== (a._ventes||0)) return (b._ventes||0) - (a._ventes||0);
-      /* Participation challenges */
-      if ((b._challengesParticipes||0) !== (a._challengesParticipes||0)) return (b._challengesParticipes||0) - (a._challengesParticipes||0);
-      /* Challenges finis */
-      if ((b._challengesCompletes||0) !== (a._challengesCompletes||0)) return (b._challengesCompletes||0) - (a._challengesCompletes||0);
-      /* Filleuls actifs */
-      if ((b._filleulsActifs||0) !== (a._filleulsActifs||0)) return (b._filleulsActifs||0) - (a._filleulsActifs||0);
-      return 0;
+      // Tri principal : score total décroissant
+      if ((b._score.total||0) !== (a._score.total||0)) return (b._score.total||0) - (a._score.total||0);
+      // Égalité 1 : plus de challenges terminés
+      if ((b._score.challengesCompletes||0) !== (a._score.challengesCompletes||0)) return (b._score.challengesCompletes||0) - (a._score.challengesCompletes||0);
+      // Égalité 2 : plus de points dans challenges en cours
+      if ((b._score.pointsChallengesEnCours||0) !== (a._score.pointsChallengesEnCours||0)) return (b._score.pointsChallengesEnCours||0) - (a._score.pointsChallengesEnCours||0);
+      // Égalité 3 : plus de filleuls actifs
+      if ((b._score.filleulsActifs||0) !== (a._score.filleulsActifs||0)) return (b._score.filleulsActifs||0) - (a._score.filleulsActifs||0);
+      // Égalité 4 : plus de ventes
+      return (b._score.ventes||0) - (a._score.ventes||0);
     })
     .slice(0,10);
   if(!pars.length) return;
-
-  /* 🆕 ANIMATION LIVE : comparer avec le rendu précédent (en mémoire)
-     pour détecter monte/descend et animer les cartes */
-  if (!window._lbPrevRanks) window._lbPrevRanks = {};
-  var prevRanks = window._lbPrevRanks;
-  var newRanks = {};
-  var rankChanges = {}; /* {parrainId: 'up'|'down'|'same'|'new'} */
-
-  pars.forEach(function(p, i){
-    var newRank = i + 1;
-    newRanks[p.id] = newRank;
-    var oldRank = prevRanks[p.id];
-    if (typeof oldRank === 'undefined') {
-      rankChanges[p.id] = 'new';
-    } else if (newRank < oldRank) {
-      rankChanges[p.id] = 'up';
-    } else if (newRank > oldRank) {
-      rankChanges[p.id] = 'down';
-    } else {
-      rankChanges[p.id] = 'same';
-    }
-  });
 
   const avs   = ['👑','⭐','🌟','😊','😊','😊','😊','😊','😊','😊'];
   const rkCls = {0:'t1',1:'t2',2:'t3'};
@@ -6103,24 +4145,14 @@ function _renderLeaderboard(moi){
 
   let html = '<div class="stitle">🏆 Classement <span>parrains</span></div>' +
     '<div style="font-size:.58rem;color:var(--muted);margin-bottom:.45rem;text-align:center;line-height:1.5">' +
-    '💡 <strong>Ascension :</strong> activité × multiplicateur + bonus jalons<br>' +
-    '<strong>Multiplicateurs :</strong> 3 ventes ×1.2 · 5 ventes ×1.5 · 10 ventes ×2.0' +
+    '💡 <strong>' + POINTS_PAR_VENTE + ' pts</strong>/vente · <strong>' + POINTS_PAR_CHALLENGE + ' pts</strong>/challenge fini<br>' +
+    '<strong>jusqu\'à ' + POINTS_MAX_CHALLENGE_EC + ' pts</strong> selon moyenne challenges en cours · <strong>' + POINTS_PAR_FILLEUL + ' pts</strong>/filleul actif' +
     '</div>';
 
   pars.forEach((p,i)=>{
     const isMe = p.id === moi.id;
     var sc = p._score || {total:0, ventes:0, challengesCompletes:0, challengesEnCours:0, avgProgressPct:0, pointsChallengesEnCours:0, filleulsActifs:0};
     const pts  = sc.total;
-
-    /* 🆕 Badges Ascension */
-    var badges = [];
-    if (sc.multiplicateur >= 2) badges.push('<span title="Multiplicateur ×2 · Étoile" style="color:#ffd700">🌟</span>');
-    else if (sc.multiplicateur >= 1.5) badges.push('<span title="Multiplicateur ×1.5 · Expert" style="color:#c0c0c0">💎</span>');
-    else if (sc.multiplicateur >= 1.2) badges.push('<span title="Multiplicateur ×1.2 · Actif" style="color:#f9a825">⚡</span>');
-    if (sc.hasStreak) badges.push('<span title="Streak 3+ semaines consécutives avec vente · +' + BONUS_STREAK_3_SEMAINES + ' pts" style="color:#ff6b35">🔥</span>');
-    if (sc.hasTop3Bonus) badges.push('<span title="Top 3 du dernier concours" style="color:#ffd700">👑</span>');
-    if (sc.challengesCompletes > 0) badges.push('<span title="' + sc.challengesCompletes + ' challenge(s) fini(s)" style="color:var(--p1)">🎯</span>');
-    var badgesHtml = badges.length ? '<span style="margin-left:.3rem;font-size:.75rem">' + badges.join(' ') + '</span>' : '';
 
     /* Détails compacts */
     var detailParts = [];
@@ -6129,56 +4161,27 @@ function _renderLeaderboard(moi){
       detailParts.push('🏆 ' + sc.challengesCompletes);
     }
     if (sc.challengesEnCours > 0) {
-      detailParts.push('🎯 ' + sc.challengesEnCours);
+      /* Affiche la moyenne % et les points gagnés */
+      detailParts.push('🎯 ' + sc.challengesEnCours + ' (' + sc.avgProgressPct + '% moy · ' + sc.pointsChallengesEnCours + 'pts)');
     }
     if (sc.filleulsActifs > 0) {
       detailParts.push('👥 ' + sc.filleulsActifs);
-    }
-    if (sc.multLabel) {
-      detailParts.push(sc.multLabel);
-    }
-    /* Indicateur streak compact */
-    if (sc.streakSemaines > 0 && !sc.hasStreak) {
-      detailParts.push('🔥 ' + sc.streakSemaines + '/3');
-    } else if (sc.streakSemaines >= 3) {
-      detailParts.push('🔥 ' + sc.streakSemaines + ' sem.');
     }
     var detail = '<div style="font-size:.58rem;color:var(--muted);line-height:1.2">' +
                  detailParts.join(' · ') +
                  '</div>';
 
-    /* 🆕 Classe d'animation selon le mouvement */
-    var animClass = '';
-    var change = rankChanges[p.id];
-    if (change === 'up') animClass = ' lb-anim-up';
-    else if (change === 'down') animClass = ' lb-anim-down';
-    /* 'new' et 'same' : pas d'animation */
-
-    /* 🆕 Indicateur visuel du mouvement (mini flèche à côté du rang) */
-    var moveArrow = '';
-    if (change === 'up' && typeof prevRanks[p.id] !== 'undefined') {
-      var diff = prevRanks[p.id] - (i + 1);
-      moveArrow = '<span class="lb-move-up" style="position:absolute;top:-3px;right:-8px;font-size:.55rem;color:#00cc66;font-weight:800;background:rgba(0,255,136,.2);padding:1px 3px;border-radius:8px;border:1px solid rgba(0,255,136,.4)" title="A monté de ' + diff + ' place' + (diff>1?'s':'') + '">⬆+' + diff + '</span>';
-    } else if (change === 'down' && typeof prevRanks[p.id] !== 'undefined') {
-      var diff2 = (i + 1) - prevRanks[p.id];
-      moveArrow = '<span class="lb-move-down" style="position:absolute;top:-3px;right:-8px;font-size:.55rem;color:#ff3344;font-weight:800;background:rgba(255,51,68,.2);padding:1px 3px;border-radius:8px;border:1px solid rgba(255,51,68,.4)" title="A descendu de ' + diff2 + ' place' + (diff2>1?'s':'') + '">⬇' + diff2 + '</span>';
-    }
-
-    html += '<div class="lb-row' + (isMe?' me':'') + animClass + '" data-pid="' + p.id + '" style="position:relative">' +
-      '<div class="lb-rank ' + (rkCls[i]||'tx') + '" ' + (isMe?'style="border-color:var(--p1);color:var(--p1);position:relative"':'style="position:relative"') + '>' + (i+1) + moveArrow + '</div>' +
+    html += '<div class="lb-row' + (isMe?' me':'') + '">' +
+      '<div class="lb-rank ' + (rkCls[i]||'tx') + '" ' + (isMe?'style="border-color:var(--p1);color:var(--p1)"':'') + '>' + (i+1) + '</div>' +
       '<div style="font-size:.95rem">' + (avs[i]||'😊') + '</div>' +
       '<div class="lb-name" ' + (isMe?'style="color:var(--p1);font-weight:700"':'') + '>' +
-        /* 🔒 RGPD : anonymiser le nom des autres parrains (1er prénom + initiales) */
-        _anonymizeParrainName(p.nom, isMe) + badgesHtml + (isMe ? _renderRankEvolutionInline(moi, challenges, allUsers) + ' <span style="font-size:.6rem;opacity:.7">(Moi)</span>' : '') +
+        (p.nom||'—') + (isMe?' <span style="font-size:.6rem;opacity:.7">(Moi)</span>':'') +
         detail +
       '</div>' +
       '<div style="font-size:.75rem">' + ((p.palier||'Silver')==='Gold'?'🌞':(p.palier||'').includes('lat')?'💎':'🌱') + '</div>' +
       '<div class="lb-pts">' + pts + ' pt' + (pts>1?'s':'') + '</div>' +
     '</div>';
   });
-
-  /* 🆕 Mémoriser les nouveaux rangs pour le prochain rendu */
-  window._lbPrevRanks = newRanks;
 
   /* Écart avec le rang précédent */
   if(myRank > -1){
@@ -6918,20 +4921,11 @@ async function doLogin(){
   const rawId = identifierEl ? identifierEl.value.trim() : '';
   const pwd = pwdEl ? pwdEl.value.trim() : '';
 
-  // 🔐 SÉCURITÉ : identifiant ET mot de passe obligatoires
-  if(!rawId || !pwd){
-    toast('⚠️ Veuillez saisir votre numéro ET votre mot de passe');
-    if(!rawId){
-      const idEl = document.getElementById('login-identifier');
-      if(idEl){ idEl.style.borderColor='var(--p1)'; setTimeout(()=>{ idEl.style.borderColor=''; }, 1500); idEl.focus(); }
-    } else {
-      if(pwdEl){ pwdEl.style.borderColor='var(--p1)'; setTimeout(()=>{ pwdEl.style.borderColor=''; }, 1500); pwdEl.focus(); }
-    }
-    return;
-  }
-  // 🔐 Mot de passe trop court = forcément faux (sécurité minimale)
-  if(pwd.length < 4){
-    toast('❌ Mot de passe trop court');
+  // Identifiants vides → bloquer (pas de connexion automatique)
+  if(!rawId && !pwd){
+    toast('⚠️ Veuillez saisir vos identifiants');
+    const idEl = document.getElementById('login-identifier');
+    if(idEl){ idEl.style.borderColor='var(--p1)'; setTimeout(()=>{ idEl.style.borderColor=''; }, 1500); idEl.focus(); }
     return;
   }
 
@@ -7003,12 +4997,8 @@ async function doLogin(){
     for(const p of pars){
       if(p.statut !== 'Actif' && p.ip !== 'admin' && p.source !== 'Test') continue;
       if(!_candidates.has(_norm(p.wa||''))) continue;
-      /* 🔐 SÉCURITÉ : on n'accepte QUE les vrais hashes / mots de passe.
-         Le fallback sur p.code est INTERDIT (le code est public, pas un secret). */
-      const stored = p.loginPwdHash || p.loginPwd || p.password || '';
-      /* Si aucun mot de passe n'a été défini, refuser la connexion :
-         le parrain doit définir son mot de passe via le BO admin ou réinitialisation */
-      if (!stored) continue;
+      /* Vérifier loginPwdHash (PBKDF2 BO Admin) en priorité, sinon loginPwd, password, code */
+      const stored = p.loginPwdHash || p.loginPwd || p.password || p.code || '';
       const prevList = (p.prevPwds || []).concat(p.prevPwdHashes || []);
       const ok = await _checkPwd(pwd, stored) ||
                  (await Promise.all(prevList.map(h => _checkPwd(pwd, h)))).some(Boolean);
@@ -7045,10 +5035,6 @@ async function doLogin(){
 
   _lsSet(_SK.SES, { parrainId: parrain.id, loginAt: new Date().toISOString(), lastSeenCom: Date.now() });
   window._parrainCode = parrain.code || '';
-
-  /* FIX 2026-04-25 : reset du bouton aussi en cas de succès, pour qu'il soit propre
-     si l'utilisateur revient sur la page de login (logout, re-load partiel, etc.) */
-  _loginBtnReset();
 
   /* ── Capturer l'IP du parrain pour l'exclure des stats ── */
   (async function(){
@@ -7105,29 +5091,6 @@ function doLogout(){
   currentAvatar = '🛍️';
   var _avEl = document.getElementById('avatarEmoji');
   if(_avEl) _avEl.textContent = currentAvatar;
-
-  /* ══ FIX 2026-04-25 : Réinitialiser COMPLÈTEMENT l'écran de login ══
-     Sans ce reset, si le bouton était resté en état "⏳ Connexion..."
-     (cas normal après login réussi car _loginBtnReset n'est pas appelé en succès),
-     l'utilisateur voit le sablier et "Connexion en cours" au prochain affichage. */
-  try {
-    var _btn = document.querySelector('.login-btn');
-    if(_btn){
-      _btn.disabled = false;
-      _btn.style.opacity = '';
-      _btn.style.cursor = '';
-      _btn.textContent = '🔓 Accéder à mon espace';
-    }
-    /* Vider les champs (sécurité cybercafé) */
-    var _idEl = document.getElementById('login-identifier');
-    var _pwdEl = document.getElementById('login-pwd');
-    if(_idEl) { _idEl.value = ''; _idEl.style.borderColor = ''; }
-    if(_pwdEl) { _pwdEl.value = ''; _pwdEl.style.borderColor = ''; }
-    /* Cacher le message de blocage si affiché */
-    var _blockedMsg = document.getElementById('login-blocked-msg');
-    if(_blockedMsg) _blockedMsg.style.display = 'none';
-  } catch(e){ console.warn('[Logout reset login UI]', e); }
-
   document.getElementById('loginScreen').style.display = 'flex';
 
   /* Rechargement complet recommandé en cybercafé pour repartir propre */
@@ -8552,7 +6515,7 @@ function _chRenderCard(ch, idx){
     productHtml = '<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:.8rem .9rem;margin:.5rem 0">'
       +'<div style="font-size:.6rem;font-weight:700;color:var(--p1);text-transform:uppercase;letter-spacing:.7px;margin-bottom:.45rem">🔗 Ton lien produit</div>'
       +'<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.42rem .65rem;display:flex;align-items:center;gap:.4rem;margin-bottom:.45rem">'
-        +'<span style="flex:1;font-family:monospace;font-size:.6rem;color:var(--p2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">ecodila.com/?p='+ch.product+'&ref='+code+'</span>'
+        +'<span style="flex:1;font-family:monospace;font-size:.6rem;color:var(--p2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">ecodila.com/produit/'+ch.product+'?ref='+code+'</span>'
         +'<button onclick="window._chCopyProductLink(\''+ch.id+'\')" style="padding:.25rem .45rem;background:var(--grad);border:none;border-radius:6px;color:#0b0f18;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">📋</button>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.35rem;margin-bottom:.45rem">'
@@ -8756,159 +6719,20 @@ window._chCopyProductLink = function(id){
   if(!ch) return;
   var parrain = typeof _getCurrentParrain==='function' ? _getCurrentParrain() : null;
   var code = parrain ? (parrain.code||'CODE') : 'CODE';
-  var url = 'https://ecodila.com/?p='+ch.product+'&ref='+code;
+  var url = 'https://ecodila.com/produit/'+ch.product+'?ref='+code;
   if(navigator.clipboard){ navigator.clipboard.writeText(url).then(function(){ if(typeof toast==='function') toast('🔗 Lien produit copié !'); }); }
   else { if(typeof toast==='function') toast('🔗 '+url); }
 };
 
 window._chShareProductWA = function(id){
-  // Protection contre les clics multiples qui causent
-  // "InvalidStateError: An earlier share has not yet completed"
-  if(window._chShareInProgress){
-    console.log('[share] Partage déjà en cours, ignoré');
-    return;
-  }
-  window._chShareInProgress = true;
-  var _shareReleaseTimer = setTimeout(function(){
-    window._chShareInProgress = false;
-  }, 10000);
-  var _releaseShareLock = function(){
-    clearTimeout(_shareReleaseTimer);
-    window._chShareInProgress = false;
-  };
-
   var challenges = _chGetChallenges();
   var ch = challenges.find(function(c){return c.id===id;});
-  if(!ch){ _releaseShareLock(); return; }
+  if(!ch) return;
   var parrain = typeof _getCurrentParrain==='function' ? _getCurrentParrain() : null;
   var code = parrain ? (parrain.code||'CODE') : 'CODE';
-  var url = 'https://ecodila.com/?p='+(ch.product||'')+'&ref='+code;
-
-  // Construction du message riche WhatsApp
-  var lines = [];
-  var name = ch.productName || 'Produit EcoDila';
-
-  lines.push('🔥 *' + name + '*');
-  lines.push('');
-
-  // Specs si disponibles
-  var specs = [];
-  if(ch.productCategory) specs.push('📦 ' + ch.productCategory);
-  if(ch.productMemory) specs.push('💾 ' + ch.productMemory);
-  if(ch.productState || ch.productEtat) specs.push('⭐ ' + (ch.productState || ch.productEtat));
-  if(specs.length) {
-    lines.push(specs.join(' - '));
-    lines.push('');
-  }
-
-  // Prix
-  if(ch.productPrice) {
-    lines.push('💰 *' + ch.productPrice + '*');
-    lines.push('');
-  }
-
-  lines.push('✅ Garantie 3 mois');
-  lines.push('🚚 Livraison Abidjan');
-  lines.push('💳 Paiement à la livraison');
-  lines.push('');
-  lines.push('👉 *Voir le produit & commander :*');
-  lines.push(url);
-  lines.push('');
-  lines.push('_EcoDila - Marketplace #1 de reconditionné en Côte d\'Ivoire_');
-
-  var msg = lines.join('\n');
-
-  // Tentative partage avec image si l'API supporte
-  var imgUrl = ch.productImage || ch.productImg || '';
-  if(imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:') && !imgUrl.startsWith('blob:')){
-    imgUrl = 'https://ecodila.com' + (imgUrl.startsWith('/') ? '' : '/') + imgUrl;
-  }
-
-  /* Convertit data:image base64 en Blob directement (évite le CSP bloquant le fetch) */
-  function _dataURLtoBlob(dataUrl){
-    try {
-      var parts = dataUrl.split(',');
-      var meta = parts[0];
-      var b64 = parts[1];
-      var mime = meta.match(/:(.*?);/)[1] || 'image/jpeg';
-      var bin = atob(b64);
-      var len = bin.length;
-      var bytes = new Uint8Array(len);
-      for(var i=0; i<len; i++){ bytes[i] = bin.charCodeAt(i); }
-      return new Blob([bytes], { type: mime });
-    } catch(e){ console.warn('[share] dataURLtoBlob:', e); return null; }
-  }
-
-  function _getImageBlob(u){
-    return new Promise(function(resolve, reject){
-      if(!u) return reject('no-img');
-      if(u.indexOf('data:image') === 0){
-        var blob = _dataURLtoBlob(u);
-        if(blob) return resolve(blob);
-        return reject('decode-failed');
-      }
-      try {
-        fetch(u, { mode: 'cors' })
-          .then(function(r){ if(!r.ok) throw new Error('fetch-failed'); return r.blob(); })
-          .then(resolve)
-          .catch(reject);
-      } catch(e){ reject(e); }
-    });
-  }
-
-  function _shareTextOnly(){
-    if(navigator.share){
-      navigator.share({
-        title: name + ' | EcoDila',
-        text: msg,
-        url: url
-      }).then(function(){ _releaseShareLock(); })
-      .catch(function(err){
-        _releaseShareLock();
-        // AbortError = annulation utilisateur, ne pas relancer WhatsApp
-        if(err && (err.name === 'AbortError' || err.message === 'Share canceled')){
-          return;
-        }
-        if(err && err.name === 'InvalidStateError'){
-          return;
-        }
-        // Fallback : ouvrir WhatsApp
-        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
-      });
-    } else {
-      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
-      _releaseShareLock();
-    }
-  }
-
-  // Si l'image est dispo et qu'on peut partager des fichiers (mobile moderne)
-  if(imgUrl && navigator.share && navigator.canShare){
-    _getImageBlob(imgUrl)
-      .then(function(blob){
-        var ext = (blob.type.split('/')[1]||'jpg').replace('jpeg','jpg');
-        var file = new File([blob], 'ecodila-' + (ch.product||'produit') + '.' + ext, { type: blob.type });
-        var shareData = { title: name + ' | EcoDila', text: msg, url: url };
-        if(navigator.canShare({ files: [file] })){
-          shareData.files = [file];
-        }
-        return navigator.share(shareData);
-      })
-      .then(function(){ _releaseShareLock(); })
-      .catch(function(err){
-        _releaseShareLock();
-        // AbortError = annulation utilisateur, ne rien faire
-        if(err && (err.name === 'AbortError' || err.message === 'Share canceled')){
-          return;
-        }
-        if(err && err.name === 'InvalidStateError'){
-          return;
-        }
-        console.warn('[share] Échec image, fallback texte:', err);
-        _shareTextOnly();
-      });
-  } else {
-    _shareTextOnly();
-  }
+  var url = 'https://ecodila.com/produit/'+(ch.product||'')+'?ref='+code;
+  var msg = encodeURIComponent('📱 *'+(ch.productName||'Produit EcoDila')+'*\n\n'+(ch.productPrice?'Prix : '+ch.productPrice+'\n\n':'')+'Commander ici 👉 '+url+'\n\n✅ Livraison rapide · Paiement sécurisé');
+  window.open('https://wa.me/?text='+msg, '_blank');
 };
 
 window._chSeeReward = function(id){
@@ -10355,48 +8179,6 @@ try {
         if (typeof _supRenderHistorique === 'function') _supRenderHistorique(_h2);
       } catch(e) {}
     }
-    /* 🆕 Synchronisation parrain mis à jour par le BO admin
-       Le BO admin a modifié les infos d'un parrain (palier, code, etc.)
-       → recharger le parrain courant depuis Supabase pour voir les nouvelles valeurs */
-    if (ev.data.type === 'parrain_updated' && ev.data.parrainId) {
-      try {
-        var _curP = (typeof _getCurrentParrain === 'function' ? _getCurrentParrain() : null);
-        if (_curP && _curP.id === ev.data.parrainId) {
-          /* C'est moi → recharger mes infos depuis Supabase */
-          (async function(){
-            try {
-              if (typeof _sb !== 'undefined' && _sb && _sb.from) {
-                var rP = await _sb.from('parrains').select('*').eq('id', ev.data.parrainId).single();
-                if (rP && rP.data) {
-                  /* Mettre à jour le cache localStorage du parrain */
-                  try {
-                    var _localPars = _sbRead('ecodila_parrains_v1') || [];
-                    var _myIdx = _localPars.findIndex(function(x){ return x.id === ev.data.parrainId; });
-                    if (_myIdx > -1) {
-                      Object.assign(_localPars[_myIdx], rP.data);
-                    } else {
-                      _localPars.push(rP.data);
-                    }
-                    _sbWrite('ecodila_parrains_v1', _localPars);
-                  } catch(eL){}
-                  /* Notification visuelle si palier a changé */
-                  if (ev.data.changes && ev.data.changes.palier) {
-                    var newPal = ev.data.changes.palier.new || rP.data.palier;
-                    var pIco = (newPal==='Platinium'||newPal==='Platinum')?'💎':newPal==='Gold'?'🌞':'🌱';
-                    if (typeof toast === 'function') toast(pIco+' Votre palier est maintenant : '+newPal);
-                  }
-                  /* Rafraîchir le dashboard via la fonction globale qui recharge tout */
-                  if (typeof window.syncLoadData === 'function') {
-                    setTimeout(function(){ window.syncLoadData(); }, 200);
-                  }
-                  console.log('[Parrain Sync] Données rechargées suite à modif admin', ev.data.changes);
-                }
-              }
-            } catch(eS) { console.warn('[Parrain Sync]', eS); }
-          })();
-        }
-      } catch(e) {}
-    }
     // ── Nouvelles commandes → recalcul commissions/dashboard ──
     if (ev.data.type === 'products_updated') {
       try {
@@ -10453,70 +8235,34 @@ const _WATCHED_KEYS = [
   'ecodila_challenges','ecodila_notifications'
 ];
 
-// ── Polling Supabase ADAPTATIF : intervalle ajusté selon device/réseau ──
-// 🆕 Polling intelligent :
-//  - 45s par défaut (4G/Wi-Fi sur device récent)
-//  - 90s sur low-end device OU 3G
-//  - 180s sur slow-2g/2g
-//  - Pause complète si onglet caché (visibilitychange)
-//  - Sync immédiat à la reconnexion réseau (online event)
-// Aucune casse : la logique du polling reste identique, seule la cadence change.
-(function setupAdaptivePolling(){
-  var _pollInterval = 45000; /* défaut */
+// ── Polling Supabase 30s : recharge les données depuis Supabase périodiquement ──
+setInterval(async ()=>{
+  if(!_getCurrentParrain()) return;
   try {
-    var p = window._perf || {};
-    var conn = navigator.connection;
-    var ec = conn && conn.effectiveType;
-    if (ec === 'slow-2g' || ec === '2g') {
-      _pollInterval = 180000; /* 3 min sur 2G */
-    } else if (p.isLowEndDevice || ec === '3g') {
-      _pollInterval = 90000;  /* 1.5 min sur 3G ou low-end */
-    } else if (conn && conn.saveData) {
-      _pollInterval = 120000; /* 2 min en mode économie de données */
-    }
-  } catch(e){}
-  console.log('[Perf] Polling parrain adapté à', Math.round(_pollInterval/1000), 's');
-
-  /* La fonction de polling est extraite ici pour pouvoir être appelée
-     depuis l'event 'online' (reconnexion réseau) */
-  async function _doPoll() {
-    if (!_getCurrentParrain()) return;
-    /* Skip si l'onglet est caché (économie batterie + bande passante) */
-    if (document.visibilityState === 'hidden') return;
-    /* Skip si on est offline */
-    if (navigator.onLine === false) return;
-
-    try {
-      var d = window._d;
-      var pf = window._perf || {};
-      /* Réduire les limites pour alléger les requêtes sur low-end */
-      var limComm = pf.isLowEndDevice ? 150 : 300;
-      var limVis  = pf.isLowEndDevice ? 150 : 300;
-      var limTroc = pf.isLowEndDevice ? 100 : 200;
-
-      var r = await Promise.all([
-        _sb.from('parrains').select('*'),
-        _sb.from('parrain_commissions').select('*').order('created_at',{ascending:false}).limit(limComm),
-        _sb.from('orders').select('*').order('created_at',{ascending:false}).limit(limTroc),
-        _sb.from('users').select('*').limit(limTroc),
-        _sb.from('trocs').select('*').order('created_at',{ascending:false}).limit(limTroc),
-        _sb.from('propositions').select('*').order('created_at',{ascending:false}).limit(limTroc),
-        _sb.from('visitors').select('*').order('created_at',{ascending:false}).limit(limVis),
-        _sb.from('challenges').select('*'),
-        _sb.from('settings').select('*').in('key',['ecodila_parrain_cfg_v1','ecodila_parrain_tok_v1','ecodila_parrain_deals_v1','ecodila_parrain_dem_v1']),
-        _sb.from('products').select('*').eq('is_active',true).order('created_at',{ascending:false}),
-        _sb.from('avis').select('*').order('created_at',{ascending:false}).limit(limTroc),
-        _sb.from('parrain_paiements').select('*').order('created_at',{ascending:false}).limit(limTroc),
-        _sb.from('product_views').select('*').order('created_at',{ascending:false}).limit(limVis)
-      ]);
-      var oldParsJSON = JSON.stringify(d.parrains);
-      var oldChJSON   = JSON.stringify(d.challenges);
-      d.parrains = r[0].data||[]; d.commissions = r[1].data||[];
-      d.orders = r[2].data||[]; d.users = r[3].data||[];
-      d.trocs = r[4].data||[]; d.propositions = r[5].data||[];
-      d.visitors = r[6].data||[]; d.challenges = (window._chParse||function(a){return a;})(r[7].data||[]);
-      var stgs = {}; (r[8].data||[]).forEach(function(s){ stgs[s.key] = s.value; });
-      d.settings = stgs;
+    var d = window._d;
+    var r = await Promise.all([
+      _sb.from('parrains').select('*'),
+      _sb.from('parrain_commissions').select('*').order('created_at',{ascending:false}).limit(300),
+      _sb.from('orders').select('*').order('created_at',{ascending:false}).limit(200),
+      _sb.from('users').select('*').limit(300),
+      _sb.from('trocs').select('*').order('created_at',{ascending:false}).limit(200),
+      _sb.from('propositions').select('*').order('created_at',{ascending:false}).limit(200),
+      _sb.from('visitors').select('*').order('created_at',{ascending:false}).limit(300),
+      _sb.from('challenges').select('*'),
+      _sb.from('settings').select('*').in('key',['ecodila_parrain_cfg_v1','ecodila_parrain_tok_v1','ecodila_parrain_deals_v1','ecodila_parrain_dem_v1']),
+      _sb.from('products').select('*').eq('is_active',true).order('created_at',{ascending:false}),
+      _sb.from('avis').select('*').order('created_at',{ascending:false}).limit(200),
+      _sb.from('parrain_paiements').select('*').order('created_at',{ascending:false}).limit(200),
+      _sb.from('product_views').select('*').order('created_at',{ascending:false}).limit(300)
+    ]);
+    var oldParsJSON = JSON.stringify(d.parrains);
+    var oldChJSON   = JSON.stringify(d.challenges);
+    d.parrains = r[0].data||[]; d.commissions = r[1].data||[];
+    d.orders = r[2].data||[]; d.users = r[3].data||[];
+    d.trocs = r[4].data||[]; d.propositions = r[5].data||[];
+    d.visitors = r[6].data||[]; d.challenges = (window._chParse||function(a){return a;})(r[7].data||[]);
+    var stgs = {}; (r[8].data||[]).forEach(function(s){ stgs[s.key] = s.value; });
+    d.settings = stgs;
     d.deals = stgs['ecodila_parrain_deals_v1'] || stgs['parrain_deals'] || [];
     d.products = r[9].data||[]; d.avis = r[10].data||[];
     d.paiements = r[11].data||[];
@@ -10525,20 +8271,6 @@ const _WATCHED_KEYS = [
     syncLoadData();
     if(typeof window._chRefreshProgressFromRealData === 'function') window._chRefreshProgressFromRealData();
     if(typeof dealRenderList === 'function') dealRenderList();
-
-    // 🔐 Rafraîchir les notifs UNIQUEMENT du parrain courant (RPC sécurisée)
-    try {
-      var _curP = _getCurrentParrain();
-      if (_curP && _sb && typeof _sb.rpc === 'function') {
-        var _rpcR = await _sb.rpc('get_my_notifications', {
-          p_parrain_id: _curP.id,
-          p_parrain_code: _curP.code || null
-        });
-        if (_rpcR && !_rpcR.error) {
-          d.notifications = _rpcR.data || [];
-        }
-      }
-    } catch(e){ /* silencieux : la RPC peut ne pas être encore déployée */ }
 
     // ── Détecter changements et générer notifications ──
     var parrain = _getCurrentParrain();
@@ -10673,35 +8405,7 @@ const _WATCHED_KEYS = [
       }catch(e){}
     }
   } catch(e){ console.warn('[Djassa] ⚠️ Polling:', e); }
-  } /* fin _doPoll */
-
-  /* Démarrer le polling avec l'intervalle adaptatif */
-  var _pollTimer = null;
-  function _startPolling() {
-    if (_pollTimer) clearInterval(_pollTimer);
-    _pollTimer = setInterval(_doPoll, _pollInterval);
-  }
-  /* Premier poll après un petit délai pour laisser l'init se faire */
-  setTimeout(function(){ _startPolling(); }, 3000);
-
-  /* Reprendre les poll dès que l'onglet redevient visible */
-  document.addEventListener('visibilitychange', function(){
-    if (document.visibilityState === 'visible' && _getCurrentParrain()) {
-      _doPoll(); /* sync immédiat */
-    }
-  });
-
-  /* Sync immédiat quand on retrouve la connexion (Wi-Fi → 4G, etc.) */
-  window.addEventListener('online', function(){
-    console.log('[Perf] 🌐 Reconnexion détectée → flush + poll');
-    if (typeof window._sbFlushPending === 'function') window._sbFlushPending();
-    if (_getCurrentParrain()) _doPoll();
-  });
-
-  /* Exposer pour debug */
-  window._restartPolling = _startPolling;
-  window._doPollNow = _doPoll;
-})();
+}, 45000);
 
 /* ════════════════════════════════════════════════════════════════
    TRACKER D'ACTIVITÉS — Djassa BO Parrain
@@ -11209,7 +8913,7 @@ function _lienRenderProduits(q){
       +(isSel ? '<div class="lp-check" style="position:absolute;top:.3rem;right:.3rem;width:18px;height:18px;background:var(--p1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#0b0f18;font-weight:800">✓</div>' : '')
       +(imgSrc
         ? '<div style="width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:.35rem;background:var(--bg2)">'
-          +'<img src="'+imgSrc+'" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display=\'none\'" alt="Image">'
+          +'<img src="'+imgSrc+'" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display=\'none\'">'
           +'</div>'
         : '<div style="width:100%;aspect-ratio:1;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:.35rem">📦</div>')
       +'<div style="font-size:.68rem;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+nom+'</div>'
@@ -12583,9 +10287,8 @@ window.setPt            = setPt;
   <div class="page" id="page-leaderboard">
     <div class="stitle">🏆 Classement <span>parrains</span></div>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:.75rem;padding:.4rem .6rem;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
-      🏅 Système <strong style="color:var(--p1)">Ascension</strong> · activité × multiplicateur + bonus jalons · Top 10 parrains
+      🏅 Classé par <strong style="color:var(--p1)">nombre de ventes</strong> — 1 vente = 1 point · Top 10 parrains actifs
     </div>
-    <div id="my-score-detail" style="display:none;margin-bottom:.8rem"></div>
     <div id="par-top-grid"></div>
   </div>
 

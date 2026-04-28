@@ -2,7 +2,6 @@
   publish = "."
   command = "echo 'Static site'"
   functions = "netlify/functions"
-  edge_functions = "netlify/edge-functions"
 
 [functions]
   node_bundler = "esbuild"
@@ -11,30 +10,6 @@
   external_node_modules = []
   timeout = 26
 
-# ══════════════════════════════════════════════════════════════
-# EDGE FUNCTIONS — Open Graph dynamique pour produits & pages
-# ══════════════════════════════════════════════════════════════
-# Quand un bot de scraping (WhatsApp, Facebook, Twitter, etc.)
-# requête une URL avec ?p=PRODID ou ?page=NOM, on intercepte la
-# réponse pour réécrire les meta tags Open Graph avec les vraies
-# infos du produit (image, prix, nom, description).
-# Les humains reçoivent le HTML normal — le router JS fait son
-# travail côté client comme avant.
-# ══════════════════════════════════════════════════════════════
-[[edge_functions]]
-  function = "og-product"
-  path = "/"
-
-[[edge_functions]]
-  function = "og-product"
-  path = "/index.html"
-
-# Sert les images de produits en binaire pour les bots WhatsApp/Facebook
-# (les bots ne peuvent pas afficher les images stockées en base64)
-[[edge_functions]]
-  function = "og-image"
-  path = "/og-image/*"
-
 [[headers]]
   for = "/*"
   [headers.values]
@@ -42,11 +17,11 @@
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(self), microphone=(self), geolocation=(self)"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(self)"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
     X-DNS-Prefetch-Control = "off"
     X-Permitted-Cross-Domain-Policies = "none"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.anthropic.com https://get.geojs.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https://*.supabase.co https://api.anthropic.com https://wa.me https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.ipify.org https://api64.ipify.org https://api.my-ip.io https://ipapi.co https://freeipapi.com https://get.geojs.io https://*.netlify.app; frame-ancestors 'self' https://*.netlify.app; base-uri 'self'; form-action 'self'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.anthropic.com https://get.geojs.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://wa.me https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.ipify.org https://api64.ipify.org https://api.my-ip.io https://ipapi.co https://freeipapi.com https://get.geojs.io https://*.netlify.app; frame-ancestors 'self' https://*.netlify.app; base-uri 'self'; form-action 'self'"
 
 [[redirects]]
   from = "/admin"
@@ -84,14 +59,13 @@
   [headers.values]
     Cache-Control = "public, max-age=3600"
 
-# ── Cache HTML par défaut (admin, auditaz, parrain) ──
+# ── Cache HTML par défaut (admin, auditaz, parrain, countdown) ──
 # Revalidation à chaque visite : garantit que les admins voient toujours
 # la dernière version du BO après un déploiement.
 [[headers]]
   for = "/*.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
-    Content-Type = "text/html; charset=utf-8"
 
 # ── Cache agressif pour la page d'accueil client (Option B) ──
 # max-age=600       : navigateur peut servir depuis cache pendant 10 min
@@ -106,11 +80,9 @@
   for = "/index.html"
   [headers.values]
     Cache-Control = "public, max-age=600, stale-while-revalidate=3600"
-    Content-Type = "text/html; charset=utf-8"
 
 # Couvre aussi https://ecodila.com/ (route racine)
 [[headers]]
   for = "/"
   [headers.values]
     Cache-Control = "public, max-age=600, stale-while-revalidate=3600"
-    Content-Type = "text/html; charset=utf-8"

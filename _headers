@@ -3,15 +3,8 @@
   X-Content-Type-Options: nosniff
   X-XSS-Protection: 1; mode=block
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: camera=(self), microphone=(self), geolocation=(self)
+  Permissions-Policy: camera=(), microphone=(), geolocation=(self)
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   X-DNS-Prefetch-Control: off
   X-Permitted-Cross-Domain-Policies: none
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.anthropic.com https://get.geojs.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https://*.supabase.co https://api.anthropic.com https://wa.me https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.ipify.org https://api64.ipify.org https://api.my-ip.io https://ipapi.co https://freeipapi.com https://get.geojs.io https://*.netlify.app; frame-ancestors 'self' https://*.netlify.app; base-uri 'self'; form-action 'self'
-
-# Force UTF-8 sur tous les fichiers HTML pour éviter que les emojis s'affichent en �
-/*.html
-  Content-Type: text/html; charset=utf-8
-
-/
-  Content-Type: text/html; charset=utf-8
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.anthropic.com https://get.geojs.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://wa.me https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.ipify.org https://api64.ipify.org https://api.my-ip.io https://ipapi.co https://freeipapi.com https://get.geojs.io https://*.netlify.app; frame-ancestors 'self' https://*.netlify.app; base-uri 'self'; form-action 'self'

@@ -1,58 +1,24 @@
 {
-    "name": "EcoDila — Marketplace d'appareils en Côte d'Ivoire",
+    "name": "EcoDila",
     "short_name": "EcoDila",
-    "description": "Marketplace #1 d'appareils reconditionnés en Côte d'Ivoire. Achat, troc et négociation. Smartphones, TV, drones. Garantie 3 mois, livraison Abidjan, paiement à la livraison.",
-    "lang": "fr-CI",
-    "dir": "ltr",
+    "description": "Marketplace d'appareils reconditionnés en Côte d'Ivoire. Achetez, troquez ou négociez vos appareils.",
     "icons": [
-        {
-            "src": "/favicon-16x16.png",
-            "sizes": "16x16",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/favicon-32x32.png",
-            "sizes": "32x32",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/favicon-96x96.png",
-            "sizes": "96x96",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/apple-touch-icon.png",
-            "sizes": "180x180",
-            "type": "image/png",
-            "purpose": "any"
-        },
         {
             "src": "/android-chrome-192x192.png",
             "sizes": "192x192",
             "type": "image/png",
-            "purpose": "maskable"
+            "purpose": "any maskable"
         },
         {
             "src": "/android-chrome-512x512.png",
             "sizes": "512x512",
             "type": "image/png",
-            "purpose": "maskable"
-        },
-        {
-            "src": "/logo.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "any"
+            "purpose": "any maskable"
         }
     ],
-    "theme_color": "#000000",
+    "theme_color": "#0b7a3e",
     "background_color": "#000000",
     "display": "standalone",
-    "orientation": "portrait-primary",
-    "start_url": "/?utm_source=pwa",
-    "scope": "/",
-    "categories": ["shopping", "lifestyle", "marketplace"]
+    "start_url": "/",
+    "scope": "/"
 }
