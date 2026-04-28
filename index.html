@@ -17214,6 +17214,7 @@ function renderReviews(){
   el.innerHTML=fresh.map(_renderReviewCard).join('');
 }
 function openChat(initMsg){
+  console.log('[LIDA] openChat appelé, initMsg:', initMsg);
   // Couper toute lecture/timer/animation résiduel d'une session précédente
   _chatStopAllAnimations();
 
