@@ -765,9 +765,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .chat-header{background:var(--black);color:white;padding:.85rem 1rem;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between}
 .chat-header-info{display:flex;align-items:center;gap:.6rem}
 .chat-avatar{width:28px;height:28px;min-width:28px;aspect-ratio:1;border-radius:50%;background:var(--gl);display:flex;align-items:center;justify-content:center;font-size:.78rem;line-height:1;padding:0;flex-shrink:0;box-shadow:0 1px 3px rgba(82,183,136,.4)}
-.chat-close{background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;padding:.25rem;line-height:1}
-/* Bouton 🔊 lecture vocale dans le header (parfaitement rond, emoji centré) */
-.chat-voice-toggle{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;width:30px;height:30px;min-width:30px;aspect-ratio:1;border-radius:50%;cursor:pointer;font-size:.78rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;transition:background .2s,transform .15s}
+.chat-close{background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;padding:.25rem;line-height:1;min-height:auto !important;width:auto;height:auto}
+/* Bouton 🔊 lecture vocale dans le header - parfaitement rond, override des règles globales button */
+.chat-voice-toggle{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;width:30px !important;height:30px !important;min-width:30px !important;min-height:30px !important;max-height:30px !important;aspect-ratio:1;border-radius:50%;cursor:pointer;font-size:.78rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0 !important;flex-shrink:0;transition:background .2s,transform .15s}
 .chat-voice-toggle:hover{background:rgba(255,255,255,.2);transform:scale(1.08)}
 .chat-voice-toggle:active{transform:scale(.95)}
 .chat-voice-toggle.muted{background:rgba(239,68,68,.3);border-color:rgba(239,68,68,.5)}
@@ -785,8 +785,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .chat-input{flex:1;font-family:'DM Sans',sans-serif;font-size:.84rem;padding:.5rem .75rem;border:1.5px solid var(--border);border-radius:8px;outline:none}
 .chat-input:focus{border-color:var(--gl)}
 .chat-send{background:var(--green);color:white;border:none;border-radius:8px;padding:.5rem .9rem;cursor:pointer;font-size:.9rem}
-/* Bouton micro style WhatsApp (rond plein vert, icône SVG blanche) */
-.chat-mic{background:#25D366;color:#fff;border:none;width:40px;height:40px;min-width:40px;aspect-ratio:1;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s,transform .15s,box-shadow .2s;box-shadow:0 2px 6px rgba(37,211,102,.35);padding:0;position:relative;line-height:0}
+/* Bouton micro style WhatsApp (rond plein vert, icône SVG blanche) - override global button rules */
+.chat-mic{background:#25D366 !important;color:#fff;border:none;width:40px !important;height:40px !important;min-width:40px !important;min-height:40px !important;max-height:40px !important;aspect-ratio:1;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s,transform .15s,box-shadow .2s;box-shadow:0 2px 6px rgba(37,211,102,.35);padding:0 !important;position:relative;line-height:0;font-size:0}
 .chat-mic:hover{background:#1ebe5a;transform:scale(1.05);box-shadow:0 3px 10px rgba(37,211,102,.5)}
 .chat-mic:active{transform:scale(.95)}
 .chat-mic.recording{background:#ef4444;box-shadow:0 2px 12px rgba(239,68,68,.6);animation:chatMicPulse 1.4s ease-in-out infinite}
