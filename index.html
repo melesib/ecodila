@@ -800,6 +800,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 @keyframes chatTypingPulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
 /* Mise en avant d'une carte produit pendant que LIDA la lit à voix haute */
 .chat-product-card.highlighted{transform:scale(1.04);box-shadow:0 4px 16px rgba(82,183,136,.35);border-color:var(--green) !important;background:#fff !important;z-index:2}
+/* Scintillement du bouton micro pour attirer l'attention quand LIDA dit "appuyez sur le micro" */
+.chat-mic.shimmer{animation:chatMicShimmerAnim 1s ease-in-out infinite}
+@keyframes chatMicShimmerAnim{
+  0%,100%{transform:scale(1);box-shadow:0 2px 6px rgba(37,211,102,.35)}
+  50%{transform:scale(1.15);box-shadow:0 4px 16px rgba(37,211,102,.7), 0 0 0 6px rgba(37,211,102,.2)}
+}
 /* PERF : desactiver les animations couteuses sur low-end (prefers-reduced-motion ou CPU faible) */
 @media (prefers-reduced-motion: reduce){
   .wa-float, .wa-float::before, .wa-float-badge, .chat-mic, .chat-mic.recording::after, .chat-typing-dot{animation:none !important}
@@ -17223,16 +17229,74 @@ function openChat(initMsg){
   var body = document.getElementById('chatBody');
   if(body) body.innerHTML = '';
 
+  var welcomeVoice = "Bonjour, bienvenue chez EcoDila, je suis LIDA, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert pour parler.";
+  // Positions clés dans le voiceText pour synchroniser les animations avec la voix réelle :
+  var posOptions = welcomeVoice.indexOf("Sélectionnez");
+  var posMic = welcomeVoice.indexOf("appuyez sur le bouton vert");
+
+  // Flags pour ne déclencher chaque action qu'une seule fois
+  var optionsShown = false;
+  var micShimmered = false;
+
+  // Fallback timers : si le navigateur ne supporte pas onboundary,
+  // on utilise des délais raisonnables (max 4s pour les options, 6s pour le micro)
+  var fallbackOptionsTimer = setTimeout(function(){
+    if(!optionsShown){
+      optionsShown = true;
+      _chatShowQuickActions();
+    }
+  }, _chatDelay(4000));
+  var fallbackMicTimer = setTimeout(function(){
+    if(!micShimmered){
+      micShimmered = true;
+      _chatMicShimmer();
+    }
+  }, _chatDelay(6000));
+
   addMsg(
     'Bonjour 👋 bienvenue chez EcoDila, je suis <b>LIDA</b>, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert <span style="display:inline-flex;align-items:center;justify-content:center;background:#25D366;width:18px;height:18px;border-radius:50%;vertical-align:middle;box-shadow:0 1px 3px rgba(37,211,102,.4)"><svg viewBox="0 0 24 24" width="11" height="11" fill="#fff" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.42 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.3 6-6.72h-1.7z"/></svg></span> pour parler.',
     'bot',
     true,
-    "Bonjour, bienvenue chez EcoDila, je suis LIDA, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert pour parler."
+    welcomeVoice,
+    {
+      onBoundary: function(charIndex){
+        // Quand la voix atteint "Sélectionnez", afficher les options
+        if(!optionsShown && charIndex >= posOptions){
+          optionsShown = true;
+          clearTimeout(fallbackOptionsTimer);
+          _chatShowQuickActions();
+        }
+        // Quand la voix atteint "appuyez sur le bouton vert", faire scintiller le micro
+        if(!micShimmered && charIndex >= posMic){
+          micShimmered = true;
+          clearTimeout(fallbackMicTimer);
+          _chatMicShimmer();
+        }
+      },
+      onEnd: function(){
+        // Sécurité : si la voix se termine sans avoir tout déclenché (cas rare)
+        if(!optionsShown){ optionsShown = true; clearTimeout(fallbackOptionsTimer); _chatShowQuickActions(); }
+        if(!micShimmered){ micShimmered = true; clearTimeout(fallbackMicTimer); _chatMicShimmer(); }
+      }
+    }
   );
 
-  // Délai pour laisser la voix démarrer la lecture du "Bonjour" avant d'afficher les options
-  // (sur connexion lente, on garde 1500ms pour que la voix ait le temps d'enchaîner)
-  setTimeout(function(){ _chatShowQuickActions(); }, _chatDelay(1500));
+  // Si la voix est désactivée, on affiche tout immédiatement après un court délai
+  if(!window._chatVoiceOutEnabled){
+    setTimeout(function(){
+      if(!optionsShown){ optionsShown = true; clearTimeout(fallbackOptionsTimer); _chatShowQuickActions(); }
+    }, _chatDelay(800));
+  }
+}
+
+/* Fait scintiller le bouton micro pour attirer l'attention */
+function _chatMicShimmer(){
+  var btn = document.getElementById('chatMicBtn');
+  if(!btn) return;
+  btn.classList.add('shimmer');
+  setTimeout(function(){
+    if(btn) btn.classList.remove('shimmer');
+  }, 3000);
 }
 function toggleChat(){
   chatOpen=!chatOpen;
@@ -17251,6 +17315,8 @@ function toggleChat(){
 }
 
 /* Helper : scroll vers un message dans le chat-body avec animation fluide.
+   - S'il n'y a qu'un seul message dans le chat (cas du Bonjour à l'ouverture) :
+     scroll en bas — le message est forcément visible
    - Si le message tient dans le viewport : scroll en bas (classique)
    - Si le message est plus haut que le viewport (cartes produits, longue réponse) :
      scroll pour voir le DÉBUT du message en haut du viewport
@@ -17262,16 +17328,19 @@ function _chatScrollToMessage(body, msgDiv){
     var msgHeight = msgDiv.offsetHeight;
     var msgTop = msgDiv.offsetTop;
     var targetScroll;
-    // Seuil 85% : on ne change de comportement QUE pour les messages vraiment longs
-    // (cartes produits multiples, longues réponses FAQ)
-    if(msgHeight > bodyHeight * 0.85){
+    // Cas 1 : peu de messages → scroll en bas (simple et visible)
+    // Cas 2 : message très long (>85% du viewport) → scroll pour voir le début
+    // Cas 3 : autre → scroll en bas (classique)
+    if(body.children.length <= 2){
+      // Au début de la conversation : scroll en bas, le message est visible
+      targetScroll = body.scrollHeight;
+    } else if(msgHeight > bodyHeight * 0.85){
       // Message très long : scroll pour voir le début (8px de marge)
       targetScroll = Math.max(0, msgTop - 8);
     } else {
-      // Message normal : scroll en bas (comportement chat classique)
       targetScroll = body.scrollHeight;
     }
-    // Animation fluide si supportée (sinon scroll instant)
+    // Animation fluide si supportée
     if(typeof body.scrollTo === 'function'){
       try {
         body.scrollTo({ top: targetScroll, behavior: 'smooth' });
@@ -17289,10 +17358,11 @@ function _chatScrollToMessage(body, msgDiv){
    - type : 'bot' | 'user' | 'system'
    - isHtml : si true, n'échappe pas le HTML (à utiliser uniquement avec des contenus contrôlés)
    - voiceText : texte custom à lire à voix haute (sinon : auto depuis text/HTML)
+   - voiceOpts : { onBoundary, onEnd } pour synchroniser des animations avec la voix réelle
 
    PERF : append direct au DOM (pas de rerender complet) pour rester fluide
    sur smartphones bas de gamme même avec 50+ messages dans l'historique. */
-function addMsg(text, type, isHtml, voiceText){
+function addMsg(text, type, isHtml, voiceText, voiceOpts){
   var time = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   chatHistory.push({text:text, type:type, time:time, isHtml: !!isHtml});
   var body = document.getElementById('chatBody');
@@ -17313,16 +17383,12 @@ function addMsg(text, type, isHtml, voiceText){
   msgDiv.appendChild(timeDiv);
   body.appendChild(msgDiv);
 
-  // PERF : limiter le DOM à 30 messages visibles (les anciens restent en historique mémoire
-  // mais sont retirés du DOM pour éviter de freezer sur smartphones low-end)
+  // PERF : limiter le DOM à 30 messages visibles
   while(body.children.length > 30){
     body.removeChild(body.firstChild);
   }
 
-  // Scroll intelligent vers le nouveau message :
-  // - Si le message est court (< moitié du viewport chat) : scroll en bas (classique)
-  // - Si le message est long (cartes produits, FAQ longue) : scroll pour voir
-  //   le DÉBUT du nouveau message (sinon on ne voit que la fin et on rate le contenu)
+  // Scroll vers le nouveau message
   if(window.requestAnimationFrame){
     requestAnimationFrame(function(){
       _chatScrollToMessage(body, msgDiv);
@@ -17332,19 +17398,16 @@ function addMsg(text, type, isHtml, voiceText){
   }
 
   // Lecture vocale si activée
-  // Si voiceText est explicitement fourni (même vide), l'utiliser tel quel —
-  // une string vide ou des espaces signifient "ne pas lire ce message"
   if(type === 'bot' && window._chatVoiceOutEnabled){
     if(typeof voiceText === 'string'){
-      // voiceText explicitement passé : si non-vide → lire, sinon ne rien lire
-      if(voiceText.trim()) _chatSpeak(voiceText);
+      if(voiceText.trim()) _chatSpeak(voiceText, voiceOpts);
     } else if(!isHtml){
-      _chatSpeak(text);
+      _chatSpeak(text, voiceOpts);
     } else {
       var temp = document.createElement('div');
       temp.innerHTML = text;
       var plain = temp.textContent || '';
-      if(plain.trim()) _chatSpeak(plain.substring(0, 200));
+      if(plain.trim()) _chatSpeak(plain.substring(0, 200), voiceOpts);
     }
   }
 }
@@ -17718,27 +17781,86 @@ function _chatRunSearch(query, prods){
   });
   var voiceText = voiceParts.join(' ');
 
-  addMsg(fullHtml, 'bot', true, voiceText);
+  // Identifiant unique pour ce conteneur de résultats de recherche.
+  // Ainsi le highlight du onBoundary actuel ne touche QUE les cartes de cette recherche,
+  // pas celles d'une recherche précédente encore visible dans l'historique.
+  var searchId = 'chatSearch_' + Date.now() + '_' + Math.floor(Math.random()*10000);
 
-  // Mise en avant séquentielle des cartes pendant que LIDA les énumère.
-  // Optimisé low-end : utilise transform CSS (GPU) + setTimeout simple.
-  // Si la voix est désactivée, on saute (pas besoin d'animation).
-  if(window._chatVoiceOutEnabled && scored.length > 1){
-    _chatHighlightProductsSequentially(scored.length);
+  // Calculer les positions de début de chaque produit dans le voiceText
+  var productStartPositions = [];
+  var cursor = voiceParts[0].length + 1;
+  for(var pi = 1; pi < voiceParts.length; pi++){
+    productStartPositions.push(cursor);
+    cursor += voiceParts[pi].length + 1;
+  }
+
+  var currentProductIdx = -1;
+
+  // Wrapper le HTML pour appliquer l'ID de scope sur le conteneur des cartes
+  var scopedHtml = fullHtml.replace(
+    'flex-direction:column;gap:.4rem">',
+    'flex-direction:column;gap:.4rem" data-chat-search-id="'+searchId+'">'
+  );
+
+  addMsg(scopedHtml, 'bot', true, voiceText, {
+    onBoundary: function(charIndex){
+      var newIdx = -1;
+      for(var i = 0; i < productStartPositions.length; i++){
+        if(charIndex >= productStartPositions[i]) newIdx = i;
+      }
+      if(newIdx !== currentProductIdx && newIdx >= 0){
+        currentProductIdx = newIdx;
+        _chatHighlightProduct(newIdx, searchId);
+      }
+    },
+    onEnd: function(){
+      // Fin de lecture : retirer SEULEMENT les highlights de CE message
+      // (sinon on risque de toucher d'autres recherches encore visibles)
+      var scope = document.querySelector('[data-chat-search-id="'+searchId+'"]');
+      if(scope){
+        scope.querySelectorAll('.chat-product-card').forEach(function(c){
+          c.classList.remove('highlighted');
+        });
+      }
+      currentProductIdx = -1;
+    }
+  });
+}
+
+/* Met en avant UNE carte produit dans le scope de la recherche courante.
+   Si searchId est fourni, on limite la query au conteneur correspondant —
+   évite de mettre en avant les cartes d'une recherche précédente encore dans le DOM. */
+function _chatHighlightProduct(idx, searchId){
+  var scope;
+  if(searchId){
+    scope = document.querySelector('[data-chat-search-id="'+searchId+'"]');
+  }
+  if(!scope) scope = document; // fallback (cas anciens / fallback timer)
+
+  // Retirer les highlights uniquement dans CE scope
+  scope.querySelectorAll('.chat-product-card').forEach(function(c){
+    c.classList.remove('highlighted');
+  });
+  // Mettre en avant la carte de cet index dans CE scope
+  var card = scope.querySelector('.chat-product-card[data-chat-product-card="'+idx+'"]');
+  if(card){
+    card.classList.add('highlighted');
+    try {
+      if(typeof card.scrollIntoView === 'function'){
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } catch(e){}
   }
 }
 
-/* Met en avant chaque carte produit successivement, en synchro avec la lecture vocale.
-   Premier produit après ~2.5s (le bot dit d'abord "J'ai trouvé X produits"),
-   puis 3.5s par carte (durée moyenne de "Marque Modèle à PRIX francs CFA, négociable et troc possible").
-   Tient compte des connexions lentes : sur 2G/3G, on accélère pour ne pas désynchroniser. */
+/* Ancien highlight séquentiel par timer — gardé en fallback si onboundary n'est pas supporté.
+   Sur certains navigateurs (ex: Firefox sur Android), onboundary n'est pas implémenté.
+   Cette fonction n'est plus appelée par défaut, mais peut servir si besoin. */
 function _chatHighlightProductsSequentially(count){
-  // Délais adaptatifs selon la connexion
   var slow = _chatIsSlowConnection();
-  var initialDelay = slow ? 1500 : 2500; // temps avant le 1er produit
-  var perCard = slow ? 2500 : 3500;       // durée par produit énuméré
+  var initialDelay = slow ? 1500 : 2500;
+  var perCard = slow ? 2500 : 3500;
 
-  // Annuler une animation précédente si elle existe
   if(window._chatHighlightTimers){
     window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
   }
@@ -17747,26 +17869,12 @@ function _chatHighlightProductsSequentially(count){
   for(var i = 0; i < count; i++){
     (function(idx){
       var t = setTimeout(function(){
-        // Retirer toute mise en avant précédente
-        var allCards = document.querySelectorAll('.chat-product-card');
-        allCards.forEach(function(c){ c.classList.remove('highlighted'); });
-        // Mettre en avant la carte actuelle
-        var card = document.querySelector('.chat-product-card[data-chat-product-card="'+idx+'"]');
-        if(card){
-          card.classList.add('highlighted');
-          // Scroll doux vers cette carte (sur mobile c'est bien visible)
-          try {
-            if(typeof card.scrollIntoView === 'function'){
-              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          } catch(e){}
-        }
+        _chatHighlightProduct(idx);
       }, initialDelay + idx * perCard);
       window._chatHighlightTimers.push(t);
     })(i);
   }
 
-  // Retirer la dernière mise en avant après la fin de la lecture
   var endT = setTimeout(function(){
     var allCards = document.querySelectorAll('.chat-product-card');
     allCards.forEach(function(c){ c.classList.remove('highlighted'); });
@@ -18412,18 +18520,27 @@ function _chatGetFrenchVoice(){
   }
 })();
 
-function _chatSpeak(text){
+function _chatSpeak(text, opts){
   if(!window.speechSynthesis) return;
+  opts = opts || {};
   try {
     // TOUJOURS annuler la lecture précédente : le nouveau message a priorité.
-    // Comportement standard d'un assistant vocal (Google, Siri) :
-    // si LIDA parle et que l'utilisateur clique sur une option, elle s'arrête
-    // pour annoncer la nouvelle action. Pas de verrou bloquant.
     window.speechSynthesis.cancel();
-    // Reset du flag puisqu'on annule l'ancienne lecture
     window._chatSpeakInProgress = false;
 
-    // Nettoyer le texte : retirer emojis, markdown, URLs avant lecture
+    // Annuler les highlights produit en cours (au cas où une recherche précédente)
+    if(window._chatHighlightTimers){
+      window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
+      window._chatHighlightTimers = [];
+    }
+    // Retirer aussi toutes les classes .highlighted des anciennes recherches
+    // pour ne pas garder un produit "figé" en avant quand on démarre une nouvelle lecture
+    try {
+      document.querySelectorAll('.chat-product-card.highlighted').forEach(function(c){
+        c.classList.remove('highlighted');
+      });
+    } catch(e){}
+
     var clean = _stripEmojis(text);
     if(!clean) return;
     var u = new SpeechSynthesisUtterance(clean.substring(0, 600));
@@ -18431,15 +18548,26 @@ function _chatSpeak(text){
     u.rate = 1.05;
     u.pitch = 1;
     u.volume = 1;
-    // Sélection explicite de la voix française pré-chargée (évite le lag de chargement)
     var voice = _chatGetFrenchVoice();
     if(voice) u.voice = voice;
     u.onstart = function(){ window._chatSpeakInProgress = true; };
-    u.onend = function(){ window._chatSpeakInProgress = false; };
-    u.onerror = function(){ window._chatSpeakInProgress = false; };
+    u.onend = function(){
+      window._chatSpeakInProgress = false;
+      if(typeof opts.onEnd === 'function'){ try { opts.onEnd(); } catch(e){} }
+    };
+    u.onerror = function(){
+      window._chatSpeakInProgress = false;
+      if(typeof opts.onEnd === 'function'){ try { opts.onEnd(); } catch(e){} }
+    };
+    // Boundary event : déclenché à chaque mot/phrase parlé.
+    // Permet de synchroniser parfaitement les animations avec la voix réelle.
+    if(typeof opts.onBoundary === 'function'){
+      u.onboundary = function(ev){
+        try { opts.onBoundary(ev.charIndex, ev.name); } catch(e){}
+      };
+    }
     window.speechSynthesis.speak(u);
-    // Workaround Chrome mobile : si après 200ms speak() n'a pas démarré,
-    // forcer un resume() qui relance la file d'attente.
+    // Workaround Chrome mobile
     setTimeout(function(){
       if(window.speechSynthesis && !window._chatSpeakInProgress){
         try { window.speechSynthesis.resume(); } catch(e){}
