@@ -17815,17 +17815,18 @@ function _chatRunSearch(query, prods){
   addMsg(scopedHtml, 'bot', true, voiceText);
 
   // Highlight séquentiel basé sur la VRAIE longueur de chaque texte vocal.
-  // Web Speech API en français à rate 1 prononce environ 70ms/caractère.
-  // On laisse une petite marge (75ms/char) pour être sûr de ne pas couper la lecture.
+  // Web Speech API en français à rate 1 ≈ 70-90ms/caractère selon la voix.
+  // On laisse une bonne marge (95ms/char) + pause de 800ms entre produits
+  // pour être sûr que "négociable et troc possible" finisse avant de passer au suivant.
   if(window._chatVoiceOutEnabled && scored.length > 0){
     if(window._chatHighlightTimers){
       window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
     }
     window._chatHighlightTimers = [];
-    var msPerChar = 75;
+    var msPerChar = 95; // marge confortable
+    var pauseBetween = 800; // pause naturelle entre chaque produit
     // Le délai initial = durée de "J'ai trouvé X produits." (voiceParts[0])
-    var cumulativeDelay = (voiceParts[0].length + 1) * msPerChar; // +1 pour l'espace
-    // Chaque produit : on highlight au début de sa lecture, on retire à la fin
+    var cumulativeDelay = (voiceParts[0].length + 1) * msPerChar + pauseBetween;
     for(var hi = 0; hi < scored.length; hi++){
       (function(idx, startDelay){
         var t = setTimeout(function(){
@@ -17833,11 +17834,11 @@ function _chatRunSearch(query, prods){
         }, startDelay);
         window._chatHighlightTimers.push(t);
       })(hi, cumulativeDelay);
-      // Avancer le curseur de la durée de CE produit (voiceParts[hi+1])
+      // Avancer du temps réel de lecture de CE produit + pause
       var productText = voiceParts[hi + 1] || '';
-      cumulativeDelay += (productText.length + 1) * msPerChar;
+      cumulativeDelay += (productText.length + 1) * msPerChar + pauseBetween;
     }
-    // À la fin de tout, retirer les highlights (avec petite marge de 1s)
+    // À la fin de tout, retirer les highlights (avec marge de 1s)
     var endT = setTimeout(function(){
       var scope = document.querySelector('[data-chat-search-id="'+searchId+'"]');
       if(scope){
@@ -17914,7 +17915,8 @@ function _chatSuiviCommande(){
       + '<button onclick="window.showPage(\'profil\');toggleChat()" style="background:var(--green);color:#fff;border:none;padding:.6rem 1rem;border-radius:8px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📋 Aller à mon profil</button>'
       + '<div style="margin-top:.5rem;font-size:.72rem;color:#475569">Ou contactez-nous sur WhatsApp pour une réponse rapide :</div>'
       + '<button onclick="_chatOpenWA(\'Bonjour 👋, je voudrais suivre ma commande.\')" style="background:#25d366;color:#fff;border:none;padding:.5rem .8rem;border-radius:8px;font-size:.75rem;cursor:pointer;font-family:inherit;font-weight:600;width:100%;margin-top:.4rem">💬 WhatsApp</button>';
-    addMsg(html, 'bot', true);
+    var voice = "Pour voir l'état de toutes vos commandes et trocs, allez dans votre profil. Vous pouvez aussi nous contacter sur WhatsApp pour une réponse rapide.";
+    addMsg(html, 'bot', true, voice);
   } else {
     var html = 'Pour voir l\'état de votre commande, vous pouvez :<br><br>'
       + '<div style="display:flex;flex-direction:column;gap:.4rem">'
@@ -17922,7 +17924,8 @@ function _chatSuiviCommande(){
       + '<button onclick="_chatOpenWA(\'Bonjour 👋, je voudrais suivre ma commande. Mon numéro est __________ et je suis __________ .\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">💬 Demander à un conseiller WhatsApp</button>'
       + '<button onclick="_chatOpenWA(\'Bonjour 👋, je vous envoie un message vocal pour suivre ma commande.\')" style="background:#0a8b4a;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🎙️ Envoyer un message vocal sur WhatsApp</button>'
       + '</div>';
-    addMsg(html, 'bot', true);
+    var voice = "Pour plus de sécurité, je ne peux pas afficher vos commandes ici directement. Connectez-vous à votre profil, ou contactez un conseiller sur WhatsApp.";
+    addMsg(html, 'bot', true, voice);
   }
 }
 
@@ -18299,30 +18302,73 @@ window._chatMicToggle = function(){
 };
 
 /* Lance la reconnaissance vocale (appelé après avoir obtenu la permission) */
-/* Nettoie les mots dupliqués collés/répétés dans la transcription vocale.
-   Bug connu de Chrome Android en mode continuous : peut renvoyer "jeje cherchecherche"
-   au lieu de "je cherche". On découpe les mots collés et on enlève les doublons consécutifs.
-   Aussi : normalise les variantes mal entendues de "lida" (Nina, Linda, Lyda, etc.). */
+/* Nettoie les mots/phrases dupliqués dans la transcription vocale.
+   Cas typique en mode continu : la reconnaissance affiche le texte de manière incrémentale
+   et on peut se retrouver avec "je veux l'état je veux l'état de ma commande".
+   On détecte les phrases qui se chevauchent et on garde la plus longue version. */
 function _chatDedupeWords(text){
   if(!text) return '';
   // 0. Normaliser les variantes mal entendues de "lida"
-  // La reconnaissance vocale entend souvent : nina, linda, lindl, lyda, lyla, lila, lina, lidia, lyda
-  // → on remplace par "lida" pour que l'intent detection marche
   text = text.replace(/\b(nina|linda|lindl|lindel|lindle|lyda|lyla|lila|lina|lidia|lidya|lidi)\b/gi, 'Lida');
-  // 1. Découper les mots collés
+
+  // 1. Découper les mots collés du type "jeje" → "je"
   var cleaned = text.replace(/\b(\w{2,})\1+\b/gi, '$1');
-  // 2. Supprimer les répétitions consécutives de mots
-  var words = cleaned.split(/\s+/);
-  var result = [];
+
+  // 2. Supprimer les répétitions consécutives de mots ("je je" → "je")
+  var words = cleaned.split(/\s+/).filter(function(w){ return w.length > 0; });
+  var deduped = [];
   var prev = null;
   for(var i = 0; i < words.length; i++){
     var w = words[i];
-    if(!w) continue;
     if(prev && w.toLowerCase() === prev.toLowerCase()) continue;
-    result.push(w);
+    deduped.push(w);
     prev = w;
   }
-  return result.join(' ').replace(/\s+/g, ' ').trim();
+
+  // 3. Supprimer les phrases qui se répètent (transcription incrémentale)
+  // Algo : pour chaque taille de phrase de 6 mots à 2 mots, chercher si elle est suivie
+  // immédiatement par la même séquence et supprimer la duplication.
+  var arr = deduped.slice();
+  for(var phraseLen = Math.min(6, Math.floor(arr.length / 2)); phraseLen >= 2; phraseLen--){
+    var i2 = 0;
+    while(i2 + 2 * phraseLen <= arr.length){
+      var matches = true;
+      for(var j = 0; j < phraseLen; j++){
+        if(arr[i2 + j].toLowerCase() !== arr[i2 + phraseLen + j].toLowerCase()){
+          matches = false;
+          break;
+        }
+      }
+      if(matches){
+        // Supprimer la duplication
+        arr.splice(i2 + phraseLen, phraseLen);
+        // Ne pas avancer i2 — on re-vérifie à la même position au cas où il y en a 3+
+      } else {
+        i2++;
+      }
+    }
+  }
+
+  // 4. Cas spécial : un préfixe court répété au début par incrémental, ex:
+  // "je veux l'état je veux l'état de ma commande" (où le 2e n'est pas une dup exacte)
+  // On cherche : si "ABC ABC..." existe quelque part, on garde "ABC..."
+  // Détection : pour i=0 à len/2, si arr.slice(0,i) == arr.slice(i,2i), on supprime arr[0..i]
+  for(var prefixLen = Math.min(8, Math.floor(arr.length / 2)); prefixLen >= 2; prefixLen--){
+    var prefixMatch = true;
+    for(var p = 0; p < prefixLen; p++){
+      if(!arr[p] || !arr[p + prefixLen] ||
+         arr[p].toLowerCase() !== arr[p + prefixLen].toLowerCase()){
+        prefixMatch = false;
+        break;
+      }
+    }
+    if(prefixMatch){
+      arr.splice(0, prefixLen);
+      break;
+    }
+  }
+
+  return arr.join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function _chatStartRecognition(){
@@ -18347,12 +18393,17 @@ function _chatStartRecognition(){
   var inp = document.getElementById('chatInput');
   var finalText = '';
   var lastInterim = '';
+  // Texte cumulé entre auto-restarts (Chrome timeout après ~60s en mode continu).
+  // Chaque restart fait repartir results à index 0, donc on doit cumuler ailleurs.
+  var accumulatedText = '';
   var userRequestedStop = false;
   var errorOccurred = false;
 
   rec.onresult = function(ev){
-    var interim = '';
-    for(var i = ev.resultIndex; i < ev.results.length; i++){
+    // Reconstruire à CHAQUE événement le texte complet depuis l'index 0
+    var fullFinal = '';
+    var fullInterim = '';
+    for(var i = 0; i < ev.results.length; i++){
       var alts = ev.results[i];
       var best = alts[0];
       var bestConf = best.confidence || 0;
@@ -18364,14 +18415,15 @@ function _chatStartRecognition(){
       }
       var t = best.transcript;
       if(ev.results[i].isFinal){
-        finalText += t + ' ';
+        fullFinal += t + ' ';
       } else {
-        interim += t;
+        fullInterim += t;
       }
     }
-    lastInterim = interim;
-    // Affichage live dans l'input pour que l'utilisateur voie ce qui est transcrit
-    if(inp) inp.value = (finalText + interim).trim();
+    finalText = fullFinal;
+    lastInterim = fullInterim;
+    // Affichage live dans l'input : texte cumulé des sessions précédentes + texte de la session courante
+    if(inp) inp.value = (accumulatedText + ' ' + fullFinal + fullInterim).replace(/\s+/g, ' ').trim();
   };
 
   rec.onerror = function(ev){
@@ -18402,17 +18454,23 @@ function _chatStartRecognition(){
   rec.onend = function(){
     if(errorOccurred) return;
 
-    // Mode continu : onend est déclenché soit par un stop manuel (userRequestedStop)
-    // soit par un timeout interne du navigateur. Si le user n'a pas demandé stop,
-    // on relance l'écoute pour continuer à enregistrer.
+    // Empiler le finalText de la session qui se termine dans accumulatedText
+    if(finalText.trim()){
+      accumulatedText = (accumulatedText + ' ' + finalText).replace(/\s+/g, ' ').trim();
+    }
+    // Réinitialiser pour la prochaine session
+    finalText = '';
+    lastInterim = '';
+
+    // Mode continu : si le user n'a pas demandé stop, c'est un timeout Chrome → restart
     if(!userRequestedStop){
       try { rec.start(); return; } catch(e){
         // Si le restart échoue, on traite comme un stop normal
       }
     }
 
-    // Stop manuel : combiner final + interim et envoyer
-    var combined = (finalText + ' ' + lastInterim);
+    // Stop manuel : envoyer le texte cumulé
+    var combined = accumulatedText;
     combined = _chatDedupeWords(combined);
     _chatMicReset();
     if(combined){
