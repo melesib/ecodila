@@ -783,6 +783,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .msg-time{font-size:.65rem;opacity:.6;margin-top:2px}
 .chat-input-area{background:white;border:1px solid var(--border);border-top:none;border-radius:0 0 14px 14px;padding:.7rem;display:flex;gap:.5rem;align-items:center}
 .chat-input{flex:1;font-family:'DM Sans',sans-serif;font-size:.84rem;padding:.5rem .75rem;border:1.5px solid var(--border);border-radius:8px;outline:none}
+.chat-input.voice-ready{border-color:var(--green);box-shadow:0 0 0 3px rgba(82,183,136,.18);animation:voiceReadyPulse 1s ease-in-out 2}
+@keyframes voiceReadyPulse{0%,100%{box-shadow:0 0 0 3px rgba(82,183,136,.18)}50%{box-shadow:0 0 0 6px rgba(82,183,136,.32)}}
 .chat-input:focus{border-color:var(--gl)}
 .chat-send{background:var(--green);color:white;border:none;border-radius:8px;padding:.5rem .9rem;cursor:pointer;font-size:.9rem}
 /* Bouton micro style WhatsApp (rond plein vert, icône SVG blanche) - override global button rules */
@@ -17954,8 +17956,20 @@ function _chatShowFAQ(){
 window._chatAnswerFAQ = function(idx){
   var item = _CHAT_FAQ[idx];
   if(!item) return;
+  // 1. Afficher la question comme message utilisateur
   addMsg(item.q, 'user');
-  setTimeout(function(){ addMsg(item.a, 'bot'); }, _chatDelay(400));
+  // 2. LIDA répète d'abord le choix du client (dialogue naturel)
+  var introVoice = 'Vous avez choisi : ' + item.q;
+  setTimeout(function(){
+    var introHtml = '👉 Vous avez choisi : <i>« '+_esc(item.q)+' »</i>';
+    addMsg(introHtml, 'bot', true, introVoice);
+  }, _chatDelay(300));
+  // 3. Délai dynamique pour laisser LIDA finir de prononcer la question avant la réponse.
+  //    Calcul : ~75ms par caractère + 500ms de pause naturelle.
+  var readDelay = 300 + introVoice.length * 75 + 500;
+  setTimeout(function(){
+    addMsg(item.a, 'bot');
+  }, _chatDelay(readDelay));
 };
 
 /* ─── Ouvrir WhatsApp avec contexte ─────────────────────────────── */
@@ -18512,15 +18526,26 @@ function _chatStartRecognition(){
       }
     }
 
-    // Stop manuel : envoyer le texte cumulé
+    // Stop manuel : afficher le texte dans l'input pour que le client puisse vérifier/éditer
     var combined = accumulatedText;
     combined = _chatDedupeWords(combined);
     _chatMicReset();
     if(combined){
-      if(inp) inp.value = combined;
-      setTimeout(function(){
-        if(inp && inp.value.trim()){ sendMsg(); }
-      }, 300);
+      if(inp){
+        inp.value = combined;
+        // Focus + curseur à la fin pour que le client puisse éditer
+        try {
+          inp.focus();
+          inp.setSelectionRange(combined.length, combined.length);
+        } catch(e){}
+        // Animation visuelle douce sur l'input pour signaler "vérifiez puis envoyez"
+        inp.classList.add('voice-ready');
+        setTimeout(function(){
+          if(inp) inp.classList.remove('voice-ready');
+        }, 2000);
+      }
+      // Petit message bot informatif (sans voix pour ne pas surcharger)
+      addMsg('✏️ Vérifiez votre message puis cliquez sur ➤ pour envoyer (ou modifiez le texte avant).', 'bot', false, ' ');
     } else {
       addMsg('🤔 Je n\'ai rien entendu. Cliquez à nouveau sur le micro pour réessayer.', 'bot');
     }
