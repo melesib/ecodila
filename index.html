@@ -11871,13 +11871,21 @@ let offers = (function(){
 }());
 let nextId=Date.now(),currentRating=0,chatOpen=false,chatHistory=[],botIdx=0,currentModalId=null,currentOfferItem=null,selectedProductForBuy=null;
 
-// Lecture vocale activée par défaut, sauf si l'utilisateur l'a désactivée dans cette session
-try {
-  var _voicePref = sessionStorage.getItem('chatVoiceMuted');
-  window._chatVoiceOutEnabled = (_voicePref !== '1');
-} catch(e){
-  window._chatVoiceOutEnabled = true;
-}
+// Lecture vocale activée par défaut. On NE LIT PAS sessionStorage à l'init :
+// si l'utilisateur veut désactiver, il clique sur le bouton 🔊 dans le header chat.
+// (l'ancien comportement avec sessionStorage causait des bugs où la voix restait
+//  désactivée d'une session de test précédente sans qu'on s'en rende compte)
+window._chatVoiceOutEnabled = true;
+// Helper pour debug : window.lidaDebug() affiche l'état du chat dans la console
+window.lidaDebug = function(){
+  console.log('[LIDA DEBUG]', {
+    voiceEnabled: window._chatVoiceOutEnabled,
+    speakInProgress: window._chatSpeakInProgress,
+    speechSynthesisAvailable: !!window.speechSynthesis,
+    voicesLoaded: window.speechSynthesis ? window.speechSynthesis.getVoices().length : 0,
+    chatOpen: typeof chatOpen !== 'undefined' ? chatOpen : 'undefined'
+  });
+};
 var userLoggedIn=false,currentUser={nom:'',tel:''};
 
 // ── Filtres catégorie dynamiques (site) ──────────────────────────────────
@@ -17432,6 +17440,7 @@ function addMsg(text, type, isHtml, voiceText, voiceOpts){
   }
 
   // Lecture vocale si activée
+  console.log('[LIDA addMsg] type:', type, 'voiceEnabled:', window._chatVoiceOutEnabled, 'voiceText:', typeof voiceText === 'string' ? voiceText.substring(0,30) : 'null');
   if(type === 'bot' && window._chatVoiceOutEnabled){
     if(typeof voiceText === 'string'){
       if(voiceText.trim()) _chatSpeak(voiceText, voiceOpts);
@@ -18568,9 +18577,13 @@ function _chatGetFrenchVoice(){
 })();
 
 function _chatSpeak(text, opts){
-  if(!window.speechSynthesis) return;
+  if(!window.speechSynthesis){
+    console.warn('[LIDA] speechSynthesis non disponible sur ce navigateur');
+    return;
+  }
   opts = opts || {};
   try {
+    console.log('[LIDA] _chatSpeak appelé, voice enabled:', window._chatVoiceOutEnabled, 'text:', text.substring(0, 50));
     // TOUJOURS annuler la lecture précédente : le nouveau message a priorité.
     window.speechSynthesis.cancel();
     window._chatSpeakInProgress = false;
