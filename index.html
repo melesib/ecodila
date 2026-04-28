@@ -17848,19 +17848,50 @@ function _chatRunSearch(query, prods){
   );
 
   addMsg(scopedHtml, 'bot', true, voiceText, {
+    onStart: function(){
+      // FALLBACK TIMER : démarre les highlights séquentiellement basés sur la longueur des phrases.
+      // Sur Chrome desktop avec voix locales, onBoundary ne se déclenche pas toujours,
+      // donc ce timer prend le relais pour assurer le highlight visuel.
+      var slow = (typeof _chatIsSlowConnection === 'function' && _chatIsSlowConnection());
+      var msPerChar = slow ? 80 : 65;
+      window._chatHighlightTimers = window._chatHighlightTimers || [];
+
+      // Highlight le 1er produit dès la fin de "J'ai trouvé X produits."
+      // (position 0 dans productStartPositions n'existe pas car c'est la 2e carte)
+      var firstCardDelay = (voiceParts[0].length + 1) * msPerChar;
+      var t0 = setTimeout(function(){
+        if(currentProductIdx >= 0) return; // déjà fait par onBoundary
+        currentProductIdx = 0;
+        _chatHighlightProduct(0, searchId);
+      }, firstCardDelay);
+      window._chatHighlightTimers.push(t0);
+
+      // Highlight les cartes suivantes
+      productStartPositions.forEach(function(pos, idx){
+        var realIdx = idx + 1; // car productStartPositions[0] = 2e carte (index 1)
+        var t = setTimeout(function(){
+          if(currentProductIdx >= realIdx) return;
+          currentProductIdx = realIdx;
+          _chatHighlightProduct(realIdx, searchId);
+        }, pos * msPerChar);
+        window._chatHighlightTimers.push(t);
+      });
+    },
     onBoundary: function(charIndex){
       var newIdx = -1;
       for(var i = 0; i < productStartPositions.length; i++){
         if(charIndex >= productStartPositions[i]) newIdx = i;
       }
+      // Décalage : productStartPositions[0] = 2e carte, donc on ajoute +1
+      if(newIdx >= 0) newIdx = newIdx + 1;
+      // Si on est avant la 2e carte mais après le titre, c'est le produit 0
+      if(charIndex >= voiceParts[0].length && newIdx < 0) newIdx = 0;
       if(newIdx !== currentProductIdx && newIdx >= 0){
         currentProductIdx = newIdx;
         _chatHighlightProduct(newIdx, searchId);
       }
     },
     onEnd: function(){
-      // Fin de lecture : retirer SEULEMENT les highlights de CE message
-      // (sinon on risque de toucher d'autres recherches encore visibles)
       var scope = document.querySelector('[data-chat-search-id="'+searchId+'"]');
       if(scope){
         scope.querySelectorAll('.chat-product-card').forEach(function(c){
@@ -18632,19 +18663,17 @@ function _chatSpeak(text, opts){
     };
     if(typeof opts.onBoundary === 'function'){
       u.onboundary = function(ev){
+        console.log('[LIDA] onboundary charIndex:', ev.charIndex, 'name:', ev.name);
         try { opts.onBoundary(ev.charIndex, ev.name); } catch(e){}
       };
     }
     console.log('[LIDA] appel speechSynthesis.speak() maintenant...');
     window.speechSynthesis.speak(u);
     console.log('[LIDA] speak() retourné, paused:', window.speechSynthesis.paused, 'pending:', window.speechSynthesis.pending, 'speaking:', window.speechSynthesis.speaking);
-    // Workaround Chrome mobile
-    setTimeout(function(){
-      if(window.speechSynthesis && !window._chatSpeakInProgress){
-        console.log('[LIDA] resume forcé après 200ms');
-        try { window.speechSynthesis.resume(); } catch(e){}
-      }
-    }, 200);
+    // Note : on N'appelle PAS resume() en fallback. Sur Chrome desktop, ça cause
+    // une erreur "canceled" car onstart peut prendre 300-500ms à se déclencher
+    // après speak() - mais la voix démarre quand même. Si le client veut résoudre
+    // le cas Chrome mobile, il faudra une logique plus fine basée sur paused.
   } catch(e){
     window._chatSpeakInProgress = false;
     console.warn('[chat-speak]', e);
