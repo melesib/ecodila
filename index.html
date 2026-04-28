@@ -17787,41 +17787,53 @@ function _chatWatchModalClose(){
 function _chatDetectIntent(text){
   var t = String(text||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
-  // "Je n'ai pas trouvé" / "Rien trouvé" / "Pas de choix" → besoin de conseiller
-  // Patterns simples (mots qui apparaissent souvent dans phrase d'échec)
-  if(/(pas trouv|rien trouv|trouve pas|trouve rien|trouv.*aucun|aucun.*trouv|pas.*choix|aucun.*choix|introuvable|pas.*dispo|impossible.*trouv|n.arrive.*trouv|trouve.*rien)/i.test(t))
+  // ATTENTION: l'ordre est important ! Les patterns spécifiques doivent venir AVANT
+  // les patterns génériques (ex: "comment voir mes commandes" → 'order' pas 'help')
+
+  // "Je n'ai pas trouvé" / "Rien trouvé" → besoin de conseiller
+  if(/(pas trouv|rien trouv|trouve pas|trouve rien|trouv.*aucun|aucun.*trouv|pas.*choix|aucun.*choix|introuvable|pas.*dispo|impossible.*trouv|n.arrive.*trouv)/i.test(t))
     return 'notfound';
 
-  // Demande d'aide générale
-  if(/\b(aide|aider|aidez|besoin.*aide|comment.*faire|je.*sais.*pas|sais.*pas|comprend.*pas|comprends.*pas)\b/.test(t))
+  // Suivi commande (avant 'help' car "comment voir mes commandes" doit matcher ici)
+  // commandes? pour gérer le pluriel, et plus de mots-clés
+  if(/(commandes?|achats?|orders?|suivis?|colis|reception|recevoir|livr.*statut|statut.*livr|verifier.*commande|voir.*commande|ou.*est.*ma|ou.*sont.*mes|tracker|tracking)/i.test(t))
+    return 'order';
+
+  // Troc
+  if(/(trocs?|troquer|echanges?|echanger|estimation|reprise)/i.test(t))
+    return 'troc';
+
+  // Parrainage
+  if(/(parrains?|parrainage|commissions?|gagner.*argent|filleuls?|points)/i.test(t))
+    return 'parrain';
+
+  // Garantie/retour
+  if(/(garanties?|retours?|remboursement|rembours|defauts?|pannes?|cassers?|reparer|reparation)/i.test(t))
+    return 'garantie';
+
+  // Livraison (délais, etc.)
+  if(/(livraison|delai|combien.*temps|quand.*recevr|quand.*arrive|frais.*livr)/i.test(t))
+    return 'livraison';
+
+  // Paiement
+  if(/(paiement|payer|paye|mode.*paiement|wave|orange.*money|moov.*money|mtn.*money|carte.*bancaire)/i.test(t))
+    return 'paiement';
+
+  // Horaires / disponibilité
+  if(/(horaires?|heures.*ouverture|ouvertures?|ouverts?|fermes?|disponible|disponibilite|quand.*repond|quelle.*heure|jours?.*ouvr)/i.test(t))
+    return 'horaires';
+
+  // Parler / appeler / contacter (avant 'help' car "je veux parler" est plus spécifique)
+  if(/(parler|appel|appeler|contacter|joindre|conseill|humain|personne|quelqu)/i.test(t))
+    return 'contact';
+
+  // Demande d'aide générale (en dernier car le plus générique)
+  // ATTENTION : ne matcher que si pas d'autre intent détecté avant
+  if(/(aide|aider|aidez|besoin.*aide|comment.*faire|je.*sais.*pas|sais.*pas|comprend.*pas|comprends.*pas|expliquer|explication)/i.test(t))
     return 'help';
 
-  // Suivi commande
-  if(/\b(commande|order|suivi|livraison|colis|quand.*recevoir|ou.*est.*ma)\b/.test(t))
-    return 'order';
-  // Troc
-  if(/\b(troc|troquer|echange|echanger|estimation)\b/.test(t))
-    return 'troc';
-  // Parrainage
-  if(/\b(parrain|parrainage|commission|gagner.*argent|filleul)\b/.test(t))
-    return 'parrain';
-  // Garantie/retour
-  if(/\b(garantie|retour|rembour|defaut|panne|casser|repar)\b/.test(t))
-    return 'garantie';
-  // Livraison
-  if(/\b(livr|delai|combien.*temps|recevoir)\b/.test(t))
-    return 'livraison';
-  // Paiement
-  if(/\b(paiement|payer|wave|orange.*money|moov|mtn)\b/.test(t))
-    return 'paiement';
-  // Horaires / disponibilité
-  if(/\b(horaire|heures.*ouverture|ouverture|ouvert|ferme|disponib|quand.*repond|quelle.*heure|jour.*ouvr)\b/.test(t))
-    return 'horaires';
-  // Parler / appeler / contacter
-  if(/\b(parler|appel|appeler|contact|joindre|conseill|humain|personne|quelqu)\b/.test(t))
-    return 'contact';
   // Bonjour/salut
-  if(/^(bonjour|salut|hello|coucou|bsr|bjr|bonsoir)\b/.test(t))
+  if(/^(bonjour|salut|hello|coucou|bsr|bjr|bonsoir|hi|hey)\b/i.test(t))
     return 'greeting';
 
   // Sinon : recherche produit (par défaut)
