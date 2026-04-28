@@ -17207,10 +17207,7 @@ function renderReviews(){
 }
 function openChat(initMsg){
   // Couper toute lecture/timer/animation résiduel d'une session précédente
-  // (cas où le client ferme et rouvre rapidement le chat)
   _chatStopAllAnimations();
-  // Lever le flag de blocage : on va lancer une nouvelle lecture intentionnelle
-  window._chatVoiceBlocked = false;
 
   chatOpen=true;document.getElementById('chatWrap').classList.add('show');
   // Synchroniser l'état du bouton 🔊 avec la préférence
@@ -17323,37 +17320,15 @@ function toggleChat(){
 
 /* Coupe net toute lecture vocale en cours, tous les timers d'animation,
    et retire toutes les highlights produits.
-   IMPORTANT : utilise un compteur de session pour que les setTimeout retardés
-   (re-cancel à 50ms/200ms) n'interfèrent PAS avec une nouvelle lecture qui
-   aurait démarré entretemps (ex: client ferme + rouvre rapidement le chat). */
+   À appeler à la fermeture du chat. */
 function _chatStopAllAnimations(){
-  // Incrémenter le compteur de session : invalidera tous les setTimeout en cours
-  window._chatStopSession = (window._chatStopSession || 0) + 1;
-  var mySession = window._chatStopSession;
-
-  // Bloquer toute nouvelle lecture jusqu'à libération explicite (par openChat)
-  window._chatVoiceBlocked = true;
-
-  // Couper la voix actuelle - plusieurs cancels pour les navigateurs récalcitrants
+  // 1. Couper la voix actuelle
   if(window.speechSynthesis){
     try { window.speechSynthesis.cancel(); } catch(e){}
-    try { window.speechSynthesis.pause(); } catch(e){}
-    // Re-cancel après 50ms et 200ms — MAIS uniquement si la session est toujours active
-    // (sinon on annule une nouvelle voix légitime qui aurait démarré entretemps)
-    setTimeout(function(){
-      if(window._chatStopSession === mySession && window._chatVoiceBlocked){
-        try { window.speechSynthesis.cancel(); } catch(e){}
-      }
-    }, 50);
-    setTimeout(function(){
-      if(window._chatStopSession === mySession && window._chatVoiceBlocked){
-        try { window.speechSynthesis.cancel(); } catch(e){}
-      }
-    }, 200);
   }
   window._chatSpeakInProgress = false;
 
-  // Annuler les timers d'animation
+  // 2. Annuler les timers d'animation
   if(window._chatHighlightTimers){
     window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
     window._chatHighlightTimers = [];
@@ -17363,7 +17338,7 @@ function _chatStopAllAnimations(){
     window._chatWelcomeTimers = [];
   }
 
-  // Retirer toutes les classes de highlight et shimmer
+  // 3. Retirer toutes les classes de highlight et shimmer
   try {
     document.querySelectorAll('.chat-product-card.highlighted').forEach(function(c){
       c.classList.remove('highlighted');
@@ -18594,8 +18569,6 @@ function _chatGetFrenchVoice(){
 
 function _chatSpeak(text, opts){
   if(!window.speechSynthesis) return;
-  // Si le chat a été fermé/masqué, bloquer toute lecture (le flag est levé à la prochaine ouverture)
-  if(window._chatVoiceBlocked) return;
   opts = opts || {};
   try {
     // TOUJOURS annuler la lecture précédente : le nouveau message a priorité.
