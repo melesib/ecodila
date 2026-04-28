@@ -17214,8 +17214,15 @@ function renderReviews(){
   el.innerHTML=fresh.map(_renderReviewCard).join('');
 }
 function openChat(initMsg){
-  // Couper toute lecture/timer/animation résiduel d'une session précédente
-  _chatStopAllAnimations();
+  // Nettoyer juste les timers d'animation résiduels (PAS la voix - laisse-la tranquille)
+  if(window._chatHighlightTimers){
+    window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
+    window._chatHighlightTimers = [];
+  }
+  if(window._chatWelcomeTimers){
+    window._chatWelcomeTimers.forEach(function(t){ clearTimeout(t); });
+    window._chatWelcomeTimers = [];
+  }
 
   chatOpen=true;document.getElementById('chatWrap').classList.add('show');
   // Synchroniser l'état du bouton 🔊 avec la préférence
@@ -18544,66 +18551,43 @@ function _chatGetFrenchVoice(){
 })();
 
 function _chatSpeak(text, opts){
-  if(!window.speechSynthesis){
-    return;
-  }
+  if(!window.speechSynthesis) return;
+  if(!window._chatVoiceOutEnabled) return;
   opts = opts || {};
+
+  // Nettoyer texte
+  var clean = (typeof _stripEmojis === 'function' ? _stripEmojis(text) : text) || '';
+  if(!clean.trim()) return;
+
+  // Annuler si déjà en cours
   try {
-    // TOUJOURS annuler la lecture précédente : le nouveau message a priorité.
-    window.speechSynthesis.cancel();
-    window._chatSpeakInProgress = false;
+    if(window.speechSynthesis.speaking || window.speechSynthesis.pending){
+      window.speechSynthesis.cancel();
+    }
+  } catch(e){}
 
-    // Annuler les highlights produit en cours (au cas où une recherche précédente)
-    if(window._chatHighlightTimers){
-      window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
-      window._chatHighlightTimers = [];
-    }
-    // Retirer aussi toutes les classes .highlighted des anciennes recherches
-    try {
-      document.querySelectorAll('.chat-product-card.highlighted').forEach(function(c){
-        c.classList.remove('highlighted');
-      });
-    } catch(e){}
+  // Créer utterance simple
+  var u = new SpeechSynthesisUtterance(clean.substring(0, 600));
+  u.lang = 'fr-FR';
+  u.rate = 1;
+  u.pitch = 1;
+  u.volume = 1;
 
-    var clean = _stripEmojis(text);
-    if(!clean){
-      return;
-    }
-    var u = new SpeechSynthesisUtterance(clean.substring(0, 600));
-    u.lang = 'fr-FR';
-    u.rate = 1.05;
-    u.pitch = 1;
-    u.volume = 1;
-    var voice = _chatGetFrenchVoice();
-    if(voice) u.voice = voice;
-    u.onstart = function(){
-      window._chatSpeakInProgress = true;
-      if(typeof opts.onStart === 'function'){ try { opts.onStart(); } catch(e){} }
-    };
-    u.onend = function(){
-      window._chatSpeakInProgress = false;
-      if(typeof opts.onEnd === 'function'){ try { opts.onEnd(); } catch(e){} }
-    };
-    u.onerror = function(ev){
-      // Sur Chrome desktop, l'erreur "canceled" arrive parfois mais la voix démarre quand même.
-      // On ne reset pas le flag car la voix peut quand même jouer.
-      if(ev && ev.error === 'canceled') return;
-      window._chatSpeakInProgress = false;
-      if(typeof opts.onEnd === 'function'){ try { opts.onEnd(); } catch(e){} }
-    };
-    if(typeof opts.onBoundary === 'function'){
-      u.onboundary = function(ev){
-        try { opts.onBoundary(ev.charIndex, ev.name); } catch(e){}
-      };
-    }
-    // FIX Chrome desktop : retarder speak() de 100ms après cancel() pour éviter
-    // que les deux opérations se chevauchent (cause du onerror 'canceled' immédiat)
-    setTimeout(function(){
-      try { window.speechSynthesis.speak(u); } catch(e){}
-    }, 100);
-  } catch(e){
-    window._chatSpeakInProgress = false;
-  }
+  // Voix française si disponible
+  try {
+    var voices = window.speechSynthesis.getVoices();
+    var frVoice = voices.find(function(v){ return v.lang === 'fr-FR'; })
+               || voices.find(function(v){ return v.lang && v.lang.indexOf('fr') === 0; });
+    if(frVoice) u.voice = frVoice;
+  } catch(e){}
+
+  // Callbacks
+  if(typeof opts.onStart === 'function') u.onstart = opts.onStart;
+  if(typeof opts.onEnd === 'function') u.onend = opts.onEnd;
+  if(typeof opts.onBoundary === 'function') u.onboundary = opts.onBoundary;
+
+  // Speak
+  try { window.speechSynthesis.speak(u); } catch(e){}
 }
 
 /* ─── Détection connexion online/offline ─────────────────────────
