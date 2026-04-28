@@ -17214,7 +17214,6 @@ function renderReviews(){
   el.innerHTML=fresh.map(_renderReviewCard).join('');
 }
 function openChat(initMsg){
-  console.log('[LIDA] openChat appelé, initMsg:', initMsg);
   // Couper toute lecture/timer/animation résiduel d'une session précédente
   _chatStopAllAnimations();
 
@@ -17243,62 +17242,31 @@ function openChat(initMsg){
 
   var welcomeVoice = "Bonjour, bienvenue chez EcoDila, je suis LIDA, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert pour parler.";
 
-  // Estimer le délai pour atteindre chaque phrase clé
-  var posOptions = welcomeVoice.indexOf("Sélectionnez");
-  var posMic = welcomeVoice.indexOf("appuyez sur le bouton vert");
-  var msPerChar = 70;
-  var delayOptions = posOptions * msPerChar;
-  var delayMic = posMic * msPerChar;
+  // Délais fixes simples : 5.5s pour les options, 8.5s pour le scintillement micro
+  // (calculés sur la longueur du voiceText et la vitesse de Web Speech ~70ms/char)
+  var delayOptions = window._chatVoiceOutEnabled ? 5500 : 800;
+  var delayMic = 8500;
 
-  var optionsShown = false;
-  var micShimmered = false;
-
-  // Initialiser le tracker de timers de la welcome (pour pouvoir les annuler à la fermeture)
   window._chatWelcomeTimers = [];
-
-  function showOptionsOnce(){
-    if(optionsShown) return;
-    optionsShown = true;
-    _chatShowQuickActions();
-  }
-  function shimmerMicOnce(){
-    if(micShimmered) return;
-    micShimmered = true;
-    _chatMicShimmer();
-  }
 
   addMsg(
     'Bonjour 👋 bienvenue chez EcoDila, je suis <b>LIDA</b>, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert <span style="display:inline-flex;align-items:center;justify-content:center;background:#25D366;width:18px;height:18px;border-radius:50%;vertical-align:middle;box-shadow:0 1px 3px rgba(37,211,102,.4)"><svg viewBox="0 0 24 24" width="11" height="11" fill="#fff" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.42 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.3 6-6.72h-1.7z"/></svg></span> pour parler.',
     'bot',
     true,
-    welcomeVoice,
-    {
-      onStart: function(){
-        // Vérifier que le chat est toujours ouvert (cas où l'utilisateur a fermé entre-temps)
-        if(!chatOpen) return;
-        var t1 = setTimeout(function(){ if(chatOpen) showOptionsOnce(); }, delayOptions);
-        var t2 = setTimeout(function(){ if(chatOpen) shimmerMicOnce(); }, delayMic);
-        window._chatWelcomeTimers.push(t1, t2);
-      },
-      onEnd: function(){
-        if(chatOpen){
-          showOptionsOnce();
-          shimmerMicOnce();
-        }
-      }
-    }
+    welcomeVoice
   );
 
-  // Si la voix est désactivée, afficher les boutons après un court délai
-  if(!window._chatVoiceOutEnabled){
-    var t3 = setTimeout(function(){ if(chatOpen) showOptionsOnce(); }, _chatDelay(800));
-    window._chatWelcomeTimers.push(t3);
-  } else {
-    // Sécurité : si onStart ne tire jamais, forcer après 8s
-    var t4 = setTimeout(function(){
-      if(chatOpen && !optionsShown) showOptionsOnce();
-    }, 8000);
-    window._chatWelcomeTimers.push(t4);
+  // Afficher les options après le délai (timers stockés pour pouvoir les annuler à la fermeture)
+  var t1 = setTimeout(function(){
+    if(chatOpen) _chatShowQuickActions();
+  }, delayOptions);
+  window._chatWelcomeTimers.push(t1);
+
+  if(window._chatVoiceOutEnabled){
+    var t2 = setTimeout(function(){
+      if(chatOpen) _chatMicShimmer();
+    }, delayMic);
+    window._chatWelcomeTimers.push(t2);
   }
 }
 
@@ -17826,20 +17794,10 @@ function _chatRunSearch(query, prods){
   });
   var voiceText = voiceParts.join(' ');
 
-  // Identifiant unique pour ce conteneur de résultats de recherche.
-  // Ainsi le highlight du onBoundary actuel ne touche QUE les cartes de cette recherche,
-  // pas celles d'une recherche précédente encore visible dans l'historique.
+  // Identifiant unique pour ce conteneur de résultats : permet au highlight
+  // de ne toucher QUE les cartes de cette recherche-ci (pas les anciennes
+  // recherches encore visibles dans l'historique).
   var searchId = 'chatSearch_' + Date.now() + '_' + Math.floor(Math.random()*10000);
-
-  // Calculer les positions de début de chaque produit dans le voiceText
-  var productStartPositions = [];
-  var cursor = voiceParts[0].length + 1;
-  for(var pi = 1; pi < voiceParts.length; pi++){
-    productStartPositions.push(cursor);
-    cursor += voiceParts[pi].length + 1;
-  }
-
-  var currentProductIdx = -1;
 
   // Wrapper le HTML pour appliquer l'ID de scope sur le conteneur des cartes
   var scopedHtml = fullHtml.replace(
@@ -17847,60 +17805,37 @@ function _chatRunSearch(query, prods){
     'flex-direction:column;gap:.4rem" data-chat-search-id="'+searchId+'">'
   );
 
-  addMsg(scopedHtml, 'bot', true, voiceText, {
-    onStart: function(){
-      // FALLBACK TIMER : démarre les highlights séquentiellement basés sur la longueur des phrases.
-      // Sur Chrome desktop avec voix locales, onBoundary ne se déclenche pas toujours,
-      // donc ce timer prend le relais pour assurer le highlight visuel.
-      var slow = (typeof _chatIsSlowConnection === 'function' && _chatIsSlowConnection());
-      var msPerChar = slow ? 80 : 65;
-      window._chatHighlightTimers = window._chatHighlightTimers || [];
+  addMsg(scopedHtml, 'bot', true, voiceText);
 
-      // Highlight le 1er produit dès la fin de "J'ai trouvé X produits."
-      // (position 0 dans productStartPositions n'existe pas car c'est la 2e carte)
-      var firstCardDelay = (voiceParts[0].length + 1) * msPerChar;
-      var t0 = setTimeout(function(){
-        if(currentProductIdx >= 0) return; // déjà fait par onBoundary
-        currentProductIdx = 0;
-        _chatHighlightProduct(0, searchId);
-      }, firstCardDelay);
-      window._chatHighlightTimers.push(t0);
-
-      // Highlight les cartes suivantes
-      productStartPositions.forEach(function(pos, idx){
-        var realIdx = idx + 1; // car productStartPositions[0] = 2e carte (index 1)
+  // Highlight séquentiel par timer simple : ~3.5s par produit (durée moyenne
+  // de "Marque Modèle à PRIX francs CFA, négociable et troc possible").
+  // Démarre 2s après l'envoi (le bot dit d'abord "J'ai trouvé X produits").
+  if(window._chatVoiceOutEnabled && scored.length > 0){
+    if(window._chatHighlightTimers){
+      window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
+    }
+    window._chatHighlightTimers = [];
+    var initialDelay = 2000;
+    var perCard = 3500;
+    for(var hi = 0; hi < scored.length; hi++){
+      (function(idx){
         var t = setTimeout(function(){
-          if(currentProductIdx >= realIdx) return;
-          currentProductIdx = realIdx;
-          _chatHighlightProduct(realIdx, searchId);
-        }, pos * msPerChar);
+          _chatHighlightProduct(idx, searchId);
+        }, initialDelay + idx * perCard);
         window._chatHighlightTimers.push(t);
-      });
-    },
-    onBoundary: function(charIndex){
-      var newIdx = -1;
-      for(var i = 0; i < productStartPositions.length; i++){
-        if(charIndex >= productStartPositions[i]) newIdx = i;
-      }
-      // Décalage : productStartPositions[0] = 2e carte, donc on ajoute +1
-      if(newIdx >= 0) newIdx = newIdx + 1;
-      // Si on est avant la 2e carte mais après le titre, c'est le produit 0
-      if(charIndex >= voiceParts[0].length && newIdx < 0) newIdx = 0;
-      if(newIdx !== currentProductIdx && newIdx >= 0){
-        currentProductIdx = newIdx;
-        _chatHighlightProduct(newIdx, searchId);
-      }
-    },
-    onEnd: function(){
+      })(hi);
+    }
+    // À la fin, retirer toutes les highlights
+    var endT = setTimeout(function(){
       var scope = document.querySelector('[data-chat-search-id="'+searchId+'"]');
       if(scope){
         scope.querySelectorAll('.chat-product-card').forEach(function(c){
           c.classList.remove('highlighted');
         });
       }
-      currentProductIdx = -1;
-    }
-  });
+    }, initialDelay + scored.length * perCard + 500);
+    window._chatHighlightTimers.push(endT);
+  }
 }
 
 /* Met en avant UNE carte produit dans le scope de la recherche courante.
@@ -18610,12 +18545,10 @@ function _chatGetFrenchVoice(){
 
 function _chatSpeak(text, opts){
   if(!window.speechSynthesis){
-    console.warn('[LIDA] speechSynthesis non disponible sur ce navigateur');
     return;
   }
   opts = opts || {};
   try {
-    console.log('[LIDA] _chatSpeak appelé, voice enabled:', window._chatVoiceOutEnabled, 'text:', text.substring(0, 50));
     // TOUJOURS annuler la lecture précédente : le nouveau message a priorité.
     window.speechSynthesis.cancel();
     window._chatSpeakInProgress = false;
@@ -18633,9 +18566,7 @@ function _chatSpeak(text, opts){
     } catch(e){}
 
     var clean = _stripEmojis(text);
-    console.log('[LIDA] cleaned text length:', clean.length, 'text:', clean.substring(0, 80));
     if(!clean){
-      console.warn('[LIDA] clean text vide après _stripEmojis - rien à parler');
       return;
     }
     var u = new SpeechSynthesisUtterance(clean.substring(0, 600));
@@ -18644,32 +18575,25 @@ function _chatSpeak(text, opts){
     u.pitch = 1;
     u.volume = 1;
     var voice = _chatGetFrenchVoice();
-    console.log('[LIDA] voice française trouvée:', voice ? voice.name : 'AUCUNE (utilisation default)');
     if(voice) u.voice = voice;
     u.onstart = function(){
-      console.log('[LIDA] ✅ voix DÉMARRE');
       window._chatSpeakInProgress = true;
       if(typeof opts.onStart === 'function'){ try { opts.onStart(); } catch(e){} }
     };
     u.onend = function(){
-      console.log('[LIDA] voix terminée');
       window._chatSpeakInProgress = false;
       if(typeof opts.onEnd === 'function'){ try { opts.onEnd(); } catch(e){} }
     };
     u.onerror = function(ev){
-      console.error('[LIDA] ❌ voix ERREUR:', ev.error || ev);
       window._chatSpeakInProgress = false;
       if(typeof opts.onEnd === 'function'){ try { opts.onEnd(); } catch(e){} }
     };
     if(typeof opts.onBoundary === 'function'){
       u.onboundary = function(ev){
-        console.log('[LIDA] onboundary charIndex:', ev.charIndex, 'name:', ev.name);
         try { opts.onBoundary(ev.charIndex, ev.name); } catch(e){}
       };
     }
-    console.log('[LIDA] appel speechSynthesis.speak() maintenant...');
     window.speechSynthesis.speak(u);
-    console.log('[LIDA] speak() retourné, paused:', window.speechSynthesis.paused, 'pending:', window.speechSynthesis.pending, 'speaking:', window.speechSynthesis.speaking);
     // Note : on N'appelle PAS resume() en fallback. Sur Chrome desktop, ça cause
     // une erreur "canceled" car onstart peut prendre 300-500ms à se déclencher
     // après speak() - mais la voix démarre quand même. Si le client veut résoudre
