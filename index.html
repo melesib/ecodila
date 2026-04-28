@@ -17516,29 +17516,84 @@ function _chatRunSearch(query, prods){
   }
 
   // Synonymes courants en français/Côte d'Ivoire (pour enrichir la recherche)
+  // Inclut les variantes phonétiques et nouchi pour gérer les accents ivoiriens
   var SYN = {
+    // Téléphone — variantes phonétiques courantes
     'tel': 'phone smartphone',
     'telephone': 'phone smartphone',
+    'telef': 'phone smartphone',
+    'telefone': 'phone smartphone',
+    'telephon': 'phone smartphone',
+    'portab': 'phone smartphone',
     'portable': 'phone smartphone',
+    'portabl': 'phone smartphone',
     'mobile': 'phone smartphone',
+    'mobil': 'phone smartphone',
+    'phone': 'smartphone telephone',
+    // TV
     'tele': 'tv television',
+    'televis': 'tv television',
+    'television': 'tv',
+    'televiseur': 'tv television',
+    'televizion': 'tv television',
+    'ekran': 'tv television',
+    'écran': 'tv television',
+    // Ordinateur
     'pc': 'ordinateur laptop',
     'ordi': 'ordinateur laptop pc',
+    'ordina': 'ordinateur laptop pc',
     'laptop': 'ordinateur pc',
+    'macbook': 'ordinateur laptop apple',
+    'mac book': 'ordinateur laptop apple',
+    // Tablette
     'ipad': 'tablette tablet',
     'tablet': 'tablette',
+    'tablett': 'tablette',
+    // Prix
     'pas cher': 'cheap',
     'pas chere': 'cheap',
+    'pas chair': 'cheap',
     'moins cher': 'cheap',
+    'mwen cher': 'cheap',
+    'tchap': 'cheap',
+    // État
     'recond': 'reconditionne occasion',
-    'occas': 'occasion'
+    'occas': 'occasion',
+    'okazion': 'occasion reconditionne',
+    'sekonde': 'occasion seconde main',
+    'usagé': 'occasion',
+    'usage': 'occasion',
+    // Marques courantes (variantes phonétiques)
+    'samsoun': 'samsung',
+    'samsoung': 'samsung',
+    'iphon': 'iphone',
+    'aifon': 'iphone',
+    'éphone': 'iphone',
+    // Accessoires
+    'kabl': 'cable',
+    'kable': 'cable',
+    'kasque': 'casque ecouteurs',
+    'écoute': 'ecouteurs casque',
+    'mèche': 'cable charger chargeur',
+    'fil': 'cable chargeur',
+    'charj': 'chargeur',
+    'charger': 'chargeur'
   };
   var qExpanded = q;
   for(var k in SYN){ if(qExpanded.indexOf(k) > -1) qExpanded += ' ' + SYN[k]; }
   var qExpWords = qExpanded.split(/\s+/).filter(function(w){ return w.length >= 2; });
 
-  // Mots clés à exclure du scoring (trop génériques)
-  var STOPWORDS = ['je','le','la','les','un','une','des','du','de','et','ou','pour','avec','sur','dans','est','suis','recherche','cherche','veux','voudrais','besoin'];
+  // Mots clés à exclure du scoring (trop génériques + nouchi/oralité)
+  var STOPWORDS = [
+    'je','le','la','les','un','une','des','du','de','et','ou','pour','avec','sur','dans','est','suis',
+    'recherche','cherche','cherchez','veux','voudrais','vouloir','besoin','aimerais','aim',
+    'avoir','prendre','prend','donne','donner','svp','stp','please','plizz',
+    'bonjour','salut','hello','coucou','bsr','bjr','bonsoir',
+    'oui','non','ok','okay','dakor','daccord',
+    'me','moi','ma','mon','ton','ta','votre','nous','vous',
+    'qui','quoi','que','quel','quelle','quelles','quels',
+    'tu','peux','pouvez','dis','dit','dite','dire'
+  ];
   qExpWords = qExpWords.filter(function(w){ return STOPWORDS.indexOf(w) === -1; });
 
   // Score chaque produit avec une logique stricte
@@ -18022,17 +18077,44 @@ window._chatMicToggle = function(){
 };
 
 /* Lance la reconnaissance vocale (appelé après avoir obtenu la permission) */
+/* Nettoie les mots dupliqués collés/répétés dans la transcription vocale.
+   Bug connu de Chrome Android en mode continuous : peut renvoyer "jeje cherchecherche"
+   au lieu de "je cherche". On découpe les mots collés et on enlève les doublons consécutifs. */
+function _chatDedupeWords(text){
+  if(!text) return '';
+  // 1. Découper les mots collés du type "jeje" ou "cherchecherche" :
+  // si un mot contient lui-même répété (ex: "jeje" = "je"+"je"), on garde une seule occurrence
+  var cleaned = text.replace(/\b(\w{2,})\1+\b/gi, '$1');
+  // 2. Supprimer les répétitions consécutives de mots ("je je cherche cherche" → "je cherche")
+  var words = cleaned.split(/\s+/);
+  var result = [];
+  var prev = null;
+  for(var i = 0; i < words.length; i++){
+    var w = words[i];
+    if(!w) continue;
+    // Comparaison insensible à la casse
+    if(prev && w.toLowerCase() === prev.toLowerCase()) continue;
+    result.push(w);
+    prev = w;
+  }
+  return result.join(' ').replace(/\s+/g, ' ').trim();
+}
+
 function _chatStartRecognition(){
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR) return;
   var btn = document.getElementById('chatMicBtn');
   var rec = new SR();
+  // Langue : fr-FR par défaut, mais on capture quand même tous les résultats
+  // pour gérer les accents africains/ivoiriens (l'API tente plusieurs interprétations).
   rec.lang = 'fr-FR';
-  // continuous = true : ne s'arrête pas à la première pause (laisse le client parler longtemps)
-  // Le client doit cliquer à nouveau sur le micro pour stopper et envoyer.
+  // continuous = true : ne s'arrête pas à la première pause (laisse parler longtemps)
   rec.continuous = true;
+  // interimResults = true : on récupère même les résultats partiels (cruciaux pour
+  // les accents non standards où isFinal n'est pas toujours déclenché)
   rec.interimResults = true;
-  rec.maxAlternatives = 1;
+  // 5 alternatives : si l'API hésite sur la prononciation, on garde celle de meilleure confiance
+  rec.maxAlternatives = 5;
 
   // Animation visuelle : micro qui pulse en rouge (style WhatsApp)
   if(btn){
@@ -18042,28 +18124,50 @@ function _chatStartRecognition(){
 
   var inp = document.getElementById('chatInput');
   var finalText = '';
-  // Flag : true = l'utilisateur a cliqué stop (envoi voulu)
-  //        false = la reconnaissance s'est arrêtée seule (timeout, erreur)
+  // Conserver les meilleurs interim pour ne RIEN perdre, même si l'API ne les marque pas isFinal.
+  // Sur accent ivoirien, beaucoup de mots restent en interim et seraient perdus sinon.
+  var lastInterim = '';
   var userRequestedStop = false;
-  // Flag : la reconnaissance a-t-elle terminé naturellement ?
-  // Si Chrome timeout après silence, on relance pour permettre au client de continuer.
   var redoCount = 0;
+  // Tracker les indices déjà traités pour éviter les doublons (Chrome Android peut
+  // renvoyer plusieurs fois le même résultat marqué isFinal, et resultIndex redémarre
+  // à 0 quand on relance rec.start() après un timeout silence)
+  var processedIndices = {};
+  // À chaque restart, l'API redémarre les indices à 0 → on doit faire un offset.
+  // sessionId augmente à chaque relance pour avoir des clefs uniques.
+  var sessionId = 0;
 
   rec.onresult = function(ev){
     var interim = '';
     for(var i = ev.resultIndex; i < ev.results.length; i++){
-      var t = ev.results[i][0].transcript;
-      if(ev.results[i].isFinal) finalText += t;
-      else interim += t;
+      var alts = ev.results[i];
+      var best = alts[0];
+      var bestConf = best.confidence || 0;
+      for(var k = 1; k < alts.length; k++){
+        if((alts[k].confidence || 0) > bestConf){
+          best = alts[k];
+          bestConf = alts[k].confidence;
+        }
+      }
+      var t = best.transcript;
+      if(ev.results[i].isFinal){
+        // Anti-doublon : clé unique session+index
+        var key = sessionId + ':' + i;
+        if(!processedIndices[key]){
+          processedIndices[key] = true;
+          finalText += t + ' ';
+        }
+      } else {
+        interim += t;
+      }
     }
+    lastInterim = interim;
     if(inp) inp.value = (finalText + interim).trim();
   };
 
   rec.onerror = function(ev){
     console.warn('[chat-mic] erreur:', ev.error);
-    // 'no-speech' ou 'aborted' pendant écoute : pas afficher d'erreur, juste ignorer
     if(ev.error === 'no-speech' || ev.error === 'aborted'){
-      // Ne rien faire, l'écoute peut continuer ou être relancée par onend
       return;
     }
     var fallbackBtn = '<br><br><button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.5rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📲 Envoyer un message vocal sur WhatsApp</button>';
@@ -18076,28 +18180,30 @@ function _chatStartRecognition(){
     } else {
       addMsg('🎤 Reconnaissance vocale indisponible. Pas grave :'+fallbackBtn, 'bot', true);
     }
-    userRequestedStop = true; // empêche le redémarrage
+    userRequestedStop = true;
     _chatMicReset();
   };
 
   rec.onend = function(){
-    // Si l'utilisateur n'a PAS cliqué stop manuellement, c'est que Chrome a timeout sur silence.
-    // Dans ce cas, on relance la reconnaissance pour permettre à l'utilisateur de continuer
-    // à parler (jusqu'à 3 redémarrages auto pour éviter les boucles infinies).
     if(!userRequestedStop && redoCount < 3){
       redoCount++;
+      // Nouvelle session : changer sessionId pour que les indices ne se chevauchent pas
+      sessionId++;
       try {
         rec.start();
-        return; // pas de reset, l'écoute continue
+        return;
       } catch(e){
-        // start() peut échouer si déjà en cours, on laisse tomber
         console.warn('[chat-mic] redémarrage impossible:', e);
       }
     }
 
-    // Vraiment fini : reset l'UI et envoyer si du texte a été capté
+    // Fini : combiner final + interim, et NETTOYER les doublons mot par mot
+    var combined = (finalText + ' ' + lastInterim);
+    combined = _chatDedupeWords(combined);
     _chatMicReset();
-    if(finalText.trim() && userRequestedStop){
+    if(combined && userRequestedStop){
+      // Mettre à jour l'input avec le texte combiné final+interim
+      if(inp) inp.value = combined;
       setTimeout(function(){
         if(inp && inp.value.trim()){ sendMsg(); }
       }, 300);
@@ -18112,7 +18218,6 @@ function _chatStartRecognition(){
     window._chatRecActive = false;
   }
 
-  // Exposer un helper pour forcer l'arrêt depuis _chatMicToggle
   window._chatRequestStopRecognition = function(){
     userRequestedStop = true;
     try { rec.stop(); } catch(e){}
