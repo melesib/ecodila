@@ -17222,7 +17222,9 @@ function openChat(initMsg){
       true,
       "Bonjour, bienvenue chez EcoDila, je suis LIDA, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert pour parler."
     );
-    setTimeout(function(){ _chatShowQuickActions(); }, _chatDelay(600));
+    // Délai plus long (~1.5s) pour laisser le temps au bot de commencer à lire le "Bonjour"
+    // (les boutons seront affichés sans interrompre la lecture car voiceText=' ' dans _chatShowQuickActions)
+    setTimeout(function(){ _chatShowQuickActions(); }, _chatDelay(1500));
   }
 }
 function toggleChat(){
@@ -17280,9 +17282,12 @@ function addMsg(text, type, isHtml, voiceText){
   }
 
   // Lecture vocale si activée
+  // Si voiceText est explicitement fourni (même vide), l'utiliser tel quel —
+  // une string vide ou des espaces signifient "ne pas lire ce message"
   if(type === 'bot' && window._chatVoiceOutEnabled){
-    if(typeof voiceText === 'string' && voiceText.trim()){
-      _chatSpeak(voiceText);
+    if(typeof voiceText === 'string'){
+      // voiceText explicitement passé : si non-vide → lire, sinon ne rien lire
+      if(voiceText.trim()) _chatSpeak(voiceText);
     } else if(!isHtml){
       _chatSpeak(text);
     } else {
@@ -17373,7 +17378,8 @@ function _chatShowQuickActions(){
     + '<button onclick="_chatHandleAction(\'faq\')" class="chat-quick-btn" style="background:#8b5cf6;color:#fff;border:none;padding:.4rem .7rem;border-radius:14px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600">❓ FAQ</button>'
     + '<button onclick="_chatHandleAction(\'wa\')" class="chat-quick-btn" style="background:#0a8b4a;color:#fff;border:none;padding:.4rem .7rem;border-radius:14px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600">💬 Chat WhatsApp</button>'
     + '</div>';
-  addMsg(html, 'bot', true);
+  // voiceText = ' ' (espace) pour empêcher la lecture (sinon le bot lirait "Chercher un produit Envoyer message vocal..." par-dessus le Bonjour en cours)
+  addMsg(html, 'bot', true, ' ');
 }
 
 /* ─── Dispatch des actions rapides ──────────────────────────────── */
