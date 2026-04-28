@@ -759,7 +759,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .chat-close{background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem}
 .chat-body{background:white;border:1px solid var(--border);border-top:none;height:280px;overflow-y:auto;padding:.9rem;display:flex;flex-direction:column;gap:.6rem}
 .msg{max-width:82%;padding:.55rem .8rem;border-radius:12px;font-size:.82rem;line-height:1.45}
-.msg.bot{background:var(--cream);align-self:flex-start;border-radius:4px 12px 12px 12px}
+.msg.bot{background:var(--cream);color:#1a2332;align-self:flex-start;border-radius:4px 12px 12px 12px}
+.msg.bot a, .msg.bot button{color:inherit}
 .msg.user{background:var(--green);color:white;align-self:flex-end;border-radius:12px 4px 12px 12px}
 .msg-time{font-size:.65rem;opacity:.6;margin-top:2px}
 .chat-input-area{background:white;border:1px solid var(--border);border-top:none;border-radius:0 0 14px 14px;padding:.7rem;display:flex;gap:.5rem}
@@ -17207,8 +17208,8 @@ window._chatHandleAction = function(action){
     addMsg('🔍 Cherche', 'user');
     var html = 'Quel produit cherchez-vous ?<br><br>'
       + '<div style="display:flex;flex-direction:column;gap:.4rem">'
-      + '<div style="font-size:.74rem;color:rgba(255,255,255,.85)">📝 Écrivez votre recherche (ex: "iPhone 12", "TV Samsung")</div>'
-      + '<div style="font-size:.74rem;color:rgba(255,255,255,.85)">🎤 Ou cliquez sur le micro pour parler</div>'
+      + '<div style="font-size:.74rem;color:#475569">📝 Écrivez votre recherche (ex: "iPhone 12", "TV Samsung")</div>'
+      + '<div style="font-size:.74rem;color:#475569">🎤 Ou cliquez sur le micro pour parler</div>'
       + '<button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.5rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;margin-top:.3rem">📲 Ou envoyer un message vocal sur WhatsApp</button>'
       + '</div>';
     addMsg(html, 'bot', true);
@@ -17338,7 +17339,7 @@ function _chatSearchProducts(query){
   var resultText = scored.length === 1 ? 'J\'ai trouvé 1 produit correspondant' : 'J\'ai trouvé '+scored.length+' produits correspondants';
   var fullHtml = '✅ '+resultText+' à "<b>'+_esc(query)+'</b>" :<br><br>'
     + '<div style="display:flex;flex-direction:column;gap:.4rem">' + cards + '</div>'
-    + '<div style="margin-top:.6rem;font-size:.72rem;color:rgba(255,255,255,.85)">💡 Cliquez sur un produit pour voir les détails</div>'
+    + '<div style="margin-top:.6rem;font-size:.72rem;color:#475569">💡 Cliquez sur un produit pour voir les détails</div>'
     + '<button onclick="_chatOpenWA(\'Bonjour 👋, je cherche : '+_esc(query).replace(/\'/g,'&#39;')+'. Pouvez-vous me conseiller ?\')" style="background:#25d366;color:#fff;border:none;padding:.45rem .7rem;border-radius:8px;font-size:.72rem;cursor:pointer;font-family:inherit;font-weight:600;margin-top:.5rem;width:100%">💬 Pas trouvé ? Parler à un conseiller</button>';
   addMsg(fullHtml, 'bot', true);
 }
@@ -17350,7 +17351,7 @@ function _chatSuiviCommande(){
   if(connected){
     var html = '✅ Pour voir l\'état de toutes vos commandes et trocs :<br><br>'
       + '<button onclick="window.showPage(\'profil\');toggleChat()" style="background:var(--green);color:#fff;border:none;padding:.6rem 1rem;border-radius:8px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📋 Aller à mon profil</button>'
-      + '<div style="margin-top:.5rem;font-size:.72rem;color:rgba(255,255,255,.85)">Ou contactez-nous sur WhatsApp pour une réponse rapide :</div>'
+      + '<div style="margin-top:.5rem;font-size:.72rem;color:#475569">Ou contactez-nous sur WhatsApp pour une réponse rapide :</div>'
       + '<button onclick="_chatOpenWA(\'Bonjour 👋, je voudrais suivre ma commande.\')" style="background:#25d366;color:#fff;border:none;padding:.5rem .8rem;border-radius:8px;font-size:.75rem;cursor:pointer;font-family:inherit;font-weight:600;width:100%;margin-top:.4rem">💬 WhatsApp</button>';
     addMsg(html, 'bot', true);
   } else {
@@ -17378,10 +17379,10 @@ function _chatShowFAQ(){
   var html = '❓ <b>Questions fréquentes :</b><br><br>'
     + '<div style="display:flex;flex-direction:column;gap:.3rem">'
     + _CHAT_FAQ.map(function(item, i){
-        return '<button onclick="_chatAnswerFAQ('+i+')" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25);padding:.4rem .6rem;border-radius:6px;font-size:.74rem;cursor:pointer;font-family:inherit;text-align:left;width:100%">'+_esc(item.q)+'</button>';
+        return '<button onclick="_chatAnswerFAQ('+i+')" style="background:rgba(0,0,0,.06);color:#1a2332;border:1px solid rgba(0,0,0,.12);padding:.5rem .7rem;border-radius:6px;font-size:.76rem;cursor:pointer;font-family:inherit;text-align:left;width:100%;font-weight:500">'+_esc(item.q)+'</button>';
       }).join('')
     + '</div>'
-    + '<div style="margin-top:.5rem;font-size:.72rem;color:rgba(255,255,255,.85)">Si votre question n\'est pas listée :</div>'
+    + '<div style="margin-top:.5rem;font-size:.72rem;color:#475569">Si votre question n\'est pas listée :</div>'
     + '<button onclick="_chatOpenWA(\'Bonjour 👋, j\\\'ai une question sur EcoDila.\')" style="background:#25d366;color:#fff;border:none;padding:.4rem .6rem;border-radius:6px;font-size:.74rem;cursor:pointer;font-family:inherit;font-weight:600;width:100%;margin-top:.3rem">💬 Demander sur WhatsApp</button>';
   addMsg(html, 'bot', true);
 }
@@ -17478,6 +17479,62 @@ window._chatMicToggle = function(){
     window._chatRecActive = false;
     return;
   }
+
+  /* Étape 1 : demander explicitement la permission micro via getUserMedia.
+     Cette API affiche TOUJOURS la pop-up de permission au premier accès,
+     contrairement à SpeechRecognition qui peut échouer silencieusement
+     en 'not-allowed' si le user a déjà refusé. */
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    // Vieux navigateur sans getUserMedia → tenter direct la reconnaissance
+    return _chatStartRecognition();
+  }
+
+  // Indiquer à l'utilisateur qu'on attend la permission
+  var btn = document.getElementById('chatMicBtn');
+  if(btn){
+    btn.innerHTML = '⏳';
+    btn.title = 'Demande de permission…';
+  }
+
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(function(stream){
+      // Permission accordée → couper le stream (on n'en a pas besoin pour SpeechRecognition)
+      stream.getTracks().forEach(function(t){ t.stop(); });
+      // Lancer la reconnaissance
+      _chatStartRecognition();
+    })
+    .catch(function(err){
+      // Permission refusée OU pas de micro
+      if(btn){
+        btn.innerHTML = '🎤';
+        btn.title = 'Parler au lieu d\'écrire';
+      }
+      console.warn('[chat-mic] permission refusée:', err.name);
+      var explainHtml = '';
+      if(err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'){
+        explainHtml = '🎤 <b>Pour utiliser le micro</b>, il faut l\'autoriser :<br><br>'
+          + '<div style="font-size:.78rem;line-height:1.6;background:rgba(255,255,255,.1);padding:.6rem;border-radius:6px">'
+          + '👉 Cliquez sur le <b>🔒 cadenas</b> à gauche de l\'adresse du site<br>'
+          + '👉 Trouvez <b>Microphone</b> et choisissez <b>Autoriser</b><br>'
+          + '👉 Rechargez la page (Cmd+R sur Mac, Ctrl+R sur PC)'
+          + '</div>'
+          + '<div style="margin-top:.5rem;font-size:.78rem;color:rgba(255,255,255,.85)">Ou utilisez WhatsApp directement :</div>'
+          + '<button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%;margin-top:.4rem">📲 Envoyer message vocal sur WhatsApp</button>';
+      } else if(err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError'){
+        explainHtml = '🎤 Aucun micro détecté sur votre appareil.<br><br>'
+          + '<button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📲 Envoyer message vocal sur WhatsApp</button>';
+      } else {
+        explainHtml = '🎤 Le micro n\'est pas accessible. Pas grave !<br><br>'
+          + '<button onclick="_chatHandleAction(\'voicewa\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:700;width:100%">📲 Envoyer message vocal sur WhatsApp</button>';
+      }
+      addMsg(explainHtml, 'bot', true);
+    });
+};
+
+/* Lance la reconnaissance vocale (appelé après avoir obtenu la permission) */
+function _chatStartRecognition(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return;
   var btn = document.getElementById('chatMicBtn');
   var rec = new SR();
   rec.lang = 'fr-FR';
