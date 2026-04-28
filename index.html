@@ -775,7 +775,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .chat-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem}
 .chat-status{font-size:.7rem;color:var(--gl)}
 .chat-close{background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem}
-.chat-body{background:white;border:1px solid var(--border);border-top:none;height:380px;overflow-y:auto;padding:.9rem;display:flex;flex-direction:column;gap:.6rem}
+.chat-body{background:white;border:1px solid var(--border);border-top:none;height:440px;overflow-y:auto;padding:.9rem;display:flex;flex-direction:column;gap:.6rem}
 .msg{max-width:82%;padding:.55rem .8rem;border-radius:12px;font-size:.82rem;line-height:1.45}
 .msg.bot{background:var(--cream);color:#1a2332;align-self:flex-start;border-radius:4px 12px 12px 12px}
 .msg.bot a, .msg.bot button{color:inherit}
@@ -17206,6 +17206,10 @@ function renderReviews(){
   el.innerHTML=fresh.map(_renderReviewCard).join('');
 }
 function openChat(initMsg){
+  // Couper toute lecture/timer/animation résiduel d'une session précédente
+  // (cas où le client ferme et rouvre rapidement le chat)
+  _chatStopAllAnimations();
+
   chatOpen=true;document.getElementById('chatWrap').classList.add('show');
   // Synchroniser l'état du bouton 🔊 avec la préférence
   _chatSyncVoiceButton();
@@ -17230,28 +17234,30 @@ function openChat(initMsg){
   if(body) body.innerHTML = '';
 
   var welcomeVoice = "Bonjour, bienvenue chez EcoDila, je suis LIDA, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert pour parler.";
-  // Positions clés dans le voiceText pour synchroniser les animations avec la voix réelle :
+
+  // Estimer le délai pour atteindre chaque phrase clé
   var posOptions = welcomeVoice.indexOf("Sélectionnez");
   var posMic = welcomeVoice.indexOf("appuyez sur le bouton vert");
+  var msPerChar = 70;
+  var delayOptions = posOptions * msPerChar;
+  var delayMic = posMic * msPerChar;
 
-  // Flags pour ne déclencher chaque action qu'une seule fois
   var optionsShown = false;
   var micShimmered = false;
 
-  // Fallback timers : si le navigateur ne supporte pas onboundary,
-  // on utilise des délais raisonnables (max 4s pour les options, 6s pour le micro)
-  var fallbackOptionsTimer = setTimeout(function(){
-    if(!optionsShown){
-      optionsShown = true;
-      _chatShowQuickActions();
-    }
-  }, _chatDelay(4000));
-  var fallbackMicTimer = setTimeout(function(){
-    if(!micShimmered){
-      micShimmered = true;
-      _chatMicShimmer();
-    }
-  }, _chatDelay(6000));
+  // Initialiser le tracker de timers de la welcome (pour pouvoir les annuler à la fermeture)
+  window._chatWelcomeTimers = [];
+
+  function showOptionsOnce(){
+    if(optionsShown) return;
+    optionsShown = true;
+    _chatShowQuickActions();
+  }
+  function shimmerMicOnce(){
+    if(micShimmered) return;
+    micShimmered = true;
+    _chatMicShimmer();
+  }
 
   addMsg(
     'Bonjour 👋 bienvenue chez EcoDila, je suis <b>LIDA</b>, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert <span style="display:inline-flex;align-items:center;justify-content:center;background:#25D366;width:18px;height:18px;border-radius:50%;vertical-align:middle;box-shadow:0 1px 3px rgba(37,211,102,.4)"><svg viewBox="0 0 24 24" width="11" height="11" fill="#fff" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.42 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.3 6-6.72h-1.7z"/></svg></span> pour parler.',
@@ -17259,33 +17265,32 @@ function openChat(initMsg){
     true,
     welcomeVoice,
     {
-      onBoundary: function(charIndex){
-        // Quand la voix atteint "Sélectionnez", afficher les options
-        if(!optionsShown && charIndex >= posOptions){
-          optionsShown = true;
-          clearTimeout(fallbackOptionsTimer);
-          _chatShowQuickActions();
-        }
-        // Quand la voix atteint "appuyez sur le bouton vert", faire scintiller le micro
-        if(!micShimmered && charIndex >= posMic){
-          micShimmered = true;
-          clearTimeout(fallbackMicTimer);
-          _chatMicShimmer();
-        }
+      onStart: function(){
+        // Vérifier que le chat est toujours ouvert (cas où l'utilisateur a fermé entre-temps)
+        if(!chatOpen) return;
+        var t1 = setTimeout(function(){ if(chatOpen) showOptionsOnce(); }, delayOptions);
+        var t2 = setTimeout(function(){ if(chatOpen) shimmerMicOnce(); }, delayMic);
+        window._chatWelcomeTimers.push(t1, t2);
       },
       onEnd: function(){
-        // Sécurité : si la voix se termine sans avoir tout déclenché (cas rare)
-        if(!optionsShown){ optionsShown = true; clearTimeout(fallbackOptionsTimer); _chatShowQuickActions(); }
-        if(!micShimmered){ micShimmered = true; clearTimeout(fallbackMicTimer); _chatMicShimmer(); }
+        if(chatOpen){
+          showOptionsOnce();
+          shimmerMicOnce();
+        }
       }
     }
   );
 
-  // Si la voix est désactivée, on affiche tout immédiatement après un court délai
+  // Si la voix est désactivée, afficher les boutons après un court délai
   if(!window._chatVoiceOutEnabled){
-    setTimeout(function(){
-      if(!optionsShown){ optionsShown = true; clearTimeout(fallbackOptionsTimer); _chatShowQuickActions(); }
-    }, _chatDelay(800));
+    var t3 = setTimeout(function(){ if(chatOpen) showOptionsOnce(); }, _chatDelay(800));
+    window._chatWelcomeTimers.push(t3);
+  } else {
+    // Sécurité : si onStart ne tire jamais, forcer après 8s
+    var t4 = setTimeout(function(){
+      if(chatOpen && !optionsShown) showOptionsOnce();
+    }, 8000);
+    window._chatWelcomeTimers.push(t4);
   }
 }
 
@@ -17309,9 +17314,37 @@ function toggleChat(){
     // Toujours déclencher openChat pour montrer le message d'accueil et lancer la voix
     openChat();
   } else {
-    // Le chat se ferme : couper toute lecture en cours
-    if(window.speechSynthesis){ try { window.speechSynthesis.cancel(); } catch(e){} }
+    // Le chat se ferme : couper TOUT (voix + timers + animations)
+    _chatStopAllAnimations();
   }
+}
+
+/* Coupe net toute lecture vocale en cours, tous les timers d'animation,
+   et retire toutes les highlights produits. À appeler à la fermeture du chat
+   ou avant de démarrer une nouvelle lecture. */
+function _chatStopAllAnimations(){
+  // 1. Couper la voix
+  if(window.speechSynthesis){
+    try { window.speechSynthesis.cancel(); } catch(e){}
+  }
+  window._chatSpeakInProgress = false;
+  // 2. Annuler les timers d'animation (highlight produits + welcome options/mic)
+  if(window._chatHighlightTimers){
+    window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
+    window._chatHighlightTimers = [];
+  }
+  if(window._chatWelcomeTimers){
+    window._chatWelcomeTimers.forEach(function(t){ clearTimeout(t); });
+    window._chatWelcomeTimers = [];
+  }
+  // 3. Retirer toutes les classes de highlight et shimmer
+  try {
+    document.querySelectorAll('.chat-product-card.highlighted').forEach(function(c){
+      c.classList.remove('highlighted');
+    });
+    var micBtn = document.getElementById('chatMicBtn');
+    if(micBtn) micBtn.classList.remove('shimmer');
+  } catch(e){}
 }
 
 /* Helper : scroll vers un message dans le chat-body avec animation fluide.
@@ -18550,7 +18583,10 @@ function _chatSpeak(text, opts){
     u.volume = 1;
     var voice = _chatGetFrenchVoice();
     if(voice) u.voice = voice;
-    u.onstart = function(){ window._chatSpeakInProgress = true; };
+    u.onstart = function(){
+      window._chatSpeakInProgress = true;
+      if(typeof opts.onStart === 'function'){ try { opts.onStart(); } catch(e){} }
+    };
     u.onend = function(){
       window._chatSpeakInProgress = false;
       if(typeof opts.onEnd === 'function'){ try { opts.onEnd(); } catch(e){} }
