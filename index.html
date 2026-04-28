@@ -17823,8 +17823,8 @@ function _chatRunSearch(query, prods){
       window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
     }
     window._chatHighlightTimers = [];
-    var msPerChar = 95; // marge confortable
-    var pauseBetween = 800; // pause naturelle entre chaque produit
+    var msPerChar = 75;
+    var pauseBetween = 0;
     // Le délai initial = durée de "J'ai trouvé X produits." (voiceParts[0])
     var cumulativeDelay = (voiceParts[0].length + 1) * msPerChar + pauseBetween;
     for(var hi = 0; hi < scored.length; hi++){
@@ -18084,16 +18084,41 @@ function _chatWatchModalClose(){
 /* ─── NLP ultra-simple : détecter l'intention ───────────────────── */
 function _chatDetectIntent(text){
   var t = String(text||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  // Retirer "lida" et "bot" qui sont juste des appels au bot, pas des intents
+  var tNorm = t.replace(/\b(lida|bot|assistant)\b/gi, '').replace(/\s+/g, ' ').trim();
 
   // ATTENTION: l'ordre est important ! Les patterns spécifiques doivent venir AVANT
-  // les patterns génériques (ex: "comment voir mes commandes" → 'order' pas 'help')
+  // les patterns génériques.
+
+  // "stop" / "arrête" / "tais-toi" / "silence" → couper la voix, message court
+  if(/^(stop|arrete|arretes?|arret|tais.?toi|silence|chut|stp.*tais|stp.*arrete|tu peux.*taire)\.?$/i.test(tNorm))
+    return 'stop';
+
+  // "merci" / "thanks" → réponse polie
+  if(/^(merci|merci beaucoup|merci bien|thanks?|thank.you|gracias|cool merci|super merci|ok merci|d.?accord merci)\.?\s*!?$/i.test(tNorm))
+    return 'thanks';
+
+  // "au revoir" / "bye" / "à bientôt" → au revoir poli
+  if(/^(au revoir|bye|adieu|a bientot|a plus|a plus tard|ciao|tchao|salut.?$|good bye|goodbye)\.?\s*!?$/i.test(tNorm))
+    return 'goodbye';
+
+  // Compliments / feedback positif → réponse chaleureuse
+  if(/^(super|genial|geniale|parfait|excellent|trop bien|bravo|tres bien|nice|cool|top)\.?\s*!?$/i.test(tNorm))
+    return 'compliment';
+
+  // "ok" / "d'accord" / "bien" simple → acquiescement
+  if(/^(ok|okay|d.?accord|daccord|bien|tres bien|compris|c.?est bon|cool)\.?\s*!?$/i.test(tNorm))
+    return 'acknowledge';
+
+  // Insultes / frustration → message apaisant
+  if(/(idiot|stupide|nul|bete|debile|connard?|merde|putain|fait chier|pourri|pas bien|pas bon|nulle?|ser.*rien|rien.compris|ne sert.*rien|inutile|marche pas)/i.test(tNorm))
+    return 'frustration';
 
   // "Je n'ai pas trouvé" / "Rien trouvé" → besoin de conseiller
   if(/(pas trouv|rien trouv|trouve pas|trouve rien|trouv.*aucun|aucun.*trouv|pas.*choix|aucun.*choix|introuvable|pas.*dispo|impossible.*trouv|n.arrive.*trouv)/i.test(t))
     return 'notfound';
 
   // Suivi commande (avant 'help' car "comment voir mes commandes" doit matcher ici)
-  // commandes? pour gérer le pluriel, et plus de mots-clés
   if(/(commandes?|achats?|orders?|suivis?|colis|reception|recevoir|livr.*statut|statut.*livr|verifier.*commande|voir.*commande|ou.*est.*ma|ou.*sont.*mes|tracker|tracking)/i.test(t))
     return 'order';
 
@@ -18121,29 +18146,22 @@ function _chatDetectIntent(text){
   if(/(horaires?|heures.*ouverture|ouvertures?|ouverts?|fermes?|disponible|disponibilite|quand.*repond|quelle.*heure|jours?.*ouvr)/i.test(t))
     return 'horaires';
 
-  // Parler / appeler / contacter (avant 'help' car "je veux parler" est plus spécifique)
+  // Parler / appeler / contacter
   if(/(parler|appel|appeler|contacter|joindre|conseill|humain|personne|quelqu)/i.test(t))
     return 'contact';
 
-  // Demande d'aide générale (en dernier car le plus générique)
-  // ATTENTION : ne matcher que si pas d'autre intent détecté avant
+  // Demande d'aide générale
   if(/(aide|aider|aidez|besoin.*aide|comment.*faire|je.*sais.*pas|sais.*pas|comprend.*pas|comprends.*pas|expliquer|explication)/i.test(t))
     return 'help';
 
-  // Bonjour/salut SEULEMENT si c'est une pure salutation, pas suivie d'une demande
-  // (ex: "bonjour Lida" = greeting, mais "bonjour Lida je cherche un iPhone" = search)
-  // On retire les mots de salutation et le nom "lida", puis on vérifie ce qui reste.
+  // Bonjour/salut SEULEMENT si c'est une pure salutation
   if(/^(bonjour|salut|hello|coucou|bsr|bjr|bonsoir|hi|hey)\b/i.test(t)){
     var rest = t.replace(/^(bonjour|salut|hello|coucou|bsr|bjr|bonsoir|hi|hey)/i, '')
                 .replace(/\blida\b/gi, '')
                 .replace(/[,.!?;]/g, '')
                 .replace(/\s+/g, ' ')
                 .trim();
-    // Si après nettoyage il reste moins de 3 caractères, c'est une vraie salutation
-    // Sinon, c'est une salutation + demande → on traite la demande (search/etc.)
     if(rest.length < 3) return 'greeting';
-    // Sinon, retomber dans search pour traiter la vraie demande
-    // (le "bonjour Lida" est ignoré dans la recherche grâce aux stopwords)
   }
 
   // Sinon : recherche produit (par défaut)
@@ -18164,7 +18182,32 @@ function sendMsg(){
   setTimeout(function(){
     _chatHideTyping();
     var intent = _chatDetectIntent(val);
-    if(intent === 'notfound'){
+    if(intent === 'stop'){
+      // L'utilisateur veut que LIDA se taise
+      if(window.speechSynthesis){ try { window.speechSynthesis.cancel(); } catch(e){} }
+      addMsg('D\'accord, je m\'arrête 🤫 Si vous avez besoin d\'autre chose, je suis là.', 'bot');
+    } else if(intent === 'thanks'){
+      // Remerciement → réponse polie
+      addMsg('Le plaisir est pour moi 😊 Si vous voulez autre chose, n\'hésitez pas à demander.', 'bot');
+    } else if(intent === 'goodbye'){
+      // Au revoir → message de fermeture
+      addMsg('À bientôt sur EcoDila ! 👋 Bonne journée et merci de votre visite.', 'bot');
+    } else if(intent === 'compliment'){
+      // Compliment → réponse chaleureuse
+      addMsg('Merci beaucoup 🌟 C\'est un plaisir de vous aider. Que puis-je faire d\'autre pour vous ?', 'bot');
+    } else if(intent === 'acknowledge'){
+      // Acquiescement simple
+      addMsg('Parfait 👍 Si vous avez une autre demande, je suis à votre écoute.', 'bot');
+    } else if(intent === 'frustration'){
+      // Frustration → message apaisant + proposer un humain
+      var html = '😔 Je suis désolée si je ne vous ai pas bien aidé. Notre équipe humaine peut vous répondre directement :<br><br>'
+        + '<div style="display:flex;flex-direction:column;gap:.4rem">'
+        + '<button onclick="_chatOpenWA(\'Bonjour, j\\\'ai besoin d\\\'aide, le bot ne m\\\'a pas bien aidé.\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">💬 Parler à un humain sur WhatsApp</button>'
+        + '<button onclick="_chatOpenWA(\'Bonjour, je vous envoie un message vocal pour vous expliquer mon besoin.\')" style="background:#0a8b4a;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🎙️ Message vocal sur WhatsApp</button>'
+        + '</div>';
+      var voice = "Je suis désolée si je ne vous ai pas bien aidé. Notre équipe humaine peut vous répondre directement sur WhatsApp.";
+      addMsg(html, 'bot', true, voice);
+    } else if(intent === 'notfound'){
       // Le client dit qu'il n'a pas trouvé → proposer conseiller + vocal WA
       var html = '😊 Pas de problème ! Notre équipe va vous aider à trouver ce dont vous avez besoin.<br><br>'
         + '<div style="display:flex;flex-direction:column;gap:.4rem">'
