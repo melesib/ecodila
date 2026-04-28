@@ -17814,25 +17814,30 @@ function _chatRunSearch(query, prods){
 
   addMsg(scopedHtml, 'bot', true, voiceText);
 
-  // Highlight séquentiel par timer simple : ~3.5s par produit (durée moyenne
-  // de "Marque Modèle à PRIX francs CFA, négociable et troc possible").
-  // Démarre 2s après l'envoi (le bot dit d'abord "J'ai trouvé X produits").
+  // Highlight séquentiel basé sur la VRAIE longueur de chaque texte vocal.
+  // Web Speech API en français à rate 1 prononce environ 70ms/caractère.
+  // On laisse une petite marge (75ms/char) pour être sûr de ne pas couper la lecture.
   if(window._chatVoiceOutEnabled && scored.length > 0){
     if(window._chatHighlightTimers){
       window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
     }
     window._chatHighlightTimers = [];
-    var initialDelay = 2000;
-    var perCard = 3500;
+    var msPerChar = 75;
+    // Le délai initial = durée de "J'ai trouvé X produits." (voiceParts[0])
+    var cumulativeDelay = (voiceParts[0].length + 1) * msPerChar; // +1 pour l'espace
+    // Chaque produit : on highlight au début de sa lecture, on retire à la fin
     for(var hi = 0; hi < scored.length; hi++){
-      (function(idx){
+      (function(idx, startDelay){
         var t = setTimeout(function(){
           _chatHighlightProduct(idx, searchId);
-        }, initialDelay + idx * perCard);
+        }, startDelay);
         window._chatHighlightTimers.push(t);
-      })(hi);
+      })(hi, cumulativeDelay);
+      // Avancer le curseur de la durée de CE produit (voiceParts[hi+1])
+      var productText = voiceParts[hi + 1] || '';
+      cumulativeDelay += (productText.length + 1) * msPerChar;
     }
-    // À la fin, retirer toutes les highlights
+    // À la fin de tout, retirer les highlights (avec petite marge de 1s)
     var endT = setTimeout(function(){
       var scope = document.querySelector('[data-chat-search-id="'+searchId+'"]');
       if(scope){
@@ -17840,7 +17845,7 @@ function _chatRunSearch(query, prods){
           c.classList.remove('highlighted');
         });
       }
-    }, initialDelay + scored.length * perCard + 500);
+    }, cumulativeDelay + 1000);
     window._chatHighlightTimers.push(endT);
   }
 }
