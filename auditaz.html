@@ -6,7 +6,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta name="theme-color" content="#0b7a3e">
+<meta name="theme-color" content="#000000">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>AUDITAZ — Sécurité & Audit v17</title>
@@ -2998,6 +2998,9 @@ function drawQrCodeImg(containerId, uri) {
   <div class="sb-it" id="sb-fw" onclick="nav('firewall');sbActive('sb-fw')">🔥 Pare-feu WAF</div>
   <div class="sb-it" id="sb-net" onclick="nav('reseau');sbActive('sb-net')">🌐 Réseau &amp; Services</div>
 
+  <div class="sb-sec">Conformité</div>
+  <div class="sb-it" id="sb-rgpd" onclick="nav('rgpd-rapport');sbActive('sb-rgpd')">📄 Rapport RGPD/ARTCI <span class="sbb" style="background:rgba(0,212,170,.18);color:var(--teal);">NEW</span></div>
+
   <div class="sb-sec">Tests fonctionnels</div>
   <div class="sb-it" id="sb-pages" onclick="nav('pages');sbActive('sb-pages')">🗂️ Pages &amp; Routes <span class="sbb sbb-o">✓</span></div>
   <div class="sb-it" id="sb-btn" onclick="nav('boutons');sbActive('sb-btn')">🖱️ Boutons &amp; Forms</div>
@@ -3278,6 +3281,76 @@ function drawQrCodeImg(containerId, uri) {
     <tbody id="sslTable"></tbody></table>
   </div>
 </div>
+
+<!-- ══════ RAPPORT RGPD/ARTCI ══════ -->
+<div class="sec" id="sec-rgpd-rapport">
+  <div class="sh">
+    <div class="sh-l">
+      <h1>📄 Rapport RGPD / ARTCI</h1>
+      <p>Génération de rapport de conformité RGPD (UE) et ARTCI (Côte d'Ivoire) sur période personnalisée</p>
+    </div>
+    <div class="sh-r">
+      <button class="btn btn-p" onclick="azRgpdGenerate()">⚡ Générer le rapport</button>
+    </div>
+  </div>
+
+  <!-- Info -->
+  <div class="tw" style="margin-bottom:1rem">
+    <div style="padding:.85rem 1rem;background:rgba(0,212,170,.06);border-left:3px solid var(--teal);border-radius:6px">
+      <div style="font-size:.85rem;color:var(--teal);font-weight:700;margin-bottom:.3rem">🛡️ Sections du rapport</div>
+      <div style="font-size:.78rem;color:var(--muted);line-height:1.5">
+        Identité du responsable de traitement · Registre des activités (Art. 30) · Synthèse des données traitées · Préférences RGPD parrains · Demandes des personnes (Art. 15-22) · Mesures techniques de sécurité (Art. 32) · Sous-traitants (Art. 28) · Recommandations correctives.
+      </div>
+    </div>
+  </div>
+
+  <!-- Sélecteur période -->
+  <div class="tw" style="margin-bottom:1rem">
+    <div class="tw-hd"><h3>📅 Période du rapport</h3></div>
+    <div style="padding:1rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-bottom:.8rem">
+        <div>
+          <label style="display:block;font-size:.72rem;color:var(--muted);margin-bottom:.3rem;font-weight:600">Date de début</label>
+          <input type="date" id="az-rgpd-start" style="width:100%;padding:.55rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:.85rem">
+        </div>
+        <div>
+          <label style="display:block;font-size:.72rem;color:var(--muted);margin-bottom:.3rem;font-weight:600">Date de fin</label>
+          <input type="date" id="az-rgpd-end" style="width:100%;padding:.55rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:.85rem">
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-o" onclick="azRgpdSetPeriod(7)">7 jours</button>
+        <button class="btn btn-o" onclick="azRgpdSetPeriod(30)">30 jours</button>
+        <button class="btn btn-o" onclick="azRgpdSetPeriod(90)">3 mois</button>
+        <button class="btn btn-o" onclick="azRgpdSetPeriod(180)">6 mois</button>
+        <button class="btn btn-o" onclick="azRgpdSetPeriod(365)">12 mois</button>
+        <button class="btn btn-o" onclick="azRgpdSetPeriodCurrentMonth()">Mois en cours</button>
+        <button class="btn btn-o" onclick="azRgpdSetPeriodLastMonth()">Mois précédent</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Aperçu rapport -->
+  <div id="az-rgpd-preview" style="display:none">
+    <div class="tw">
+      <div class="tw-hd" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+        <h3>📋 Aperçu du rapport</h3>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+          <button class="btn btn-o" onclick="azRgpdDownloadHTML()">📄 HTML (PDF)</button>
+          <button class="btn btn-o" onclick="azRgpdDownloadCSV()">📊 CSV (Excel)</button>
+          <button class="btn btn-o" onclick="azRgpdDownloadJSON()">📦 JSON (preuve)</button>
+          <button class="btn btn-o" onclick="azRgpdShareReport()" style="border-color:rgba(37,211,102,.4);color:#25d366">📱 Partager</button>
+        </div>
+      </div>
+      <div id="az-rgpd-content" style="padding:1rem;max-height:600px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <div id="az-rgpd-loading" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">
+    ⏳ Génération du rapport en cours...
+  </div>
+</div>
+
 
 <!-- ══════ PAGES ══════ -->
 <div class="sec" id="sec-pages">
@@ -4496,6 +4569,7 @@ function initSection(id) {
     reseau:initReseau, pages:initPages, boutons:initButtons, logins:initLogins,
     sims:initSims, commissions:initComms, data:initData, resolve:initResolve,
     scheduler:initScheduler, rapports:initReports, config:initConfig,
+    'rgpd-rapport': initRgpdRapport,
     builder: function(){ /* Feature Builder — lazy init */ }
   };
   if(fns[id]) fns[id]();
@@ -5047,6 +5121,516 @@ function initPages() {
     +'<td class="mono">'+p.t+'</td>'
     +'<td>'+bdg(p.auth?'bw':'bi',p.auth?'Requis':'Public')+'</td>'
     +'<td>'+okBadge()+'</td></tr>').join('');
+}
+
+// ================================================
+// 📄 RAPPORT RGPD/ARTCI — auditaz.html
+// ================================================
+window._azRgpdData = null;
+
+function azRgpdSetPeriod(days) {
+  var end = new Date();
+  var start = new Date();
+  start.setDate(start.getDate() - days);
+  var sEl = document.getElementById('az-rgpd-start');
+  var eEl = document.getElementById('az-rgpd-end');
+  if (sEl) sEl.value = start.toISOString().slice(0,10);
+  if (eEl) eEl.value = end.toISOString().slice(0,10);
+}
+function azRgpdSetPeriodCurrentMonth() {
+  var now = new Date();
+  var start = new Date(now.getFullYear(), now.getMonth(), 1);
+  document.getElementById('az-rgpd-start').value = start.toISOString().slice(0,10);
+  document.getElementById('az-rgpd-end').value = now.toISOString().slice(0,10);
+}
+function azRgpdSetPeriodLastMonth() {
+  var now = new Date();
+  var start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  var end = new Date(now.getFullYear(), now.getMonth(), 0);
+  document.getElementById('az-rgpd-start').value = start.toISOString().slice(0,10);
+  document.getElementById('az-rgpd-end').value = end.toISOString().slice(0,10);
+}
+
+async function azRgpdGenerate() {
+  var startStr = (document.getElementById('az-rgpd-start') || {}).value;
+  var endStr = (document.getElementById('az-rgpd-end') || {}).value;
+  if (!startStr || !endStr) { alert('⚠️ Sélectionnez une date de début et de fin.'); return; }
+  var startDate = new Date(startStr + 'T00:00:00');
+  var endDate = new Date(endStr + 'T23:59:59');
+  if (startDate > endDate) { alert('⚠️ La date de début doit être antérieure à la date de fin.'); return; }
+
+  var loader = document.getElementById('az-rgpd-loading');
+  var preview = document.getElementById('az-rgpd-preview');
+  if (loader) loader.style.display = 'block';
+  if (preview) preview.style.display = 'none';
+
+  try {
+    var report = {
+      meta: {
+        generatedAt: new Date().toISOString(),
+        generatedBy: 'Auditaz - Auditeur',
+        periodStart: startStr,
+        periodEnd: endStr,
+        version: '1.0',
+        source: 'auditaz.html'
+      },
+      responsable: {
+        entite: 'EcoDila',
+        activite: 'Marketplace d\'électronique reconditionné',
+        pays: 'Côte d\'Ivoire',
+        ville: 'Abidjan',
+        siteWeb: 'ecodila.com',
+        contact: { email: 'ecodila225@gmail.com', whatsapp: '+225 05 96 27 55 55' },
+        dpoEmail: 'ecodila225@gmail.com'
+      }
+    };
+
+    /* Récupérer les parrains */
+    var parrains = [];
+    try {
+      if (typeof _sb !== 'undefined' && _sb.from) {
+        var rP = await _sb.from('parrains').select('*');
+        parrains = (rP && rP.data) || [];
+      }
+    } catch(e){ console.warn('[Auditaz RGPD] parrains:', e); }
+
+    /* Récupérer les events RGPD */
+    var auditEvents = [];
+    try {
+      if (typeof _sb !== 'undefined' && _sb.from) {
+        var rA = await _sb.from('auditaz_activity')
+          .select('*')
+          .gte('ts', startDate.toISOString())
+          .lte('ts', endDate.toISOString())
+          .order('ts', { ascending: false })
+          .limit(2000);
+        auditEvents = (rA && rA.data) || [];
+      }
+    } catch(e){ console.warn('[Auditaz RGPD] audit:', e); }
+
+    /* Stats prefs */
+    var prefsStats = { whatsapp_in:0, whatsapp_out:0, email_in:0, email_out:0, notifs_in:0, notifs_out:0, leaderboard_in:0, leaderboard_out:0, defined:0 };
+    parrains.forEach(function(p){
+      try {
+        var prefs = p.rgpd_prefs;
+        if (prefs) {
+          prefsStats.defined++;
+          if (typeof prefs === 'string') prefs = JSON.parse(prefs);
+          if (prefs.whatsapp === false) prefsStats.whatsapp_out++; else prefsStats.whatsapp_in++;
+          if (prefs.email === true) prefsStats.email_in++; else prefsStats.email_out++;
+          if (prefs.notifs === false) prefsStats.notifs_out++; else prefsStats.notifs_in++;
+          if (prefs.leaderboard === false) prefsStats.leaderboard_out++; else prefsStats.leaderboard_in++;
+        } else {
+          prefsStats.whatsapp_in++; prefsStats.email_out++;
+          prefsStats.notifs_in++; prefsStats.leaderboard_in++;
+        }
+      } catch(e){}
+    });
+    report.preferences = prefsStats;
+    report.statistiques = {
+      parrainsTotal: parrains.length,
+      parrainsActifs: parrains.filter(function(p){ return p.statut === 'Actif'; }).length,
+      clientsTotal: 0,
+      clientsActifs: 0
+    };
+
+    /* Préférences RGPD CLIENTS */
+    var clientsPrefsStats = {
+      whatsapp_in:0, whatsapp_out:0, email_in:0, email_out:0,
+      notifs_in:0, notifs_out:0, marketing_in:0, marketing_out:0,
+      cookies_stats_in:0, cookies_stats_out:0, cookies_chat_in:0, cookies_chat_out:0,
+      defined:0, sans_prefs:0
+    };
+    try {
+      if (typeof _sb !== 'undefined' && _sb.from) {
+        /* ⚠️ Pas de _softDeleted dans le SELECT (colonne JS only) */
+        var rUsers = await _sb.from('users').select('id,rgpd_prefs');
+        var users = (rUsers && rUsers.data) || [];
+        report.statistiques.clientsTotal = users.length;
+        report.statistiques.clientsActifs = users.filter(function(u){ return u._softDeleted !== true; }).length;
+        users.forEach(function(u){
+          if (u._softDeleted === true) return;
+          try {
+            var p = u.rgpd_prefs;
+            if (p) {
+              clientsPrefsStats.defined++;
+              if (typeof p === 'string') p = JSON.parse(p);
+              if (p.whatsapp === false) clientsPrefsStats.whatsapp_out++; else clientsPrefsStats.whatsapp_in++;
+              if (p.email === true) clientsPrefsStats.email_in++; else clientsPrefsStats.email_out++;
+              if (p.notifs === false) clientsPrefsStats.notifs_out++; else clientsPrefsStats.notifs_in++;
+              if (p.marketing === true) clientsPrefsStats.marketing_in++; else clientsPrefsStats.marketing_out++;
+            } else {
+              clientsPrefsStats.sans_prefs++;
+              clientsPrefsStats.whatsapp_in++; clientsPrefsStats.email_out++;
+              clientsPrefsStats.notifs_in++; clientsPrefsStats.marketing_out++;
+            }
+          } catch(e){}
+        });
+      }
+    } catch(eU) {
+      console.warn('[Auditaz RGPD] users prefs:', eU.message);
+    }
+    /* Cookies events sur la période */
+    try {
+      if (typeof _sb !== 'undefined' && _sb.from) {
+        var rCk = await _sb.from('auditaz_activity')
+          .select('event_type,type,meta,ts')
+          .or('event_type.eq.cookie_consent_accept_all,event_type.eq.cookie_consent_refuse_all,event_type.eq.cookie_consent_custom,type.eq.cookie_consent_accept_all,type.eq.cookie_consent_refuse_all,type.eq.cookie_consent_custom')
+          .gte('ts', startDate.toISOString())
+          .lte('ts', endDate.toISOString())
+          .limit(500);
+        if (rCk && rCk.data) {
+          rCk.data.forEach(function(e){
+            var t = (e.event_type || e.type || '').toLowerCase();
+            if (t === 'cookie_consent_accept_all') {
+              clientsPrefsStats.cookies_stats_in++;
+              clientsPrefsStats.cookies_chat_in++;
+            } else if (t === 'cookie_consent_refuse_all') {
+              clientsPrefsStats.cookies_stats_out++;
+              clientsPrefsStats.cookies_chat_out++;
+            } else if (t === 'cookie_consent_custom' && e.meta) {
+              if (e.meta.stats === true) clientsPrefsStats.cookies_stats_in++;
+              else clientsPrefsStats.cookies_stats_out++;
+              if (e.meta.chat === true) clientsPrefsStats.cookies_chat_in++;
+              else clientsPrefsStats.cookies_chat_out++;
+            }
+          });
+        }
+      }
+    } catch(eC){}
+    report.preferencesClients = clientsPrefsStats;
+
+    /* Demandes RGPD */
+    var demandes = { rectifications:0, exports_donnees:0, suppressions:0, anonymisations:0, consentements_modifies:0, blocages_wa:0, blocages_email:0, blocages_notif:0, envois_wa_autorise:0, envois_email_autorise:0 };
+    auditEvents.forEach(function(e){
+      var t = (e.event_type || e.type || '').toLowerCase();
+      if (t.indexOf('rectification') !== -1) demandes.rectifications++;
+      if (t.indexOf('export') !== -1) demandes.exports_donnees++;
+      if (t.indexOf('deletion_parrain') !== -1 || t.indexOf('hard_delete') !== -1) demandes.suppressions++;
+      if (t.indexOf('anonymis') !== -1) demandes.anonymisations++;
+      if (t.indexOf('consent') !== -1 || t.indexOf('rgpd_pref') !== -1) demandes.consentements_modifies++;
+      if (t === 'rgpd_wa_blocked') demandes.blocages_wa++;
+      if (t === 'rgpd_email_blocked') demandes.blocages_email++;
+      if (t === 'rgpd_notif_blocked') demandes.blocages_notif++;
+      if (t === 'rgpd_wa_sent') demandes.envois_wa_autorise++;
+      if (t === 'rgpd_email_sent') demandes.envois_email_autorise++;
+    });
+    report.demandes = demandes;
+    report.auditEvents = auditEvents.slice(0, 200);
+
+    report.traitements = [
+      { nom: 'Gestion des comptes parrains', finalite: 'Système de parrainage avec commissions', baseLegale: 'Article 6.1.b (exécution du contrat)', donneesTraitees: ['nom','email','téléphone WhatsApp','code parrain','historique commissions'], duree: '10 ans après dernière activité', destinataires: ['EcoDila uniquement','Supabase'] },
+      { nom: 'Gestion des clients', finalite: 'Traitement des commandes', baseLegale: 'Article 6.1.b', donneesTraitees: ['nom','téléphone','adresse','historique commandes'], duree: '10 ans', destinataires: ['EcoDila','Transporteur'] },
+      { nom: 'Communication marketing', finalite: 'Envoi de promotions', baseLegale: 'Article 6.1.a (consentement)', donneesTraitees: ['email','préférences canal'], duree: 'Jusqu\'à retrait du consentement', destinataires: ['EcoDila uniquement'] },
+      { nom: 'Audit', finalite: 'Sécurité et traçabilité ARTCI', baseLegale: 'Article 6.1.f (intérêt légitime)', donneesTraitees: ['actions admin','connexions','modifications RGPD'], duree: '3 ans', destinataires: ['EcoDila uniquement'] }
+    ];
+
+    report.securite = {
+      chiffrementTransport: 'TLS 1.3 (HTTPS)',
+      chiffrementDonneesSensibles: 'AES-GCM côté client',
+      hashageMotsDePasse: 'PBKDF2 (admin et parrains)',
+      authentification: '2FA obligatoire pour Super Admin',
+      rls: 'Row Level Security (Supabase)',
+      auditLog: 'Journal immuable auditaz_activity',
+      backups: 'Sauvegardes Supabase automatiques (PITR 7 jours)',
+      isolationCybercafe: 'Sessions parrain isolées',
+      anonymisationAuto: 'Anonymisation manuelle après 12 mois inactivité'
+    };
+
+    report.soustraitants = [
+      { nom: 'Supabase Inc.', role: 'Hébergement BDD + auth', pays: 'Singapour', garanties: 'DPA signé, SOC 2 Type II, ISO 27001', url: 'supabase.com' },
+      { nom: 'Netlify Inc.', role: 'Hébergement frontend (CDN)', pays: 'Pas de données personnelles', garanties: 'GDPR-compliant', url: 'netlify.com' },
+      { nom: 'WhatsApp Business (Meta)', role: 'Messagerie utilisateur', pays: 'Hors UE', garanties: 'Opt-in explicite', url: 'whatsapp.com' }
+    ];
+
+    report.recommandations = [];
+    if (prefsStats.defined < parrains.length / 2) {
+      report.recommandations.push({ priorite:'Moyenne', sujet:'Adoption préférences RGPD', constat:'<50% des parrains ont configuré leurs préférences.', action:'Encourager via bannière BO Parrain.' });
+    }
+    if (demandes.blocages_wa + demandes.blocages_email + demandes.blocages_notif > 0) {
+      report.recommandations.push({ priorite:'Information', sujet:'Opt-out respecté', constat: (demandes.blocages_wa+demandes.blocages_email+demandes.blocages_notif) + ' tentatives bloquées par le système.', action:'Conformité respectée — continuer la surveillance.' });
+    }
+    if (report.recommandations.length === 0) {
+      report.recommandations.push({ priorite:'OK', sujet:'Conformité globale', constat:'Aucune anomalie détectée.', action:'Continuer la surveillance régulière.' });
+    }
+
+    window._azRgpdData = report;
+    azRgpdRenderPreview(report);
+
+    if (loader) loader.style.display = 'none';
+    if (preview) preview.style.display = 'block';
+
+    /* Audit */
+    try {
+      if (typeof _sb !== 'undefined' && _sb.from) {
+        _sb.from('auditaz_activity').insert({
+          type: 'rgpd_report_generated',
+          event_type: 'rgpd_report_generated',
+          msg: 'Rapport RGPD généré depuis auditaz (' + startStr + ' → ' + endStr + ')',
+          message: 'Rapport RGPD généré depuis auditaz (' + startStr + ' → ' + endStr + ')',
+          user_login: 'auditaz',
+          meta: { period_start:startStr, period_end:endStr, total_events: auditEvents.length, source: 'auditaz' }
+        }).then(function(r){});
+      }
+    } catch(e){}
+  } catch(err) {
+    console.error('[Auditaz RGPD]', err);
+    alert('❌ Erreur : ' + (err.message || err));
+    if (loader) loader.style.display = 'none';
+  }
+}
+
+function azRgpdRenderPreview(r) {
+  var container = document.getElementById('az-rgpd-content');
+  if (!container) return;
+  var html = '';
+  html += '<div style="text-align:center;border-bottom:2px solid var(--teal);padding-bottom:1rem;margin-bottom:1.2rem">';
+  html += '<h2 style="margin:0 0 .3rem 0;color:var(--teal)">📄 RAPPORT DE CONFORMITÉ RGPD / ARTCI</h2>';
+  html += '<p style="margin:0;font-size:.78rem;color:var(--muted)">EcoDila — Marketplace d\'électronique reconditionné</p>';
+  html += '<p style="margin:.3rem 0 0 0;font-size:.72rem;color:var(--muted)">Période : <strong>' + r.meta.periodStart + '</strong> → <strong>' + r.meta.periodEnd + '</strong> · Généré le ' + new Date(r.meta.generatedAt).toLocaleString('fr-FR') + '</p>';
+  html += '</div>';
+
+  function sec(title, content) {
+    return '<div style="margin-bottom:1.2rem"><h3 style="font-size:.9rem;font-weight:700;color:var(--teal);margin:0 0 .5rem 0;padding-bottom:.3rem;border-bottom:1px solid var(--border)">' + title + '</h3><div>' + content + '</div></div>';
+  }
+
+  html += sec('1. Identité du responsable de traitement (Article 13 RGPD)',
+    '<table style="width:100%;font-size:.78rem;border-collapse:collapse">' +
+    '<tr><td style="padding:.3rem;color:var(--muted);width:40%">Entité</td><td style="padding:.3rem"><strong>' + r.responsable.entite + '</strong></td></tr>' +
+    '<tr><td style="padding:.3rem;color:var(--muted)">Activité</td><td style="padding:.3rem">' + r.responsable.activite + '</td></tr>' +
+    '<tr><td style="padding:.3rem;color:var(--muted)">Localisation</td><td style="padding:.3rem">' + r.responsable.ville + ', ' + r.responsable.pays + '</td></tr>' +
+    '<tr><td style="padding:.3rem;color:var(--muted)">Email DPO/Contact</td><td style="padding:.3rem"><strong>' + r.responsable.dpoEmail + '</strong></td></tr>' +
+    '<tr><td style="padding:.3rem;color:var(--muted)">WhatsApp</td><td style="padding:.3rem">' + r.responsable.contact.whatsapp + '</td></tr>' +
+    '</table>');
+
+  var trtRows = r.traitements.map(function(t, i){
+    return '<div style="margin-bottom:.6rem;padding:.5rem;background:rgba(255,255,255,.02);border-radius:6px;border-left:3px solid var(--teal)">' +
+      '<div style="font-weight:700;font-size:.8rem">' + (i+1) + '. ' + t.nom + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted);margin-top:.25rem"><strong>Finalité :</strong> ' + t.finalite + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted)"><strong>Base légale :</strong> ' + t.baseLegale + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted)"><strong>Données :</strong> ' + t.donneesTraitees.join(', ') + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted)"><strong>Durée :</strong> ' + t.duree + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted)"><strong>Destinataires :</strong> ' + t.destinataires.join(', ') + '</div>' +
+    '</div>';
+  }).join('');
+  html += sec('2. Registre des activités de traitement (Article 30)', trtRows);
+
+  html += sec('3. Synthèse des données',
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem">' +
+    '<div style="background:rgba(255,255,255,.02);padding:.6rem;border-radius:6px;text-align:center"><div style="font-size:1.4rem;font-weight:800;color:var(--teal)">' + r.statistiques.parrainsActifs + '</div><div style="font-size:.7rem;color:var(--muted)">Parrains actifs</div></div>' +
+    '<div style="background:rgba(255,255,255,.02);padding:.6rem;border-radius:6px;text-align:center"><div style="font-size:1.4rem;font-weight:800;color:var(--teal)">' + r.statistiques.parrainsTotal + '</div><div style="font-size:.7rem;color:var(--muted)">Parrains total</div></div>' +
+    '<div style="background:rgba(255,255,255,.02);padding:.6rem;border-radius:6px;text-align:center"><div style="font-size:1.4rem;font-weight:800;color:var(--teal)">' + (r.statistiques.clientsActifs||0) + '</div><div style="font-size:.7rem;color:var(--muted)">Clients actifs</div></div>' +
+    '<div style="background:rgba(255,255,255,.02);padding:.6rem;border-radius:6px;text-align:center"><div style="font-size:1.4rem;font-weight:800;color:var(--teal)">' + (r.statistiques.clientsTotal||0) + '</div><div style="font-size:.7rem;color:var(--muted)">Clients total</div></div>' +
+    '</div>');
+
+  var p = r.preferences;
+  html += sec('4. Préférences RGPD des parrains (consentements explicites)',
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;font-size:.78rem">' +
+    '<div style="background:rgba(255,255,255,.02);padding:.5rem .7rem;border-radius:6px"><strong>📱 WhatsApp</strong><br>' + p.whatsapp_in + ' opt-in · ' + p.whatsapp_out + ' opt-out</div>' +
+    '<div style="background:rgba(255,255,255,.02);padding:.5rem .7rem;border-radius:6px"><strong>📧 Email</strong><br>' + p.email_in + ' opt-in · ' + p.email_out + ' opt-out</div>' +
+    '<div style="background:rgba(255,255,255,.02);padding:.5rem .7rem;border-radius:6px"><strong>🔔 Notifs</strong><br>' + p.notifs_in + ' opt-in · ' + p.notifs_out + ' opt-out</div>' +
+    '<div style="background:rgba(255,255,255,.02);padding:.5rem .7rem;border-radius:6px"><strong>🏆 Classement</strong><br>' + p.leaderboard_in + ' opt-in · ' + p.leaderboard_out + ' opt-out</div>' +
+    '</div>' +
+    '<div style="margin-top:.5rem;font-size:.72rem;color:var(--muted)">Préférences explicitement configurées : <strong>' + p.defined + '</strong> parrains · Source : <code>parrains.rgpd_prefs</code></div>');
+
+  /* 4bis. Préférences RGPD CLIENTS */
+  var pc = r.preferencesClients || {};
+  html += sec('4bis. Préférences RGPD des clients (consentements + cookies)',
+    '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem;padding:.4rem .6rem;background:rgba(102,153,255,.07);border-left:3px solid #6699ff;border-radius:4px">' +
+    '<strong style="color:#6699ff">ℹ️ Sources :</strong> <code>users.rgpd_prefs</code> (Supabase) + Consentement cookies stocké localement (RGPD/CNIL — durée max 13 mois). Le journal complet des consentements cookies reste sur l\'appareil de chaque visiteur.' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;font-size:.78rem;margin-bottom:.6rem">' +
+    '<div style="background:rgba(255,255,255,.02);padding:.5rem .7rem;border-radius:6px"><strong>📱 WhatsApp</strong><br>' + (pc.whatsapp_in||0) + ' opt-in · ' + (pc.whatsapp_out||0) + ' opt-out</div>' +
+    '<div style="background:rgba(255,255,255,.02);padding:.5rem .7rem;border-radius:6px"><strong>📧 Email transactionnel</strong><br>' + (pc.email_in||0) + ' opt-in · ' + (pc.email_out||0) + ' opt-out</div>' +
+    '<div style="background:rgba(255,255,255,.02);padding:.5rem .7rem;border-radius:6px"><strong>🔔 Notifs commandes</strong><br>' + (pc.notifs_in||0) + ' opt-in · ' + (pc.notifs_out||0) + ' opt-out</div>' +
+    '<div style="background:rgba(255,255,255,.02);padding:.5rem .7rem;border-radius:6px"><strong>📢 Marketing</strong><br>' + (pc.marketing_in||0) + ' opt-in · ' + (pc.marketing_out||0) + ' opt-out</div>' +
+    '</div>' +
+    '<div style="font-size:.78rem;font-weight:700;margin:.6rem 0 .3rem 0;color:var(--text)">🍪 Consentement cookies (sur la période)</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;font-size:.78rem">' +
+    '<div style="background:rgba(255,255,255,.02);padding:.5rem .7rem;border-radius:6px"><strong>📊 Cookies analytics</strong><br>' + (pc.cookies_stats_in||0) + ' acceptés · ' + (pc.cookies_stats_out||0) + ' refusés</div>' +
+    '<div style="background:rgba(255,255,255,.02);padding:.5rem .7rem;border-radius:6px"><strong>💬 Cookies chat/notif</strong><br>' + (pc.cookies_chat_in||0) + ' acceptés · ' + (pc.cookies_chat_out||0) + ' refusés</div>' +
+    '</div>' +
+    '<div style="margin-top:.5rem;font-size:.72rem;color:var(--muted)">' +
+    'Préférences clients explicitement configurées : <strong>' + (pc.defined||0) + '</strong> · Clients aux défauts : <strong>' + (pc.sans_prefs||0) + '</strong>' +
+    '</div>');
+
+  var d = r.demandes;
+  html += sec('5. Demandes des personnes concernées (Articles 15-22)',
+    '<table style="width:100%;font-size:.78rem;border-collapse:collapse">' +
+    '<tr><td style="padding:.3rem;color:var(--muted)">Rectifications (Art. 16)</td><td style="padding:.3rem;text-align:right;font-weight:700">' + d.rectifications + '</td></tr>' +
+    '<tr><td style="padding:.3rem;color:var(--muted)">Exports (Art. 15+20)</td><td style="padding:.3rem;text-align:right;font-weight:700">' + d.exports_donnees + '</td></tr>' +
+    '<tr><td style="padding:.3rem;color:var(--muted)">Suppressions (Art. 17)</td><td style="padding:.3rem;text-align:right;font-weight:700">' + d.suppressions + '</td></tr>' +
+    '<tr><td style="padding:.3rem;color:var(--muted)">Anonymisations</td><td style="padding:.3rem;text-align:right;font-weight:700">' + d.anonymisations + '</td></tr>' +
+    '<tr><td style="padding:.3rem;color:var(--muted)">Modifications consentement</td><td style="padding:.3rem;text-align:right;font-weight:700">' + d.consentements_modifies + '</td></tr>' +
+    '<tr><td style="padding:.3rem;color:var(--muted);border-top:1px solid var(--border)">Envois bloqués (opt-out)</td><td style="padding:.3rem;text-align:right;font-weight:700;color:var(--teal);border-top:1px solid var(--border)">' + (d.blocages_wa+d.blocages_email+d.blocages_notif) + '</td></tr>' +
+    '<tr><td style="padding:.3rem 1rem;color:var(--muted);font-size:.72rem">↳ WhatsApp</td><td style="padding:.3rem;text-align:right;font-size:.72rem">' + d.blocages_wa + '</td></tr>' +
+    '<tr><td style="padding:.3rem 1rem;color:var(--muted);font-size:.72rem">↳ Emails</td><td style="padding:.3rem;text-align:right;font-size:.72rem">' + d.blocages_email + '</td></tr>' +
+    '<tr><td style="padding:.3rem 1rem;color:var(--muted);font-size:.72rem">↳ Notifs</td><td style="padding:.3rem;text-align:right;font-size:.72rem">' + d.blocages_notif + '</td></tr>' +
+    '</table>');
+
+  var sk = r.securite;
+  html += sec('6. Mesures techniques (Article 32)',
+    '<table style="width:100%;font-size:.78rem;border-collapse:collapse">' +
+    Object.keys(sk).map(function(k){
+      var label = k.replace(/([A-Z])/g, ' $1').toLowerCase();
+      label = label.charAt(0).toUpperCase() + label.slice(1);
+      return '<tr><td style="padding:.3rem;color:var(--muted)">' + label + '</td><td style="padding:.3rem">✅ ' + sk[k] + '</td></tr>';
+    }).join('') +
+    '</table>');
+
+  var stRows = r.soustraitants.map(function(s){
+    return '<div style="margin-bottom:.5rem;padding:.5rem;background:rgba(255,255,255,.02);border-radius:6px">' +
+      '<div style="font-weight:700;font-size:.8rem">' + s.nom + ' <span style="font-size:.72rem;color:var(--muted);font-weight:400">(' + s.url + ')</span></div>' +
+      '<div style="font-size:.72rem;color:var(--muted)"><strong>Rôle :</strong> ' + s.role + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted)"><strong>Pays :</strong> ' + s.pays + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted)"><strong>Garanties :</strong> ' + s.garanties + '</div>' +
+    '</div>';
+  }).join('');
+  html += sec('7. Sous-traitants (Article 28)', stRows);
+
+  var recRows = r.recommandations.map(function(rec){
+    var color = rec.priorite === 'Haute' ? '#ff4466' : rec.priorite === 'Moyenne' ? '#ffaa00' : rec.priorite === 'OK' ? 'var(--teal)' : '#6699ff';
+    return '<div style="margin-bottom:.5rem;padding:.5rem;background:rgba(255,255,255,.02);border-radius:6px;border-left:3px solid ' + color + '">' +
+      '<div style="font-weight:700;font-size:.8rem;color:' + color + '">[' + rec.priorite + '] ' + rec.sujet + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted);margin-top:.25rem"><strong>Constat :</strong> ' + rec.constat + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted)"><strong>Action :</strong> ' + rec.action + '</div>' +
+    '</div>';
+  }).join('');
+  html += sec('8. Recommandations', recRows);
+
+  html += '<div style="margin-top:1.5rem;padding-top:.8rem;border-top:1px solid var(--border);text-align:center;font-size:.7rem;color:var(--muted)">';
+  html += 'Rapport généré par <strong>' + r.meta.generatedBy + '</strong> · Conforme RGPD UE 2016/679 et ARTCI Loi 2013-450<br>';
+  html += 'Email DPO : <strong>' + r.responsable.dpoEmail + '</strong>';
+  html += '</div>';
+
+  container.innerHTML = html;
+}
+
+function azRgpdDownloadHTML() {
+  if (!window._azRgpdData) { alert('⚠️ Générez d\'abord le rapport.'); return; }
+  var r = window._azRgpdData;
+  var content = (document.getElementById('az-rgpd-content') || {}).innerHTML || '';
+  var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Rapport RGPD/ARTCI EcoDila — ' + r.meta.periodStart + ' à ' + r.meta.periodEnd + '</title>' +
+    '<style>body{font-family:Arial,sans-serif;max-width:850px;margin:2rem auto;padding:1rem;color:#222;background:#fff;line-height:1.5}h1,h2,h3{color:#0d6e3f}h2{border-bottom:2px solid #0d6e3f;padding-bottom:.3rem;margin-top:1.5rem}h3{color:#0d6e3f;border-bottom:1px solid #ccc;padding-bottom:.2rem}table{width:100%;border-collapse:collapse;margin:.5rem 0}td{padding:.4rem;border-bottom:1px solid #eee}strong{color:#222}@media print{body{margin:0}h2{page-break-before:auto;page-break-after:avoid}h3{page-break-after:avoid}}</style></head><body>' +
+    content.replace(/var\(--teal\)/g, '#0d6e3f').replace(/var\(--muted\)/g, '#666').replace(/var\(--text\)/g, '#222').replace(/var\(--border\)/g, '#ddd').replace(/rgba\(255,255,255,\.02\)/g, '#f8f8f8') +
+    '</body></html>';
+  var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'rapport_rgpd_artci_ecodila_' + r.meta.periodStart + '_' + r.meta.periodEnd + '.html';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
+function azRgpdDownloadCSV() {
+  if (!window._azRgpdData) { alert('⚠️ Générez d\'abord le rapport.'); return; }
+  var r = window._azRgpdData;
+  var rows = [];
+  rows.push(['RAPPORT RGPD/ARTCI ECODILA']);
+  rows.push(['Période', r.meta.periodStart + ' au ' + r.meta.periodEnd]);
+  rows.push(['Généré le', new Date(r.meta.generatedAt).toLocaleString('fr-FR')]);
+  rows.push(['Source', r.meta.source]);
+  rows.push([]);
+  rows.push(['== IDENTITÉ DU RESPONSABLE ==']);
+  rows.push(['Entité', r.responsable.entite]);
+  rows.push(['Email DPO', r.responsable.dpoEmail]);
+  rows.push(['WhatsApp', r.responsable.contact.whatsapp]);
+  rows.push([]);
+  rows.push(['== STATISTIQUES ==']);
+  rows.push(['Parrains actifs', r.statistiques.parrainsActifs]);
+  rows.push(['Parrains total', r.statistiques.parrainsTotal]);
+  rows.push(['Clients actifs', r.statistiques.clientsActifs||0]);
+  rows.push(['Clients total', r.statistiques.clientsTotal||0]);
+  rows.push([]);
+  rows.push(['== PRÉFÉRENCES RGPD — PARRAINS ==']);
+  rows.push(['Canal', 'Opt-in', 'Opt-out']);
+  rows.push(['WhatsApp', r.preferences.whatsapp_in, r.preferences.whatsapp_out]);
+  rows.push(['Email', r.preferences.email_in, r.preferences.email_out]);
+  rows.push(['Notifications', r.preferences.notifs_in, r.preferences.notifs_out]);
+  rows.push(['Classement public', r.preferences.leaderboard_in, r.preferences.leaderboard_out]);
+  rows.push(['Préférences configurées', r.preferences.defined]);
+  rows.push([]);
+  rows.push(['== PRÉFÉRENCES RGPD — CLIENTS ==']);
+  rows.push(['Canal', 'Opt-in', 'Opt-out']);
+  var pcAz = r.preferencesClients || {};
+  rows.push(['WhatsApp commandes', pcAz.whatsapp_in||0, pcAz.whatsapp_out||0]);
+  rows.push(['Email transactionnel', pcAz.email_in||0, pcAz.email_out||0]);
+  rows.push(['Notifications commandes', pcAz.notifs_in||0, pcAz.notifs_out||0]);
+  rows.push(['Marketing', pcAz.marketing_in||0, pcAz.marketing_out||0]);
+  rows.push(['Cookies analytics', pcAz.cookies_stats_in||0, pcAz.cookies_stats_out||0]);
+  rows.push(['Cookies chat/notif', pcAz.cookies_chat_in||0, pcAz.cookies_chat_out||0]);
+  rows.push(['Préférences configurées (clients)', pcAz.defined||0]);
+  rows.push(['Clients aux défauts', pcAz.sans_prefs||0]);
+  rows.push([]);
+  rows.push(['== DEMANDES RGPD ==']);
+  rows.push(['Type', 'Nombre']);
+  rows.push(['Rectifications (Art. 16)', r.demandes.rectifications]);
+  rows.push(['Exports (Art. 15+20)', r.demandes.exports_donnees]);
+  rows.push(['Suppressions (Art. 17)', r.demandes.suppressions]);
+  rows.push(['Anonymisations', r.demandes.anonymisations]);
+  rows.push(['Modifications consentement', r.demandes.consentements_modifies]);
+  rows.push(['WhatsApp bloqués', r.demandes.blocages_wa]);
+  rows.push(['Emails bloqués', r.demandes.blocages_email]);
+  rows.push(['Notifs bloquées', r.demandes.blocages_notif]);
+  rows.push(['WhatsApp envoyés', r.demandes.envois_wa_autorise]);
+  rows.push(['Emails envoyés', r.demandes.envois_email_autorise]);
+  rows.push([]);
+  rows.push(['== RECOMMANDATIONS ==']);
+  rows.push(['Priorité', 'Sujet', 'Constat', 'Action']);
+  r.recommandations.forEach(function(rec){ rows.push([rec.priorite, rec.sujet, rec.constat, rec.action]); });
+  var csv = '\uFEFF' + rows.map(function(row){
+    return row.map(function(cell){
+      var s = String(cell == null ? '' : cell);
+      if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+        s = '"' + s.replace(/"/g,'""') + '"';
+      }
+      return s;
+    }).join(',');
+  }).join('\r\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'rapport_rgpd_artci_ecodila_' + r.meta.periodStart + '_' + r.meta.periodEnd + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
+function azRgpdDownloadJSON() {
+  if (!window._azRgpdData) { alert('⚠️ Générez d\'abord le rapport.'); return; }
+  var r = window._azRgpdData;
+  var blob = new Blob([JSON.stringify(r, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'rapport_rgpd_artci_ecodila_' + r.meta.periodStart + '_' + r.meta.periodEnd + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
+function azRgpdShareReport() {
+  if (!window._azRgpdData) { alert('⚠️ Générez d\'abord le rapport.'); return; }
+  var r = window._azRgpdData;
+  var summary = '📄 *RAPPORT RGPD ECODILA*\n\n' +
+    '📅 Période : ' + r.meta.periodStart + ' → ' + r.meta.periodEnd + '\n' +
+    '📧 DPO : ' + r.responsable.dpoEmail + '\n\n' +
+    '📊 Parrains actifs : ' + r.statistiques.parrainsActifs + '/' + r.statistiques.parrainsTotal + '\n' +
+    '🛡️ WA opt-in : ' + r.preferences.whatsapp_in + ' / opt-out : ' + r.preferences.whatsapp_out + '\n' +
+    '📧 Email opt-in : ' + r.preferences.email_in + ' / opt-out : ' + r.preferences.email_out + '\n\n' +
+    '📋 Demandes RGPD :\n' +
+    '• Rectifications : ' + r.demandes.rectifications + '\n' +
+    '• Exports : ' + r.demandes.exports_donnees + '\n' +
+    '• Suppressions : ' + r.demandes.suppressions + '\n' +
+    '• Envois bloqués : ' + (r.demandes.blocages_wa + r.demandes.blocages_email + r.demandes.blocages_notif) + '\n\n' +
+    '✅ Conforme RGPD UE + ARTCI';
+  if (navigator.share) {
+    navigator.share({ title: 'Rapport RGPD EcoDila', text: summary }).catch(function(e){ console.warn(e); });
+  } else {
+    window.open('https://wa.me/?text=' + encodeURIComponent(summary), '_blank', 'noopener');
+  }
+}
+
+function initRgpdRapport() {
+  var sEl = document.getElementById('az-rgpd-start');
+  if (sEl && !sEl.value) azRgpdSetPeriodCurrentMonth();
 }
 async function testAllPages() {
   const t=document.getElementById('pagesTable');
@@ -6004,7 +6588,7 @@ const FIX_PLANS = {
     ],
     verification: [
       {test:'XSS script injection test[SCRIPT_TAG] dans avis',exp:'Échappé',res:'&lt;script&gt; échappé DOMPurify ✓',ok:true},
-      {test:'<img src=x onerror=alert(1)>',exp:'Tag supprimé',res:'Tag supprimé par DOMPurify ✓',ok:true},
+      {test:'<img src=x onerror=alert(1) alt="Image">',exp:'Tag supprimé',res:'Tag supprimé par DOMPurify ✓',ok:true},
       {test:'javascript:void(0) href',exp:'Bloqué CSP',res:'Bloqué par CSP header ✓',ok:true},
       {test:'Avis avec mise en forme normale',exp:'200 OK affiché',res:'200 OK — rendu sûr ✓',ok:true},
     ]
@@ -12163,7 +12747,7 @@ function generateInvoiceCode() {
     + '<!-- templates/invoice.php -->\n'
     + '<div style="font-family:Arial;max-width:800px;margin:auto;padding:2rem;">\n'
     + '  <div style="display:flex;justify-content:space-between;align-items:flex-start;">\n'
-    + '    <div><img src="data:image/png;base64,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" height="50"><h1 style="color:#00d4aa;">EcoDila</h1></div>\n'
+    + '    <div><img src="data:image/png;base64,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" height="50" alt="Image"><h1 style="color:#00d4aa;">EcoDila</h1></div>\n'
     + '    <div><h2>FACTURE #<?= $order["id"] ?></h2><p>Date: <?= date("d/m/Y", strtotime($order["created_at"])) ?></p></div>\n'
     + '  </div>\n'
     + '  <table style="width:100%;border-collapse:collapse;margin:1rem 0;">\n'
@@ -14224,7 +14808,7 @@ function generateARCode(q) {
     + '      <div style="position:relative;display:inline-block">\n'
     + '        <video id="ar-video" autoplay playsinline style="width:100%;max-width:400px;border-radius:12px"></video>\n'
     + '        <img src="${productImageUrl}" id="ar-overlay"\n'
-    + '          style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40%;opacity:0.85;pointer-events:none">\n'
+    + '          style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40%;opacity:0.85;pointer-events:none" alt="Image">\n'
     + '        <div style="position:absolute;bottom:10px;width:100%;text-align:center">\n'
     + '          <input type="range" min="10" max="100" value="40" oninput="document.getElementById(\'ar-overlay\').style.width=this.value+\'%\'">\n'
     + '          <small>Taille</small>\n'
@@ -15201,7 +15785,7 @@ function generateComparatorCode() {
     + '    const attrs = [\'prix\', \'categorie\', \'stock\', \'description\'];\n'
     + '    const table = document.getElementById(\'comparateur-table\');\n'
     + '    table.innerHTML = \'<thead><tr><th>Critère</th>\' + items.map(p =>\n'
-    + '      `<th><img src="${p.image}" height="60"><br>${escHtml(p.nom)}</th>`\n'
+    + '      `<th><img src="${p.image}" height="60" alt="Image"><br>${escHtml(p.nom)}</th>`\n'
     + '    ).join(\'\') + \'</tr></thead><tbody>\' +\n'
     + '    attrs.map(attr => \'<tr><td>\' + attr + \'</td>\' + items.map(p =>\n'
     + '      `<td>${attr === \'prix\' ? Number(p.prix).toLocaleString(\'fr\') + \' FCFA\' : escHtml(String(p[attr] || \'—\'))}</td>`\n'

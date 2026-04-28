@@ -1,6 +1,62 @@
+# robots.txt — EcoDila marketplace
+# https://ecodila.com
+
 User-agent: *
+Allow: /
+Allow: /?p=
+Allow: /?page=
+Allow: /?ref=
+Allow: /og-image/
+
+# Pages d'administration et back-office (privées)
+Disallow: /admin.html
+Disallow: /admin
+Disallow: /auditaz.html
+Disallow: /auditaz
+Disallow: /parrain.html
+Disallow: /parrain
+
+# Bots agressifs autorisés explicitement
+User-agent: Googlebot
+Allow: /
+Allow: /?p=
+Allow: /?page=
+Disallow: /admin.html
+Disallow: /auditaz.html
+Disallow: /parrain.html
+
+User-agent: Bingbot
 Allow: /
 Disallow: /admin.html
 Disallow: /auditaz.html
 
+User-agent: WhatsApp
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+# Bots indésirables (économise de la bande passante)
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+# Sitemaps
 Sitemap: https://ecodila.com/sitemap.xml
+
+# Host (pour clarifier le domaine canonique)
+Host: ecodila.com
