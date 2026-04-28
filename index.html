@@ -18595,7 +18595,6 @@ function _chatSpeak(text, opts){
       window._chatHighlightTimers = [];
     }
     // Retirer aussi toutes les classes .highlighted des anciennes recherches
-    // pour ne pas garder un produit "figé" en avant quand on démarre une nouvelle lecture
     try {
       document.querySelectorAll('.chat-product-card.highlighted').forEach(function(c){
         c.classList.remove('highlighted');
@@ -18603,37 +18602,46 @@ function _chatSpeak(text, opts){
     } catch(e){}
 
     var clean = _stripEmojis(text);
-    if(!clean) return;
+    console.log('[LIDA] cleaned text length:', clean.length, 'text:', clean.substring(0, 80));
+    if(!clean){
+      console.warn('[LIDA] clean text vide après _stripEmojis - rien à parler');
+      return;
+    }
     var u = new SpeechSynthesisUtterance(clean.substring(0, 600));
     u.lang = 'fr-FR';
     u.rate = 1.05;
     u.pitch = 1;
     u.volume = 1;
     var voice = _chatGetFrenchVoice();
+    console.log('[LIDA] voice française trouvée:', voice ? voice.name : 'AUCUNE (utilisation default)');
     if(voice) u.voice = voice;
     u.onstart = function(){
+      console.log('[LIDA] ✅ voix DÉMARRE');
       window._chatSpeakInProgress = true;
       if(typeof opts.onStart === 'function'){ try { opts.onStart(); } catch(e){} }
     };
     u.onend = function(){
+      console.log('[LIDA] voix terminée');
       window._chatSpeakInProgress = false;
       if(typeof opts.onEnd === 'function'){ try { opts.onEnd(); } catch(e){} }
     };
-    u.onerror = function(){
+    u.onerror = function(ev){
+      console.error('[LIDA] ❌ voix ERREUR:', ev.error || ev);
       window._chatSpeakInProgress = false;
       if(typeof opts.onEnd === 'function'){ try { opts.onEnd(); } catch(e){} }
     };
-    // Boundary event : déclenché à chaque mot/phrase parlé.
-    // Permet de synchroniser parfaitement les animations avec la voix réelle.
     if(typeof opts.onBoundary === 'function'){
       u.onboundary = function(ev){
         try { opts.onBoundary(ev.charIndex, ev.name); } catch(e){}
       };
     }
+    console.log('[LIDA] appel speechSynthesis.speak() maintenant...');
     window.speechSynthesis.speak(u);
+    console.log('[LIDA] speak() retourné, paused:', window.speechSynthesis.paused, 'pending:', window.speechSynthesis.pending, 'speaking:', window.speechSynthesis.speaking);
     // Workaround Chrome mobile
     setTimeout(function(){
       if(window.speechSynthesis && !window._chatSpeakInProgress){
+        console.log('[LIDA] resume forcé après 200ms');
         try { window.speechSynthesis.resume(); } catch(e){}
       }
     }, 200);
