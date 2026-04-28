@@ -45,7 +45,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@ecodila">
 <meta name="twitter:title" content="EcoDila — Marketplace d'appareils en Côte d'Ivoire">
-<meta name="twitter:description" content="Achetez, troquez ou négociez vos appareils. Livraison Abidjan et CI. Garantie 3 mois.">
+<meta name="twitter:description" content="Achetez, troquez ou négociez vos appareils. Livraison à Abidjan. Garantie 3 mois.">
 <meta name="twitter:image" content="https://ecodila.com/logo.png">
 <meta name="twitter:image:alt" content="EcoDila — Marketplace ivoirienne">
 <script type="application/ld+json">
@@ -743,11 +743,22 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .btn-sub:active{transform:scale(.98)}
 .btn-sub:hover{background:var(--gl);transform:translateY(-1px)}
 .wa-float-wrap{position:fixed;bottom:5.5rem;right:1rem;z-index:300;display:flex;flex-direction:column;align-items:flex-end;gap:0;touch-action:none;user-select:none;-webkit-user-select:none}
-.wa-float{background:var(--wa);color:white;border:none;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:grab;box-shadow:0 4px 18px rgba(37,211,102,.4);display:flex;align-items:center;justify-content:center;transition:box-shadow .2s,transform .15s;position:relative}
-.wa-float:active{cursor:grabbing;box-shadow:0 6px 24px rgba(37,211,102,.6);transform:scale(1.08)}
-.wa-float-close{position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:1.5px solid #fff;font-size:.6rem;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity .2s;z-index:1;line-height:1}
+.wa-float{background:var(--wa);color:white;border:none;border-radius:50%;width:56px;height:56px;font-size:1.7rem;cursor:grab;box-shadow:0 6px 24px rgba(37,211,102,.55), 0 2px 6px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;transition:box-shadow .25s,transform .2s;position:relative;animation:waPulseRing 2.4s ease-out infinite}
+.wa-float::before{content:"";position:absolute;inset:-4px;border-radius:50%;background:transparent;border:2px solid var(--wa);opacity:0;animation:waPulseExpand 2.4s ease-out infinite;pointer-events:none}
+.wa-float:active{cursor:grabbing;box-shadow:0 8px 32px rgba(37,211,102,.8);transform:scale(1.08);animation:none}
+.wa-float:hover{transform:scale(1.05);animation:none}
+@keyframes waPulseRing{0%,100%{box-shadow:0 6px 24px rgba(37,211,102,.55), 0 2px 6px rgba(0,0,0,.18)}50%{box-shadow:0 6px 30px rgba(37,211,102,.85), 0 2px 8px rgba(0,0,0,.22)}}
+@keyframes waPulseExpand{0%{transform:scale(1);opacity:.55}100%{transform:scale(1.45);opacity:0}}
+.wa-float-badge{position:absolute;top:-3px;left:-3px;width:14px;height:14px;border-radius:50%;background:#ef4444;border:2px solid #fff;animation:waBadgePulse 1.6s ease-in-out infinite;pointer-events:none;z-index:2}
+@keyframes waBadgePulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.25);opacity:.85}}
+.wa-float-tip{position:absolute;right:calc(100% + .8rem);top:50%;transform:translateY(-50%) translateX(8px);background:#000;color:#fff;padding:.6rem .9rem;border-radius:14px 14px 0 14px;font-size:.78rem;font-weight:600;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s;font-family:inherit}
+.wa-float-tip::after{content:"";position:absolute;right:-6px;bottom:0;width:0;height:0;border:6px solid transparent;border-top-color:#000;border-right:0;border-bottom:0}
+.wa-float-tip.show{opacity:1;transform:translateY(-50%) translateX(0);pointer-events:auto}
+.wa-float-tip-close{display:inline-flex;margin-left:.5rem;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.18);align-items:center;justify-content:center;font-size:.6rem;cursor:pointer;pointer-events:auto}
+.wa-float-tip-close:hover{background:rgba(255,255,255,.3)}
+.wa-float-close{position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:1.5px solid #fff;font-size:.6rem;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity .2s;z-index:3;line-height:1}
 .wa-float-wrap:hover .wa-float-close,.wa-float-wrap.touched .wa-float-close{opacity:1}
-.wa-float-mini{position:fixed;bottom:5.5rem;right:.4rem;z-index:300;width:22px;height:22px;border-radius:50%;background:var(--wa);color:#fff;border:none;font-size:.6rem;cursor:pointer;box-shadow:0 2px 10px rgba(37,211,102,.35);display:none;align-items:center;justify-content:center;opacity:.6;transition:opacity .2s}
+.wa-float-mini{position:fixed;bottom:5.5rem;right:.4rem;z-index:300;width:24px;height:24px;border-radius:50%;background:var(--wa);color:#fff;border:none;font-size:.65rem;cursor:pointer;box-shadow:0 2px 10px rgba(37,211,102,.35);display:none;align-items:center;justify-content:center;opacity:.7;transition:opacity .2s}
 .wa-float-mini:hover{opacity:1;transform:scale(1.15)}
 .chat-wrap{position:fixed;bottom:1.5rem;right:1.5rem;z-index:400;width:320px;display:none;flex-direction:column}
 .chat-wrap.show{display:flex}
@@ -5043,7 +5054,8 @@ setTimeout(_pStart,3000);
 <div id="search-results" class="search-results"></div>
 
 <div class="wa-float-wrap" id="waFloatWrap">
-  <button class="wa-float" id="waFloatBtn" title="Maintenir pour déplacer, taper pour discuter">💬</button>
+  <button class="wa-float" id="waFloatBtn" title="Maintenir pour déplacer, taper pour discuter">💬<span class="wa-float-badge" aria-hidden="true"></span></button>
+  <div class="wa-float-tip" id="waFloatTip" onclick="(function(e){var t=document.getElementById('waFloatTip');if(t)t.classList.remove('show');})()">👋 Besoin d'aide ? <span class="wa-float-tip-close" onclick="event.stopPropagation();var t=document.getElementById('waFloatTip');if(t){t.classList.remove('show');try{sessionStorage.setItem('chatTipDismissed','1');}catch(e){}}">✕</span></div>
   <div class="wa-float-close" id="waFloatClose" onclick="event.stopPropagation();_waHide()" title="Masquer">✕</div>
 </div>
 <button class="wa-float-mini" id="waFloatMini" onclick="_waShow()" title="Afficher le chat">💬</button>
@@ -17153,19 +17165,35 @@ function renderReviews(){
 }
 function openChat(initMsg){
   chatOpen=true;document.getElementById('chatWrap').classList.add('show');
+  // Cacher la bulle d'invitation et le badge rouge à l'ouverture du chat
+  var tip = document.getElementById('waFloatTip');
+  if(tip) tip.classList.remove('show');
+  var badge = document.querySelector('.wa-float-badge');
+  if(badge) badge.style.display = 'none';
   if(initMsg)addMsg(initMsg,'bot');
   else if(chatHistory.length===0){
     addMsg('Bonjour ! 👋 Bienvenue chez EcoDila. Comment puis-je vous aider ?','bot');
     setTimeout(function(){ _chatShowQuickActions(); }, 600);
   }
 }
-function toggleChat(){chatOpen=!chatOpen;document.getElementById('chatWrap').classList.toggle('show',chatOpen);if(chatOpen&&chatHistory.length===0)openChat();}
+function toggleChat(){
+  chatOpen=!chatOpen;
+  document.getElementById('chatWrap').classList.toggle('show',chatOpen);
+  if(chatOpen){
+    var tip = document.getElementById('waFloatTip');
+    if(tip) tip.classList.remove('show');
+    var badge = document.querySelector('.wa-float-badge');
+    if(badge) badge.style.display = 'none';
+    if(chatHistory.length===0) openChat();
+  }
+}
 
 /* ─── Affiche un message dans le chat ─────────────────────────────
    - text : peut contenir du HTML pré-validé (pour cartes produits, boutons)
    - type : 'bot' | 'user' | 'system'
-   - isHtml : si true, n'échappe pas le HTML (à utiliser uniquement avec des contenus contrôlés) */
-function addMsg(text, type, isHtml){
+   - isHtml : si true, n'échappe pas le HTML (à utiliser uniquement avec des contenus contrôlés)
+   - voiceText : texte custom à lire à voix haute (sinon : auto depuis text/HTML) */
+function addMsg(text, type, isHtml, voiceText){
   const time=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   chatHistory.push({text, type, time, isHtml: !!isHtml});
   const body=document.getElementById('chatBody');
@@ -17177,15 +17205,19 @@ function addMsg(text, type, isHtml){
   body.scrollTop=body.scrollHeight;
 
   // Si message bot et synthèse vocale activée → lire à voix haute
-  if(type === 'bot' && window._chatVoiceOutEnabled && !isHtml){
-    _chatSpeak(text);
-  }
-  if(type === 'bot' && window._chatVoiceOutEnabled && isHtml){
-    // Pour les messages HTML, lire seulement le texte brut
-    var temp = document.createElement('div');
-    temp.innerHTML = text;
-    var plain = temp.textContent || '';
-    if(plain.trim()) _chatSpeak(plain.substring(0, 200));
+  // Priorité au voiceText custom, sinon le texte brut, sinon le contenu HTML extrait
+  if(type === 'bot' && window._chatVoiceOutEnabled){
+    if(typeof voiceText === 'string' && voiceText.trim()){
+      _chatSpeak(voiceText);
+    } else if(!isHtml){
+      _chatSpeak(text);
+    } else {
+      // Pour les messages HTML sans voiceText fourni : lire le texte brut tronqué
+      var temp = document.createElement('div');
+      temp.innerHTML = text;
+      var plain = temp.textContent || '';
+      if(plain.trim()) _chatSpeak(plain.substring(0, 200));
+    }
   }
 }
 
@@ -17307,7 +17339,7 @@ function _chatSearchProducts(query){
       + '<div style="display:flex;flex-direction:column;gap:.4rem">'
       + '<button onclick="_chatOpenWA(\'Bonjour 👋, je cherche : '+_esc(query).replace(/\'/g,'&#39;')+'\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">💬 Demander à un conseiller WhatsApp</button>'
       + '<button onclick="_chatOpenWA(\'Bonjour 👋, je vous envoie un message vocal pour vous expliquer ce que je cherche.\')" style="background:#0a8b4a;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🎙️ Envoyer un message vocal sur WhatsApp</button>'
-      + '<button onclick="window.showPage(\'acheter\');toggleChat()" style="background:var(--green);color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🛒 Voir tout le catalogue</button>'
+      + '<button onclick="window.showPage(\'catalogue\');toggleChat()" style="background:var(--green);color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🛒 Voir tout le catalogue</button>'
       + '</div>';
     addMsg(html, 'bot', true);
     return;
@@ -17327,7 +17359,7 @@ function _chatSearchProducts(query){
     if(!img && p.image) img = p.image;
     var imgHtml = img ? '<img src="'+_esc(img)+'" alt="'+_esc(nom)+'" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:60px;height:60px;background:#f3f4f6;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">📦</div>';
     var pid = String(p.id||'');
-    return '<div onclick="window.openModal(\''+_esc(pid).replace(/\'/g,'&#39;')+'\');toggleChat();" style="display:flex;gap:.6rem;padding:.5rem;background:rgba(255,255,255,.95);border-radius:8px;cursor:pointer;border:1px solid rgba(0,0,0,.08);transition:transform .15s" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'">'
+    return '<div onclick="_chatOpenProductFromChat(\''+_esc(pid).replace(/\'/g,'&#39;')+'\')" style="display:flex;gap:.6rem;padding:.5rem;background:rgba(255,255,255,.95);border-radius:8px;cursor:pointer;border:1px solid rgba(0,0,0,.08);transition:transform .15s" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'">'
       + imgHtml
       + '<div style="flex:1;min-width:0;color:#0a0e1a">'
       +   '<div style="font-weight:700;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_esc(nom)+'</div>'
@@ -17341,7 +17373,26 @@ function _chatSearchProducts(query){
     + '<div style="display:flex;flex-direction:column;gap:.4rem">' + cards + '</div>'
     + '<div style="margin-top:.6rem;font-size:.72rem;color:#475569">💡 Cliquez sur un produit pour voir les détails</div>'
     + '<button onclick="_chatOpenWA(\'Bonjour 👋, je cherche : '+_esc(query).replace(/\'/g,'&#39;')+'. Pouvez-vous me conseiller ?\')" style="background:#25d366;color:#fff;border:none;padding:.45rem .7rem;border-radius:8px;font-size:.72rem;cursor:pointer;font-family:inherit;font-weight:600;margin-top:.5rem;width:100%">💬 Pas trouvé ? Parler à un conseiller</button>';
-  addMsg(fullHtml, 'bot', true);
+
+  // Construire le texte vocal : juste le nombre, puis pour chaque produit : nom + prix
+  // Format : "J'ai trouvé 3 produits. Apple iPhone 12 à 185 000 francs CFA. Samsung Galaxy à 95 000 francs CFA. ..."
+  var voiceParts = [resultText + '.'];
+  scored.forEach(function(x){
+    var p = x.p;
+    var nom = (p.brand||p.marque||'') + ' ' + (p.model||p.modele||p.nom||'');
+    nom = nom.trim() || (p.nom||'Produit');
+    var voixPrix = '';
+    if(p.prix){
+      // Formater "185 000" en "185 000 francs CFA" pour une lecture naturelle
+      voixPrix = ' à ' + Number(p.prix).toLocaleString('fr-FR') + ' francs CFA';
+    } else {
+      voixPrix = ', prix sur demande';
+    }
+    voiceParts.push(nom + voixPrix + '.');
+  });
+  var voiceText = voiceParts.join(' ');
+
+  addMsg(fullHtml, 'bot', true, voiceText);
 }
 
 /* ─── Suivi de commande ────────────────────────────────────────── */
@@ -17368,7 +17419,7 @@ function _chatSuiviCommande(){
 /* ─── FAQ ──────────────────────────────────────────────────────── */
 var _CHAT_FAQ = [
   {q:'Comment commander ?', a:'Choisissez un produit, cliquez sur "Acheter" ou "Négocier", puis donnez votre nom et numéro de téléphone. Notre équipe vous rappellera dans les 24h pour finaliser. Paiement à la livraison.'},
-  {q:'Quel est le délai de livraison ?', a:'À Abidjan : 24 à 48h en moyenne. Ailleurs en Côte d\'Ivoire : 2 à 5 jours. La livraison est gratuite à Abidjan pour les commandes au-dessus de 100 000 FCFA.'},
+  {q:'Quel est le délai de livraison ?', a:'Nous livrons uniquement à Abidjan pour le moment, sous 24 à 48h en moyenne. La livraison est payante (frais à confirmer avec notre équipe selon votre quartier).'},
   {q:'Comment payer ?', a:'Paiement à la livraison en espèces, Wave, Orange Money, Moov Money ou MTN Money. Pas de paiement en ligne, vous payez quand vous recevez le produit.'},
   {q:'Quelle garantie ?', a:'Tous nos produits reconditionnés ont une garantie de 3 mois. Vous pouvez retourner gratuitement si défaut dans les 7 jours.'},
   {q:'Comment troquer mon ancien appareil ?', a:'Cliquez sur "Troquer" dans le menu, faites une estimation gratuite, et notre équipe vous proposera un échange contre un autre appareil.'},
@@ -17399,9 +17450,81 @@ window._chatOpenWA = function(msg){
   window.open(url, '_blank');
 };
 
+/* ─── Ouvrir un produit depuis le chat sans le fermer ──────────────
+   Marque que le chat était ouvert pour le rouvrir à la fermeture du modal */
+window._chatOpenProductFromChat = function(productId){
+  // Marquer qu'on doit revenir au chat après fermeture du modal
+  window._chatReopenAfterModal = true;
+  // Masquer visuellement le chat (mais ne pas changer chatOpen) pour bien voir le modal
+  var wrap = document.getElementById('chatWrap');
+  if(wrap) wrap.classList.remove('show');
+  // Ouvrir le modal produit
+  if(typeof window.openModal === 'function'){
+    window.openModal(productId);
+  }
+  // Mettre en place un watcher après un petit délai pour laisser openModal finir.
+  // Sans ce délai, l'observer pourrait se déclencher sur les changements
+  // initiaux d'openModal et croire que le modal est déjà fermé.
+  setTimeout(function(){ _chatWatchModalClose(); }, 600);
+};
+
+/* Surveille la fermeture du modal produit pour rouvrir le chat */
+function _chatWatchModalClose(){
+  var modal = document.getElementById('modalOverlay');
+  if(!modal) return;
+  // Si on est déjà en train de surveiller, ne pas relancer
+  if(window._chatModalObserver) return;
+
+  // Garde de sécurité : si à l'arrivée ici le modal n'est PAS visible,
+  // on n'installe pas l'observer (le modal n'a pas pu s'ouvrir).
+  // On rouvre directement le chat.
+  var visible = modal.classList.contains('show') || modal.style.display === 'flex';
+  if(!visible){
+    if(window._chatReopenAfterModal){
+      window._chatReopenAfterModal = false;
+      var wrap = document.getElementById('chatWrap');
+      if(wrap) wrap.classList.add('show');
+      if(typeof chatOpen !== 'undefined'){ try { chatOpen = true; } catch(e){} }
+    }
+    return;
+  }
+
+  // Observer les changements de display du modal
+  var observer = new MutationObserver(function(mutations){
+    mutations.forEach(function(m){
+      if(m.attributeName === 'style' || m.attributeName === 'class'){
+        var isHidden = !modal.classList.contains('show') && modal.style.display !== 'flex';
+        if(isHidden && window._chatReopenAfterModal){
+          window._chatReopenAfterModal = false;
+          // Rouvrir le chat
+          if(typeof chatOpen !== 'undefined'){
+            try { chatOpen = true; } catch(e){}
+          }
+          var wrap = document.getElementById('chatWrap');
+          if(wrap) wrap.classList.add('show');
+          // Arrêter l'observer
+          observer.disconnect();
+          window._chatModalObserver = null;
+        }
+      }
+    });
+  });
+  observer.observe(modal, { attributes: true, attributeFilter: ['style', 'class'] });
+  window._chatModalObserver = observer;
+}
+
 /* ─── NLP ultra-simple : détecter l'intention ───────────────────── */
 function _chatDetectIntent(text){
   var t = String(text||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+  // "Je n'ai pas trouvé" / "Rien trouvé" / "Pas de choix" → besoin de conseiller
+  // Patterns simples (mots qui apparaissent souvent dans phrase d'échec)
+  if(/(pas trouv|rien trouv|trouve pas|trouve rien|trouv.*aucun|aucun.*trouv|pas.*choix|aucun.*choix|introuvable|pas.*dispo|impossible.*trouv|n.arrive.*trouv|trouve.*rien)/i.test(t))
+    return 'notfound';
+
+  // Demande d'aide générale
+  if(/\b(aide|aider|aidez|besoin.*aide|comment.*faire|je.*sais.*pas|sais.*pas|comprend.*pas|comprends.*pas)\b/.test(t))
+    return 'help';
 
   // Suivi commande
   if(/\b(commande|order|suivi|livraison|colis|quand.*recevoir|ou.*est.*ma)\b/.test(t))
@@ -17421,8 +17544,11 @@ function _chatDetectIntent(text){
   // Paiement
   if(/\b(paiement|payer|wave|orange.*money|moov|mtn)\b/.test(t))
     return 'paiement';
+  // Parler / appeler / contacter
+  if(/\b(parler|appel|appeler|contact|joindre|conseill|humain|personne|quelqu)\b/.test(t))
+    return 'contact';
   // Bonjour/salut
-  if(/^(bonjour|salut|hello|coucou|bsr|bjr)\b/.test(t))
+  if(/^(bonjour|salut|hello|coucou|bsr|bjr|bonsoir)\b/.test(t))
     return 'greeting';
 
   // Sinon : recherche produit (par défaut)
@@ -17439,7 +17565,24 @@ function sendMsg(){
 
   setTimeout(function(){
     var intent = _chatDetectIntent(val);
-    if(intent === 'order'){
+    if(intent === 'notfound'){
+      // Le client dit qu'il n'a pas trouvé → proposer conseiller + vocal WA
+      var html = '😊 Pas de problème ! Notre équipe va vous aider à trouver ce dont vous avez besoin.<br><br>'
+        + '<div style="display:flex;flex-direction:column;gap:.4rem">'
+        + '<button onclick="_chatOpenWA(\'Bonjour 👋, je n\\\'ai pas trouvé ce que je cherche sur EcoDila. Pouvez-vous me conseiller ?\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">💬 Parler à un conseiller WhatsApp</button>'
+        + '<button onclick="_chatOpenWA(\'Bonjour 👋, je vous envoie un message vocal pour vous expliquer ce que je cherche.\')" style="background:#0a8b4a;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🎙️ Envoyer un message vocal sur WhatsApp</button>'
+        + '<button onclick="window.showPage(\'catalogue\');toggleChat()" style="background:var(--green);color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🛒 Voir tout le catalogue</button>'
+        + '</div>';
+      addMsg(html, 'bot', true);
+    } else if(intent === 'help' || intent === 'contact'){
+      var html = '😊 Bien sûr, comment puis-je vous aider ?<br><br>'
+        + '<div style="display:flex;flex-direction:column;gap:.4rem">'
+        + '<button onclick="_chatOpenWA(\'Bonjour 👋, j\\\'ai besoin d\\\'aide.\')" style="background:#25d366;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">💬 Parler à un conseiller WhatsApp</button>'
+        + '<button onclick="_chatOpenWA(\'Bonjour 👋, je vous envoie un message vocal pour expliquer mon besoin.\')" style="background:#0a8b4a;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">🎙️ Envoyer un message vocal sur WhatsApp</button>'
+        + '<button onclick="_chatHandleAction(\'faq\')" style="background:#8b5cf6;color:#fff;border:none;padding:.55rem .8rem;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600;text-align:left">❓ Voir les questions fréquentes</button>'
+        + '</div>';
+      addMsg(html, 'bot', true);
+    } else if(intent === 'order'){
       _chatSuiviCommande();
     } else if(intent === 'troc'){
       _chatHandleAction('troc');
@@ -17450,7 +17593,7 @@ function sendMsg(){
     } else if(intent === 'garantie'){
       addMsg('🛡️ Tous nos produits ont une *garantie de 3 mois*. En cas de défaut dans les 7 jours, retour gratuit. Pour un défaut spécifique, contactez-nous sur WhatsApp.', 'bot');
     } else if(intent === 'livraison'){
-      addMsg('🚚 *Livraison* :\n• Abidjan : 24-48h, gratuite dès 100 000 FCFA\n• Côte d\'Ivoire : 2-5 jours\nPaiement à la livraison uniquement.', 'bot');
+      addMsg('🚚 Livraison : nous livrons uniquement à Abidjan pour le moment, sous 24 à 48h. La livraison est payante (frais à confirmer avec notre équipe selon votre quartier). Paiement à la livraison uniquement.', 'bot');
     } else if(intent === 'paiement'){
       addMsg('💳 Paiement à la livraison : espèces, Wave, Orange Money, Moov Money, MTN Money. Pas de paiement en ligne — vous payez quand vous recevez.', 'bot');
     } else if(intent === 'greeting'){
@@ -17615,12 +17758,39 @@ function _chatStartRecognition(){
 };
 
 /* ─── Synthèse vocale (lire les réponses du bot) ──────────────── */
+/* Retire les emojis et caractères symboliques pour une lecture propre */
+function _stripEmojis(text){
+  return String(text||'')
+    // Emojis (plage Unicode pictographique)
+    .replace(/[\u{1F000}-\u{1FFFF}]/gu, ' ')
+    .replace(/[\u{2600}-\u{27BF}]/gu, ' ')      // Symboles divers (☀ ⭐ ✨ ☎ etc.)
+    .replace(/[\u{2300}-\u{23FF}]/gu, ' ')      // Symboles techniques
+    .replace(/[\u{2B00}-\u{2BFF}]/gu, ' ')      // Flèches additionnelles
+    .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, ' ')    // Drapeaux
+    .replace(/[\u{FE00}-\u{FE0F}]/gu, '')       // Variation selectors
+    .replace(/[\u{200D}]/gu, '')                // Zero-width joiner
+    // Markdown WhatsApp
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/~([^~]+)~/g, '$1')
+    // URLs (longues à lire)
+    .replace(/https?:\/\/\S+/g, '')
+    // Ponctuation typographique
+    .replace(/[•●▸▶◆◇■□▪▫]/g, ' ')
+    // Doubles espaces
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function _chatSpeak(text){
   if(!window.speechSynthesis) return;
   try {
     // Annuler la lecture précédente
     window.speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(String(text||'').substring(0, 250));
+    // Nettoyer le texte : retirer emojis, markdown, URLs avant lecture
+    var clean = _stripEmojis(text);
+    if(!clean) return;
+    var u = new SpeechSynthesisUtterance(clean.substring(0, 600));
     u.lang = 'fr-FR';
     u.rate = 1.05;
     u.pitch = 1;
@@ -24643,6 +24813,52 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
     wrap.style.display = 'flex';
     if(mini) mini.style.display = 'none';
   };
+
+  /* ─── Bulle d'invitation "Besoin d'aide ?" ───────────────────────
+     Apparaît 5s après chargement (si pas déjà fermée par l'utilisateur),
+     disparaît après 6s, ré-apparaît après 90s d'inactivité.
+     Caché si le chat est ouvert ou si l'utilisateur a cliqué le ✕. */
+  (function(){
+    var tip = document.getElementById('waFloatTip');
+    if(!tip) return;
+    var dismissed = false;
+    try { dismissed = sessionStorage.getItem('chatTipDismissed') === '1'; } catch(e){}
+
+    function showTip(){
+      if(dismissed) return;
+      // Ne pas afficher si chat ouvert ou si bouton masqué
+      var cw = document.getElementById('chatWrap');
+      if(cw && cw.classList.contains('show')) return;
+      if(wrap.style.display === 'none') return;
+      tip.classList.add('show');
+      // Cache automatique après 6s
+      setTimeout(function(){ tip.classList.remove('show'); }, 6000);
+    }
+
+    function scheduleNext(){
+      if(dismissed) return;
+      // Re-affiche toutes les 90s tant qu'utilisateur n'a pas dismiss
+      setTimeout(function(){
+        showTip();
+        scheduleNext();
+      }, 90000);
+    }
+
+    // Première apparition après 5s
+    setTimeout(function(){
+      showTip();
+      scheduleNext();
+    }, 5000);
+
+    // Mémoriser le dismissal dans sessionStorage à chaque clic ✕
+    var closeBtn = tip.querySelector('.wa-float-tip-close');
+    if(closeBtn){
+      closeBtn.addEventListener('click', function(){
+        dismissed = true;
+        try { sessionStorage.setItem('chatTipDismissed', '1'); } catch(e){}
+      });
+    }
+  })();
 })();
 </script>
 
