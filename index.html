@@ -17209,6 +17209,8 @@ function openChat(initMsg){
   // Couper toute lecture/timer/animation résiduel d'une session précédente
   // (cas où le client ferme et rouvre rapidement le chat)
   _chatStopAllAnimations();
+  // Lever le flag de blocage : on va lancer une nouvelle lecture intentionnelle
+  window._chatVoiceBlocked = false;
 
   chatOpen=true;document.getElementById('chatWrap').classList.add('show');
   // Synchroniser l'état du bouton 🔊 avec la préférence
@@ -17320,15 +17322,38 @@ function toggleChat(){
 }
 
 /* Coupe net toute lecture vocale en cours, tous les timers d'animation,
-   et retire toutes les highlights produits. À appeler à la fermeture du chat
-   ou avant de démarrer une nouvelle lecture. */
+   et retire toutes les highlights produits.
+   IMPORTANT : utilise un compteur de session pour que les setTimeout retardés
+   (re-cancel à 50ms/200ms) n'interfèrent PAS avec une nouvelle lecture qui
+   aurait démarré entretemps (ex: client ferme + rouvre rapidement le chat). */
 function _chatStopAllAnimations(){
-  // 1. Couper la voix
+  // Incrémenter le compteur de session : invalidera tous les setTimeout en cours
+  window._chatStopSession = (window._chatStopSession || 0) + 1;
+  var mySession = window._chatStopSession;
+
+  // Bloquer toute nouvelle lecture jusqu'à libération explicite (par openChat)
+  window._chatVoiceBlocked = true;
+
+  // Couper la voix actuelle - plusieurs cancels pour les navigateurs récalcitrants
   if(window.speechSynthesis){
     try { window.speechSynthesis.cancel(); } catch(e){}
+    try { window.speechSynthesis.pause(); } catch(e){}
+    // Re-cancel après 50ms et 200ms — MAIS uniquement si la session est toujours active
+    // (sinon on annule une nouvelle voix légitime qui aurait démarré entretemps)
+    setTimeout(function(){
+      if(window._chatStopSession === mySession && window._chatVoiceBlocked){
+        try { window.speechSynthesis.cancel(); } catch(e){}
+      }
+    }, 50);
+    setTimeout(function(){
+      if(window._chatStopSession === mySession && window._chatVoiceBlocked){
+        try { window.speechSynthesis.cancel(); } catch(e){}
+      }
+    }, 200);
   }
   window._chatSpeakInProgress = false;
-  // 2. Annuler les timers d'animation (highlight produits + welcome options/mic)
+
+  // Annuler les timers d'animation
   if(window._chatHighlightTimers){
     window._chatHighlightTimers.forEach(function(t){ clearTimeout(t); });
     window._chatHighlightTimers = [];
@@ -17337,7 +17362,8 @@ function _chatStopAllAnimations(){
     window._chatWelcomeTimers.forEach(function(t){ clearTimeout(t); });
     window._chatWelcomeTimers = [];
   }
-  // 3. Retirer toutes les classes de highlight et shimmer
+
+  // Retirer toutes les classes de highlight et shimmer
   try {
     document.querySelectorAll('.chat-product-card.highlighted').forEach(function(c){
       c.classList.remove('highlighted');
@@ -18568,6 +18594,8 @@ function _chatGetFrenchVoice(){
 
 function _chatSpeak(text, opts){
   if(!window.speechSynthesis) return;
+  // Si le chat a été fermé/masqué, bloquer toute lecture (le flag est levé à la prochaine ouverture)
+  if(window._chatVoiceBlocked) return;
   opts = opts || {};
   try {
     // TOUJOURS annuler la lecture précédente : le nouveau message a priorité.
@@ -25610,7 +25638,7 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
   var mini = document.getElementById('waFloatMini');
   if(!wrap || !btn) return;
 
-  var isDragging = false, hasMoved = false;
+  var isDragging = false, hasMoved = false, startedOnClose = false;
   var startX, startY, origX, origY;
   var dragThreshold = 8; // px avant de considérer comme drag
 
@@ -25624,6 +25652,17 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
     startX = ev.clientX; startY = ev.clientY;
     var p = getPos(); origX = p.x; origY = p.y;
     isDragging = true; hasMoved = false;
+    // Détecter si le tap a démarré sur le bouton ✕ (ou un de ses enfants)
+    // Si oui, on ne déclenche PAS toggleChat à la fin (sinon double action)
+    var target = e.target;
+    startedOnClose = false;
+    while(target && target !== wrap){
+      if(target.id === 'waFloatClose' || (target.classList && target.classList.contains('wa-float-close'))){
+        startedOnClose = true;
+        break;
+      }
+      target = target.parentNode;
+    }
     wrap.classList.add('touched');
     // Passer en position absolue (left/top) pour le drag
     wrap.style.transition = 'none';
@@ -25637,7 +25676,6 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
     if(!hasMoved) return;
     e.preventDefault();
     var nx = origX + dx, ny = origY + dy;
-    // Clamp dans l'écran
     var w = wrap.offsetWidth, h = wrap.offsetHeight;
     nx = Math.max(0, Math.min(window.innerWidth - w, nx));
     ny = Math.max(0, Math.min(window.innerHeight - h, ny));
@@ -25651,12 +25689,15 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
     isDragging = false;
     wrap.style.transition = '';
     setTimeout(function(){ wrap.classList.remove('touched'); }, 1500);
-    if(!hasMoved){
-      // C'est un tap → ouvrir le chat ou WhatsApp
+    // Tap détecté UNIQUEMENT si l'utilisateur a touché le bouton lui-même
+    // (pas la ✕ qui a son propre onclick) ET qu'il n'a pas dragué
+    if(!hasMoved && !startedOnClose){
       if(typeof toggleChat === 'function') toggleChat();
       else if(typeof openWA === 'function') openWA();
     }
-    // Snap aux bords (coller à gauche ou droite)
+    // Reset du flag pour le prochain tap
+    startedOnClose = false;
+    // Snap aux bords
     var r = wrap.getBoundingClientRect();
     var midX = r.left + r.width/2;
     if(midX < window.innerWidth/2){
