@@ -17228,13 +17228,6 @@ function openChat(initMsg){
     "Bonjour, bienvenue chez EcoDila, je suis LIDA, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert pour parler."
   );
 
-  // Force scroll en haut pour bien voir le message d'accueil
-  // (sinon le scroll automatique met le focus en bas et masque le Bonjour)
-  setTimeout(function(){
-    var bd = document.getElementById('chatBody');
-    if(bd) bd.scrollTop = 0;
-  }, 50);
-
   // Délai pour laisser la voix démarrer la lecture du "Bonjour" avant d'afficher les options
   // (sur connexion lente, on garde 1500ms pour que la voix ait le temps d'enchaîner)
   setTimeout(function(){ _chatShowQuickActions(); }, _chatDelay(1500));
@@ -17252,6 +17245,31 @@ function toggleChat(){
   } else {
     // Le chat se ferme : couper toute lecture en cours
     if(window.speechSynthesis){ try { window.speechSynthesis.cancel(); } catch(e){} }
+  }
+}
+
+/* Helper : scroll intelligent vers un message dans le chat-body.
+   - Si le message tient dans la moitié supérieure du viewport, scroll en bas (classique)
+   - Si le message est plus grand (cartes produits, longue réponse) : scroll pour voir
+     le DÉBUT du message en haut du viewport (avec petite marge), pour que l'utilisateur
+     suive la lecture vocale en lisant depuis le haut. */
+function _chatScrollToMessage(body, msgDiv){
+  if(!body || !msgDiv) return;
+  try {
+    var bodyHeight = body.clientHeight;
+    var msgHeight = msgDiv.offsetHeight;
+    // Position du message dans le scroll container
+    var msgTop = msgDiv.offsetTop;
+    if(msgHeight > bodyHeight * 0.6){
+      // Message long : scroll pour voir le début du message (avec 8px de marge en haut)
+      body.scrollTop = Math.max(0, msgTop - 8);
+    } else {
+      // Message court : scroll classique en bas
+      body.scrollTop = body.scrollHeight;
+    }
+  } catch(e){
+    // Fallback : scroll classique en cas d'erreur
+    body.scrollTop = body.scrollHeight;
   }
 }
 
@@ -17290,19 +17308,16 @@ function addMsg(text, type, isHtml, voiceText){
     body.removeChild(body.firstChild);
   }
 
-  // Scroll intelligent : si l'utilisateur consulte un ancien message (scrollé vers le haut),
-  // on ne force PAS le scroll vers le bas. Sinon on suit la conversation.
-  // Tolérance : si l'utilisateur est à <80px du bas, on considère qu'il "suit"
-  var nearBottom = (body.scrollHeight - body.scrollTop - body.clientHeight) < 80;
-  // Pour les messages user (qu'il vient d'envoyer), on scroll TOUJOURS en bas
-  // Pour les messages bot, on scroll seulement s'il est près du bas
-  var shouldScroll = (type === 'user') || nearBottom;
-  if(shouldScroll){
-    if(window.requestAnimationFrame){
-      requestAnimationFrame(function(){ body.scrollTop = body.scrollHeight; });
-    } else {
-      body.scrollTop = body.scrollHeight;
-    }
+  // Scroll intelligent vers le nouveau message :
+  // - Si le message est court (< moitié du viewport chat) : scroll en bas (classique)
+  // - Si le message est long (cartes produits, FAQ longue) : scroll pour voir
+  //   le DÉBUT du nouveau message (sinon on ne voit que la fin et on rate le contenu)
+  if(window.requestAnimationFrame){
+    requestAnimationFrame(function(){
+      _chatScrollToMessage(body, msgDiv);
+    });
+  } else {
+    _chatScrollToMessage(body, msgDiv);
   }
 
   // Lecture vocale si activée
