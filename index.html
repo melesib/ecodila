@@ -17714,7 +17714,8 @@ function _chatRunSearch(query, prods){
     'oui','non','ok','okay','dakor','daccord',
     'me','moi','ma','mon','ton','ta','votre','nous','vous',
     'qui','quoi','que','quel','quelle','quelles','quels',
-    'tu','peux','pouvez','dis','dit','dite','dire'
+    'tu','peux','pouvez','dis','dit','dite','dire',
+    'lida','bot','assistant'
   ];
   qExpWords = qExpWords.filter(function(w){ return STOPWORDS.indexOf(w) === -1; });
 
@@ -18137,9 +18138,21 @@ function _chatDetectIntent(text){
   if(/(aide|aider|aidez|besoin.*aide|comment.*faire|je.*sais.*pas|sais.*pas|comprend.*pas|comprends.*pas|expliquer|explication)/i.test(t))
     return 'help';
 
-  // Bonjour/salut
-  if(/^(bonjour|salut|hello|coucou|bsr|bjr|bonsoir|hi|hey)\b/i.test(t))
-    return 'greeting';
+  // Bonjour/salut SEULEMENT si c'est une pure salutation, pas suivie d'une demande
+  // (ex: "bonjour Lida" = greeting, mais "bonjour Lida je cherche un iPhone" = search)
+  // On retire les mots de salutation et le nom "lida", puis on vérifie ce qui reste.
+  if(/^(bonjour|salut|hello|coucou|bsr|bjr|bonsoir|hi|hey)\b/i.test(t)){
+    var rest = t.replace(/^(bonjour|salut|hello|coucou|bsr|bjr|bonsoir|hi|hey)/i, '')
+                .replace(/\blida\b/gi, '')
+                .replace(/[,.!?;]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+    // Si après nettoyage il reste moins de 3 caractères, c'est une vraie salutation
+    // Sinon, c'est une salutation + demande → on traite la demande (search/etc.)
+    if(rest.length < 3) return 'greeting';
+    // Sinon, retomber dans search pour traiter la vraie demande
+    // (le "bonjour Lida" est ignoré dans la recherche grâce aux stopwords)
+  }
 
   // Sinon : recherche produit (par défaut)
   return 'search';
@@ -25673,6 +25686,14 @@ window._siteInjectFraisInProfileTables = _siteInjectFraisInProfileTables;
     var cw = document.getElementById('chatWrap');
     if(cw) cw.classList.remove('show');
     if(typeof chatOpen !== 'undefined') chatOpen = false;
+    // CRITIQUE : arrêter aussi la voix et les animations en cours
+    // (sinon LIDA continue de parler alors que le bouton est masqué)
+    if(typeof _chatStopAllAnimations === 'function'){
+      _chatStopAllAnimations();
+    } else if(window.speechSynthesis){
+      // Fallback si la fonction n'est pas encore définie
+      try { window.speechSynthesis.cancel(); } catch(e){}
+    }
   };
   window._waShow = function(){
     wrap.style.display = 'flex';
