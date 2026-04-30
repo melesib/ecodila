@@ -6565,11 +6565,6 @@ window._sbReload = async function() {
                     <span>Clients</span>
                     <span class="nav-item-badge" id="customers-count">0</span>
                 </a>
-                <a class="nav-item" data-page="chat-clients" onclick="navigateToPage('chat-clients');return false">
-                    <span class="nav-item-icon">💬</span>
-                    <span>Chat clients</span>
-                    <span class="nav-item-badge" id="chat-unread-count" style="background:rgba(239,68,68,.18);color:#ef4444;border:1px solid rgba(239,68,68,.4);display:none">0</span>
-                </a>
                 <a class="nav-item" data-page="rgpd-inactifs" onclick="navigateToPage('rgpd-inactifs');return false">
                     <span class="nav-item-icon">🔒</span>
                     <span>RGPD — Inactifs</span>
@@ -6578,6 +6573,11 @@ window._sbReload = async function() {
                 <a class="nav-item" data-page="rgpd-rapport" onclick="navigateToPage('rgpd-rapport');return false">
                     <span class="nav-item-icon">📄</span>
                     <span>Rapport RGPD/ARTCI</span>
+                </a>
+                <a class="nav-item" data-page="chat-clients" onclick="navigateToPage('chat-clients');return false">
+                    <span class="nav-item-icon">💬</span>
+                    <span>Chat clients</span>
+                    <span class="nav-item-badge" id="chat-unread-count" style="background:rgba(239,68,68,.18);color:#ef4444;border:1px solid rgba(239,68,68,.4);display:none">0</span>
                 </a>
                 <a class="nav-item" data-page="reviews">
                     <span class="nav-item-icon">🎧</span>
@@ -10779,6 +10779,7 @@ var ALL_MODULES = [
     {id:'categories',    label:'Catégories',        icon:'🗂'},
     {id:'commandes',     label:'Commandes',         icon:'🛒'},
     {id:'clients',       label:'Clients',           icon:'👤'},
+    {id:'chat-clients',  label:'Chat clients',      icon:'💬'},
     {id:'trocs',         label:'Trocs',             icon:'🔄'},
     {id:'coupons',       label:'Coupons',           icon:'🏷'},
     {id:'blog',          label:'Blog / Pages',      icon:'📝'},
@@ -10805,9 +10806,9 @@ var ALL_MODULES = [
 var ROLES = {
     super_admin:      { label:'Super Admin',        color:'#00ff88', bg:'rgba(0,255,136,.12)', icon:'⭐', modules: ALL_MODULES.map(function(m){return m.id;}) },
     admin_catalogue:  { label:'Admin Catalogue',    color:'#a78bfa', bg:'rgba(167,139,250,.12)', icon:'📦', modules:['produits','categories','stats','achats'] },
-    admin_commandes:  { label:'Admin Commandes',    color:'#f59e0b', bg:'rgba(245,158,11,.12)', icon:'🛒', modules:['commandes','trocs','clients','stats','pnl','retours','achats'] },
+    admin_commandes:  { label:'Admin Commandes',    color:'#f59e0b', bg:'rgba(245,158,11,.12)', icon:'🛒', modules:['commandes','trocs','clients','chat-clients','stats','pnl','retours','achats'] },
     admin_finance:    { label:'Admin Finance',      color:'#34d399', bg:'rgba(52,211,153,.12)', icon:'💹', modules:['commandes','trocs','negotiations','clients','stats','pnl','fournisseurs','retours','achats','livraison'] },
-    support_client:   { label:'Support Client',     color:'#38bdf8', bg:'rgba(56,189,248,.12)', icon:'💬', modules:['clients','messages','avis'] },
+    support_client:   { label:'Support Client',     color:'#38bdf8', bg:'rgba(56,189,248,.12)', icon:'💬', modules:['clients','chat-clients','messages','avis'] },
     marketing:        { label:'Marketing / Contenu',color:'#fb7185', bg:'rgba(251,113,133,.12)', icon:'📣', modules:['blog','coupons','stats'] },
     admin_parrainage: { label:'Admin Parrainage',   color:'#34d399', bg:'rgba(52,211,153,.12)', icon:'🤝', modules:['parrainage'] }
 };
@@ -21151,6 +21152,10 @@ function ccRenderList() {
         const status = c.current_ticket_status || 'open';
         const statusInfo = window._ccStatuses[status] || window._ccStatuses['open'];
         const statusBadge = `<span style="font-size:.62rem;background:${statusInfo.color}22;color:${statusInfo.color};border:1px solid ${statusInfo.color}55;padding:.1rem .4rem;border-radius:6px;font-weight:600;display:inline-block;margin-top:.2rem">${statusInfo.label}</span>`;
+        // Nombre de tickets historiques (si > 1)
+        const ticketsHistoryBadge = (c.total_tickets && c.total_tickets > 1)
+            ? `<span style="font-size:.6rem;background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.4);padding:.1rem .35rem;border-radius:6px;font-weight:600;display:inline-block;margin-top:.2rem;margin-left:.3rem" title="Tickets historiques">📋 ${c.total_tickets}</span>`
+            : '';
         return `<div onclick="ccOpenConversation('${c.client_id.replace(/'/g, '&#39;')}')" 
             style="padding:.7rem .8rem;border-radius:8px;cursor:pointer;margin-bottom:.3rem;background:${isActive ? 'rgba(82,183,136,.18)' : 'rgba(255,255,255,.03)'};border:1px solid ${isActive ? 'rgba(82,183,136,.3)' : 'transparent'};transition:background .15s">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.2rem">
@@ -21158,7 +21163,7 @@ function ccRenderList() {
                 <div style="font-size:.66rem;color:rgba(255,255,255,.4);white-space:nowrap;margin-left:.4rem">${lastDate}</div>
             </div>
             <div style="font-size:.74rem;color:rgba(255,255,255,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lastSenderIcon} ${escapeHtml(lastMessagePreview)}</div>
-            ${statusBadge}
+            ${statusBadge}${ticketsHistoryBadge}
         </div>`;
     }).join('');
 }
@@ -21172,14 +21177,23 @@ async function ccOpenConversation(clientId) {
     detail.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4)">Chargement...</div>';
 
     try {
-        const res = await window._sb.from('chat_conversations')
-            .select('*')
-            .eq('client_id', clientId)
-            .order('created_at', { ascending: true })
-            .limit(200);
-        if (res.error) throw res.error;
-        const messages = res.data || [];
-        ccRenderConversation(clientId, messages);
+        // Charger en parallèle : messages, tickets historiques, KPIs des tickets
+        const [msgRes, ticketsRes] = await Promise.all([
+            window._sb.from('chat_conversations')
+                .select('*')
+                .eq('client_id', clientId)
+                .order('created_at', { ascending: true })
+                .limit(500),
+            window._sb.from('chat_ticket_kpis')
+                .select('*')
+                .eq('client_id', clientId)
+                .order('ticket_id', { ascending: false })
+        ]);
+        if (msgRes.error) throw msgRes.error;
+        const messages = msgRes.data || [];
+        const tickets = (ticketsRes.error ? [] : ticketsRes.data) || [];
+        window._ccCurrentTickets = tickets;
+        ccRenderConversation(clientId, messages, tickets);
 
         // Marquer tous les messages client comme lus côté admin
         await window._sb.from('chat_conversations')
@@ -21196,7 +21210,8 @@ async function ccOpenConversation(clientId) {
 }
 
 // Rendre la conversation détaillée
-function ccRenderConversation(clientId, messages) {
+function ccRenderConversation(clientId, messages, tickets) {
+    tickets = tickets || window._ccCurrentTickets || [];
     const detail = document.getElementById('ccConversationDetail');
     if (!detail) return;
     const conv = window._ccConversations.find(c => c.client_id === clientId);
@@ -21207,21 +21222,47 @@ function ccRenderConversation(clientId, messages) {
     const ticketSubject = conv ? (conv.current_ticket_subject || '') : '';
     const statusInfo = window._ccStatuses[currentStatus] || window._ccStatuses['open'];
 
-    const messagesHtml = messages.map(m => {
-        const isClient = m.sender === 'client';
-        const isAdmin = m.sender === 'admin';
-        const time = new Date(m.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-        const align = isClient ? 'flex-start' : 'flex-end';
-        const bg = isClient ? 'rgba(255,255,255,.06)' : (isAdmin ? 'rgba(82,183,136,.18)' : 'rgba(102,102,255,.12)');
-        const sender = isClient ? '💬 Client' : (isAdmin ? '↩️ Vous' : '🤖 LIDA');
-        const typeBadge = isClient ? ccGetMessageTypeBadge(m.message_type) : '';
-        return `<div style="display:flex;justify-content:${align};margin-bottom:.6rem">
-            <div style="max-width:75%;background:${bg};padding:.6rem .8rem;border-radius:10px;font-size:.84rem;color:#fff">
-                <div style="font-size:.66rem;color:rgba(255,255,255,.5);margin-bottom:.2rem">${sender} · ${time}${typeBadge}</div>
-                <div style="white-space:pre-wrap;word-break:break-word">${escapeHtml(m.message)}</div>
-            </div>
-        </div>`;
-    }).join('');
+    // Regrouper les messages par ticket pour afficher des séparateurs entre tickets
+    // Chaque séparateur indique : "Ticket #N — Statut — FRT : Xs — Résolu en : Y" etc.
+    const ticketsByID = {};
+    tickets.forEach(t => { ticketsByID[t.ticket_id] = t; });
+
+    let messagesHtml = '';
+    let lastTicketId = null;
+    messages.forEach((m, idx) => {
+        const tId = m.ticket_id;
+        // Afficher un séparateur quand on change de ticket
+        if (tId && tId !== lastTicketId) {
+            const tk = ticketsByID[tId];
+            if (tk) {
+                const sInfo = window._ccStatuses[tk.status] || window._ccStatuses['open'];
+                const isLatest = (window._ccCurrentTickets && window._ccCurrentTickets.length > 0 &&
+                                  window._ccCurrentTickets[0].ticket_id === tId);
+                const ticketLabel = isLatest ? '🟢 Ticket actuel' : '📋 Ticket précédent';
+                // Construire les KPIs visibles
+                const kpiParts = [];
+                if (tk.first_response_seconds) kpiParts.push('⚡ FRT : ' + ccFormatDuration(tk.first_response_seconds));
+                if (tk.avg_response_seconds) kpiParts.push('💬 Réponse moy. : ' + ccFormatDuration(tk.avg_response_seconds));
+                if (tk.resolution_seconds) kpiParts.push('✅ Résolu en : ' + ccFormatDuration(tk.resolution_seconds));
+                kpiParts.push(tk.total_messages + ' msgs');
+                const kpiText = kpiParts.join(' · ');
+                const createdDate = tk.created_at ? new Date(tk.created_at).toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+                const closedDate = tk.closed_at ? new Date(tk.closed_at).toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
+
+                messagesHtml += `<div style="margin:1.2rem 0 .8rem 0;text-align:center;position:relative">
+                    <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:${sInfo.color}44;z-index:0"></div>
+                    <div style="display:inline-block;background:${sInfo.color}1a;border:1px solid ${sInfo.color}55;color:${sInfo.color};padding:.4rem .8rem;border-radius:8px;font-size:.72rem;font-weight:600;position:relative;z-index:1;backdrop-filter:blur(4px);max-width:90%">
+                        <div>${ticketLabel} · #${tk.ticket_id} · ${sInfo.label}</div>
+                        <div style="font-size:.66rem;opacity:.85;margin-top:.2rem;font-weight:500">📅 Créé : ${createdDate}${closedDate ? ' · 🔒 Fermé : ' + closedDate : ''}</div>
+                        <div style="font-size:.66rem;opacity:.85;margin-top:.15rem;font-weight:500">${kpiText}</div>
+                    </div>
+                </div>`;
+            }
+            lastTicketId = tId;
+        }
+        // Message lui-même
+        messagesHtml += ccRenderSingleMessageHtml(m);
+    });
 
     // Détection du contexte courant (dernier type de demande client)
     const currentContext = ccGetCurrentContext(messages);
@@ -21276,6 +21317,7 @@ function ccRenderConversation(clientId, messages) {
                     <div style="font-size:.74rem;color:rgba(255,255,255,.5)">${escapeHtml(headerSubtitle)}</div>
                     ${ticketSubject ? `<div style="font-size:.72rem;color:rgba(255,255,255,.55);margin-top:.3rem"><b>Sujet :</b> ${escapeHtml(ticketSubject)}</div>` : ''}
                     ${currentContext && window._ccMessageTypeLabels[currentContext] ? `<div style="margin-top:.4rem"><span style="display:inline-block;font-size:.7rem;background:${window._ccMessageTypeLabels[currentContext].color}22;color:${window._ccMessageTypeLabels[currentContext].color};border:1px solid ${window._ccMessageTypeLabels[currentContext].color}66;padding:.2rem .5rem;border-radius:6px;font-weight:600">⚡ Contexte : ${window._ccMessageTypeLabels[currentContext].label}</span></div>` : ''}
+                    ${tickets.length > 1 ? `<div style="margin-top:.4rem;font-size:.7rem;color:rgba(255,255,255,.5)">📋 <b>${tickets.length} tickets</b> au total pour ce client (${tickets.filter(t => ['resolved','order_made','info_given','auto_closed'].indexOf(t.status) !== -1).length} fermés, ${tickets.filter(t => ['open','in_progress'].indexOf(t.status) !== -1).length} actifs)</div>` : ''}
                 </div>
                 <div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-end">
                     ${conv && conv.client_phone ? `<a href="https://wa.me/${conv.client_phone.replace(/\\D/g,'')}" target="_blank" style="background:#25d366;color:#fff;padding:.4rem .7rem;border-radius:6px;font-size:.74rem;text-decoration:none;font-weight:600">📱 WhatsApp</a>` : ''}
@@ -21400,9 +21442,19 @@ async function ccSendReply() {
         }
 
         textarea.value = '';
-        // Refresh la conversation et la liste
-        await ccOpenConversation(clientId);
+
+        // Ajouter le message envoyé directement au DOM (sans re-render complet)
+        // pour ne pas casser le focus / les interactions de l'admin.
+        const messagesArea = document.getElementById('ccMessagesArea');
+        if (messagesArea && res.data) {
+            messagesArea.insertAdjacentHTML('beforeend', ccRenderSingleMessageHtml(res.data));
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        // Refresh juste la liste à gauche (pour mettre à jour "dernier message" et statut)
         await ccLoadConversations();
+        // Focus reste dans la textarea pour pouvoir continuer
+        textarea.focus();
     } catch (e) {
         console.warn('[chat-clients] erreur envoi:', e);
         alert('Erreur lors de l\'envoi : ' + (e.message || 'inconnue'));
@@ -21626,21 +21678,124 @@ if (typeof escapeHtml !== 'function') {
     };
 }
 
-// Auto-refresh toutes les 15s quand la page chat-clients est active
+// Auto-refresh toutes les 15s — MAIS sans casser l'interaction de l'admin
+// (ne refresh PAS le détail si l'admin est en train de taper, sélectionner, etc.)
 window._ccPollTimer = setInterval(() => {
     const page = document.getElementById('page-chat-clients');
-    if (page && !page.classList.contains('hidden')) {
-        ccLoadConversations();
-        // Refresh la conversation ouverte si elle est visible
-        if (window._ccCurrentClientId) {
-            // ne pas tout reload, juste les nouveaux messages
-            ccOpenConversation(window._ccCurrentClientId);
-        }
-    } else {
-        // Sur les autres pages, juste mettre à jour le badge
+    if (!page || page.classList.contains('hidden')) {
+        // Sur autres pages : juste le badge
         ccUpdateUnreadBadge();
+        return;
+    }
+    // Vérifier si l'admin est en train de taper / interagir
+    const replyTextarea = document.getElementById('ccReplyText');
+    const adminIsTyping = replyTextarea && (
+        document.activeElement === replyTextarea ||  // focus dans la textarea
+        (replyTextarea.value && replyTextarea.value.trim().length > 0)  // a déjà tapé du texte
+    );
+    const tplSelect = document.getElementById('ccTemplateSelect');
+    const adminIsSelecting = tplSelect && document.activeElement === tplSelect;
+    const statusSelect = document.getElementById('ccStatusSelect');
+    const adminIsChangingStatus = statusSelect && document.activeElement === statusSelect;
+
+    if (adminIsTyping || adminIsSelecting || adminIsChangingStatus) {
+        // L'admin interagit → on refresh seulement la LISTE (à gauche), pas le détail
+        ccLoadConversations();
+        // Même la conversation : refresh "soft" (ajout des nouveaux messages uniquement)
+        if (window._ccCurrentClientId) {
+            ccSoftRefreshMessages(window._ccCurrentClientId);
+        }
+        return;
+    }
+    // Sinon : refresh complet
+    ccLoadConversations();
+    if (window._ccCurrentClientId) {
+        ccSoftRefreshMessages(window._ccCurrentClientId);
     }
 }, 15000);
+
+// Refresh "soft" : ajoute seulement les nouveaux messages au DOM existant,
+// sans re-render le détail complet (donc sans casser focus / textarea / select)
+async function ccSoftRefreshMessages(clientId) {
+    try {
+        const messagesArea = document.getElementById('ccMessagesArea');
+        if (!messagesArea) return;
+        const res = await window._sb.from('chat_conversations')
+            .select('*')
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: true })
+            .limit(200);
+        if (res.error || !res.data) return;
+        const messages = res.data;
+
+        // Compter les messages déjà affichés (lus depuis data-msg-id)
+        const existingIds = new Set();
+        messagesArea.querySelectorAll('[data-msg-id]').forEach(el => {
+            existingIds.add(parseInt(el.getAttribute('data-msg-id')));
+        });
+
+        // Si pas d'IDs trouvés (1er rendu sans data-msg-id), recharger normalement
+        if (existingIds.size === 0 && messages.length > 0) {
+            ccRenderMessagesArea(messagesArea, messages);
+            // Marquer admin comme lu silencieusement
+            await window._sb.from('chat_conversations')
+                .update({ read_by_admin: true })
+                .eq('client_id', clientId)
+                .eq('sender', 'client')
+                .eq('read_by_admin', false);
+            ccUpdateUnreadBadge();
+            return;
+        }
+
+        // Trouver les nouveaux messages
+        const newMessages = messages.filter(m => !existingIds.has(m.id));
+        if (newMessages.length === 0) return; // rien de nouveau
+
+        // Ajouter les nouveaux messages au DOM
+        const wasAtBottom = (messagesArea.scrollHeight - messagesArea.scrollTop - messagesArea.clientHeight) < 50;
+        const newHtml = newMessages.map(m => ccRenderSingleMessageHtml(m)).join('');
+        messagesArea.insertAdjacentHTML('beforeend', newHtml);
+
+        // Auto-scroll seulement si l'admin était en bas (sinon il lisait un message + haut)
+        if (wasAtBottom) {
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        // Marquer comme lus
+        await window._sb.from('chat_conversations')
+            .update({ read_by_admin: true })
+            .eq('client_id', clientId)
+            .eq('sender', 'client')
+            .eq('read_by_admin', false);
+        ccUpdateUnreadBadge();
+    } catch (e) {
+        console.warn('[chat-clients] soft refresh erreur:', e);
+    }
+}
+
+// Helper : rendre la zone de messages (utilisé pour 1er rendu et soft-refresh)
+function ccRenderMessagesArea(area, messages) {
+    area.innerHTML = messages.map(m => ccRenderSingleMessageHtml(m)).join('') ||
+        '<div style="text-align:center;color:rgba(255,255,255,.4);padding:2rem">Aucun message</div>';
+    setTimeout(() => { area.scrollTop = area.scrollHeight; }, 50);
+}
+
+// Helper : générer le HTML d'un message individuel (avec data-msg-id pour le tracking)
+function ccRenderSingleMessageHtml(m) {
+    const isClient = m.sender === 'client';
+    const isAdmin = m.sender === 'admin';
+    const time = new Date(m.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const align = isClient ? 'flex-start' : 'flex-end';
+    const bg = isClient ? 'rgba(255,255,255,.06)' : (isAdmin ? 'rgba(82,183,136,.18)' : 'rgba(102,102,255,.12)');
+    const sender = isClient ? '💬 Client' : (isAdmin ? '↩️ Vous' : '🤖 LIDA');
+    const typeBadge = isClient ? ccGetMessageTypeBadge(m.message_type) : '';
+    return `<div data-msg-id="${m.id}" style="display:flex;justify-content:${align};margin-bottom:.6rem">
+        <div style="max-width:75%;background:${bg};padding:.6rem .8rem;border-radius:10px;font-size:.84rem;color:#fff">
+            <div style="font-size:.66rem;color:rgba(255,255,255,.5);margin-bottom:.2rem">${sender} · ${time}${typeBadge}</div>
+            <div style="white-space:pre-wrap;word-break:break-word">${escapeHtml(m.message)}</div>
+        </div>
+    </div>`;
+}
 
 // Auto-fermeture des tickets > 48h sans retour client (toutes les 5 min)
 async function ccAutoCloseStale() {
@@ -37042,6 +37197,7 @@ var PAGE_TO_MODULE = {
     'trocs':         'trocs',
     'negotiations':  'negotiations',
     'customers':     'clients',
+    'chat-clients':  'chat-clients',
     'reviews':       'avis',
     'coupons':       'coupons',
     'parrainage':    'parrainage',
@@ -49372,34 +49528,110 @@ function geoFromTimezone(){
   return null;
 }
 
-/* ── Stratégie 2 : geojs.io via script tag (JSONP, fonctionne depuis file://) ── */
-function geoFromGeoJS(cb){
-  var callbackName = '_geoJSCb_'+Date.now();
-  var script = document.createElement('script');
+/* ── Stratégie 2 : Détection IP via plusieurs providers en cascade ──
+   Essaie ipwho.is, ipapi.co, freeipapi.com — le 1er qui répond gagne.
+   Tous supportent CORS donc fetch() fonctionne directement (pas besoin de JSONP). */
+function geoFromIPAPI(cb){
   var done = false;
   var timer = setTimeout(function(){
-    if(!done){ done=true; delete window[callbackName]; try{script.remove();}catch(e){} cb(null); }
-  }, 4000);
+    if(!done){ done = true; cb(null); }
+  }, 5000);
 
-  window[callbackName] = function(data){
-    if(done) return; done=true; clearTimeout(timer);
-    delete window[callbackName]; try{script.remove();}catch(e){}
-    if(data && data.country_code){
-      cb({
-        countryCode: data.country_code,
-        country:     data.country || data.country_code,
-        city:        data.city || '',
-        region:      data.region || '',
-        ip:          data.ip || '',
-        source:      'geojs',
-        ts:          Date.now()
-      });
-    } else { cb(null); }
+  var finishWith = function(result){
+    if(done) return;
+    done = true;
+    clearTimeout(timer);
+    cb(result);
   };
-  script.src = 'https://get.geojs.io/v1/ip/geo.js?callback='+callbackName;
-  script.onerror = function(){ if(!done){ done=true; clearTimeout(timer); delete window[callbackName]; cb(null); } };
-  document.head.appendChild(script);
+
+  // Liste des providers en ordre de priorité
+  // Chaque provider a son format de réponse : on normalise vers {countryCode, country, city, ip}
+  var providers = [
+    {
+      name: 'ipwho',
+      url: 'https://ipwho.is/?fields=ip,country_code,country,region,city,success',
+      parse: function(d){
+        if(!d || d.success === false || !d.country_code) return null;
+        return {
+          countryCode: d.country_code,
+          country: d.country || d.country_code,
+          city: d.city || '',
+          region: d.region || '',
+          ip: d.ip || ''
+        };
+      }
+    },
+    {
+      name: 'ipapi',
+      url: 'https://ipapi.co/json/',
+      parse: function(d){
+        if(!d || !d.country_code || d.error) return null;
+        return {
+          countryCode: d.country_code,
+          country: d.country_name || d.country_code,
+          city: d.city || '',
+          region: d.region || '',
+          ip: d.ip || ''
+        };
+      }
+    },
+    {
+      name: 'freeipapi',
+      url: 'https://freeipapi.com/api/json',
+      parse: function(d){
+        if(!d || !d.countryCode) return null;
+        return {
+          countryCode: d.countryCode,
+          country: d.countryName || d.countryCode,
+          city: d.cityName || '',
+          region: d.regionName || '',
+          ip: d.ipAddress || ''
+        };
+      }
+    }
+  ];
+
+  // Tenter chaque provider l'un après l'autre
+  function tryProvider(idx){
+    if(done) return;
+    if(idx >= providers.length){
+      finishWith(null);
+      return;
+    }
+    var p = providers[idx];
+    fetch(p.url, { method: 'GET', cache: 'no-store' })
+      .then(function(r){
+        if(!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(d){
+        var parsed = p.parse(d);
+        if(parsed){
+          finishWith({
+            countryCode: parsed.countryCode,
+            country: parsed.country,
+            city: parsed.city,
+            region: parsed.region,
+            ip: parsed.ip,
+            source: 'ipapi',
+            provider: p.name,
+            ts: Date.now()
+          });
+        } else {
+          // Réponse OK mais pas exploitable → essayer le suivant
+          tryProvider(idx + 1);
+        }
+      })
+      .catch(function(){
+        // Erreur réseau / CORS / timeout → essayer le suivant
+        tryProvider(idx + 1);
+      });
+  }
+  tryProvider(0);
 }
+
+/* ── Wrapper rétro-compatible (l'ancien code appelait geoFromGeoJS) ── */
+function geoFromGeoJS(cb){ return geoFromIPAPI(cb); }
 
 /* ── Résolution principale multi-stratégie ── */
 function geoResolve(cb){
@@ -49408,7 +49640,10 @@ function geoResolve(cb){
     var cached = (window._sbRead(GEO_KEY));
     if(cached && cached.ts && (Date.now()-cached.ts) < GEO_TTL && cached.countryCode && cached.countryCode !== '??'){
       _geoData = cached; _geoReady = true;
-      var src = cached.source === 'timezone' ? '(timezone)' : cached.source === 'geojs' ? '(geojs)' : cached.source === 'manual' ? '(manuel)' : '';
+      var src = cached.source === 'timezone' ? '(timezone)' :
+                cached.source === 'geojs' ? '(geojs)' :
+                cached.source === 'ipapi' ? '(ipapi)' :
+                cached.source === 'manual' ? '(manuel)' : '';
       geoSetStatus('🟢','Géolocalisation active '+src+' · '+geoFlag(_geoData.countryCode)+' '+_geoData.country+(_geoData.city?' · '+_geoData.city:''), _geoData.ts);
       cb && cb(_geoData); return;
     }
@@ -49416,13 +49651,14 @@ function geoResolve(cb){
 
   geoSetStatus('🔵','Détection géographique en cours...');
 
-  // 2. geojs.io (JSONP — fonctionne depuis file://)
-  geoFromGeoJS(function(result){
+  // 2. IP API (cascade ipwho → ipapi → freeipapi)
+  geoFromIPAPI(function(result){
     if(result){
       _geoData = result;
       window._sbWrite(GEO_KEY, _geoData);
       _geoReady = true;
-      geoSetStatus('🟢','Géolocalisation active (geojs) · '+geoFlag(_geoData.countryCode)+' '+_geoData.country+(_geoData.city?' · '+_geoData.city:''), Date.now());
+      var providerLabel = result.provider ? '('+result.provider+')' : '(ipapi)';
+      geoSetStatus('🟢','Géolocalisation active '+providerLabel+' · '+geoFlag(_geoData.countryCode)+' '+_geoData.country+(_geoData.city?' · '+_geoData.city:''), Date.now());
       cb && cb(_geoData);
     } else {
       // 3. Fallback timezone

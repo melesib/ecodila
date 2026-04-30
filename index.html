@@ -4051,8 +4051,12 @@ window._lidaConv = (function(){
     try {
       var meta = getClientMeta();
       var clientId = getClientId();
-      // Récupérer ou créer le ticket actif pour ce client
+      // Récupérer ou créer le ticket actif pour ce client.
+      // Logique côté SQL :
+      //   - Si ticket actif (open/in_progress) ET dernier msg client < 48h → réutilise
+      //   - Sinon (ticket fermé/résolu/auto-fermé OU > 48h) → CRÉE un nouveau ticket
       var ticketId = null;
+      var previousTicketId = window._lidaLastTicketId || null;
       try {
         var tk = await _sb.rpc('get_or_create_ticket', {
           p_client_id: clientId,
@@ -4062,6 +4066,13 @@ window._lidaConv = (function(){
           p_first_message: message.substring(0, 80)
         });
         if(tk && !tk.error) ticketId = tk.data;
+        // Log diagnostique : indiquer si c'est un nouveau ticket (utile pour debug)
+        if(ticketId && previousTicketId && ticketId !== previousTicketId){
+          console.log('[LIDA] 🆕 Nouveau ticket #' + ticketId + ' créé (précédent : #' + previousTicketId + ' était fermé ou >48h)');
+        } else if(ticketId && !previousTicketId){
+          console.log('[LIDA] 🎫 Ticket #' + ticketId + ' (premier de la session)');
+        }
+        window._lidaLastTicketId = ticketId;
       } catch(e){}
 
       var row = {
