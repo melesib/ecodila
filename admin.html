@@ -49529,7 +49529,7 @@ function geoFromTimezone(){
 }
 
 /* ── Stratégie 2 : Détection IP via plusieurs providers en cascade ──
-   Essaie ipwho.is, ipapi.co, freeipapi.com — le 1er qui répond gagne.
+   Essaie ipapi.co, freeipapi.com — le 1er qui répond gagne.
    Tous supportent CORS donc fetch() fonctionne directement (pas besoin de JSONP). */
 function geoFromIPAPI(cb){
   var done = false;
@@ -49546,21 +49546,8 @@ function geoFromIPAPI(cb){
 
   // Liste des providers en ordre de priorité
   // Chaque provider a son format de réponse : on normalise vers {countryCode, country, city, ip}
+  // Note : on n'utilise QUE les domaines autorisés par la CSP du site (cf _headers / netlify.toml)
   var providers = [
-    {
-      name: 'ipwho',
-      url: 'https://ipwho.is/?fields=ip,country_code,country,region,city,success',
-      parse: function(d){
-        if(!d || d.success === false || !d.country_code) return null;
-        return {
-          countryCode: d.country_code,
-          country: d.country || d.country_code,
-          city: d.city || '',
-          region: d.region || '',
-          ip: d.ip || ''
-        };
-      }
-    },
     {
       name: 'ipapi',
       url: 'https://ipapi.co/json/',
@@ -49651,7 +49638,7 @@ function geoResolve(cb){
 
   geoSetStatus('🔵','Détection géographique en cours...');
 
-  // 2. IP API (cascade ipwho → ipapi → freeipapi)
+  // 2. IP API (cascade ipapi → freeipapi)
   geoFromIPAPI(function(result){
     if(result){
       _geoData = result;
