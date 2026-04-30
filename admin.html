@@ -21454,6 +21454,14 @@ function ccRenderConversation(clientId, messages, tickets) {
                 <textarea id="ccReplyText" rows="3" placeholder="Tapez votre réponse..." style="flex:1;padding:.55rem .7rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;border-radius:8px;font-size:.86rem;resize:vertical;font-family:inherit"></textarea>
                 <button onclick="ccSendReply()" class="btn btn-primary" style="padding:.5rem 1rem;font-size:.84rem;font-weight:700;align-self:stretch">📤 Envoyer</button>
             </div>
+            ${conv && conv.client_phone ? `
+            <label style="display:flex;align-items:center;gap:.4rem;margin-top:.5rem;font-size:.74rem;color:rgba(255,255,255,.7);cursor:pointer;padding:.4rem .6rem;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.25);border-radius:8px">
+                <input type="checkbox" id="ccAlsoWhatsApp" checked style="cursor:pointer;width:16px;height:16px;accent-color:#25d366">
+                <span style="flex:1">📱 <b>Envoyer aussi via WhatsApp</b> au ${escapeHtml(conv.client_phone)} <span style="opacity:.7">(notification rapide + lien vers LIDA)</span></span>
+            </label>` : `
+            <div style="margin-top:.5rem;font-size:.7rem;color:rgba(255,255,255,.4);padding:.4rem .6rem;background:rgba(255,255,255,.03);border-radius:8px;text-align:center">
+                ℹ️ Le client n'a pas de numéro WhatsApp enregistré (uniquement chat)
+            </div>`}
             <div style="font-size:.66rem;color:rgba(255,255,255,.4);margin-top:.4rem;text-align:center;display:flex;align-items:center;justify-content:center;gap:.3rem">
                 ⏰ <span>Le ticket sera <b>auto-fermé après 48h</b> sans retour du client. S'il revient après, un nouveau ticket sera créé.</span>
             </div>
@@ -21713,6 +21721,35 @@ async function ccSendReply() {
         if (messagesArea && res.data) {
             messagesArea.insertAdjacentHTML('beforeend', ccRenderSingleMessageHtml(res.data));
             messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        // ── Envoi double via WhatsApp si activé et téléphone disponible ──
+        // Le client reçoit une notification courte sur WhatsApp + lien vers LIDA
+        // pour consulter la réponse complète (incluant images, contexte, etc.)
+        try {
+            const waCheckbox = document.getElementById('ccAlsoWhatsApp');
+            const sendWA = waCheckbox && waCheckbox.checked && conv && conv.client_phone;
+            if (sendWA) {
+                const tel = String(conv.client_phone).replace(/[^\d]/g, '');
+                if (tel.length >= 8) {
+                    const tel225 = (tel.startsWith('225') || tel.length > 10) ? tel : '225' + tel.replace(/^0/, '');
+                    const clientName = conv.client_name || 'cher client';
+                    // Aperçu court de la réponse (premiers 150 chars max, sans le footer LIDA)
+                    const preview = (text || '📷 Photos jointes').substring(0, 150).trim();
+                    const previewWithEllipsis = (text && text.length > 150) ? preview + '...' : preview;
+                    // Message WhatsApp court + lien vers LIDA pour le suivi
+                    const waMsg = `Bonjour ${clientName} 👋\n\n` +
+                        `Vous avez une nouvelle réponse de l'équipe EcoDila :\n\n` +
+                        `💬 _${previewWithEllipsis}_\n\n` +
+                        `📲 *Consultez votre réponse complète et répondez via LIDA pour un suivi rapide :*\n` +
+                        `👉 https://ecodila.com/?openchat=1\n\n` +
+                        `— *EcoDila*`;
+                    const url = 'https://wa.me/' + tel225 + '?text=' + encodeURIComponent(waMsg);
+                    window.open(url, '_blank');
+                }
+            }
+        } catch (eWA) {
+            console.warn('[chat-clients] erreur WhatsApp double envoi:', eWA);
         }
 
         // Refresh juste la liste à gauche (pour mettre à jour "dernier message" et statut)
@@ -37282,12 +37319,15 @@ function cfgShowToast(msg, type) {
     window.genererMessageStatut = function(order, oldStatus, newStatus) {
         var msgs = _getMessages();
         var tpl = msgs.find(function(m){ return m.cat === 'commande' && m.statut === newStatus && m.active; });
-        if (!tpl) return _origGen ? _origGen(order, oldStatus, newStatus) : '';
+        if (!tpl) {
+            // Fallback : utiliser la version originale (qui contient déjà le footer LIDA)
+            return _origGen ? _origGen(order, oldStatus, newStatus) : '';
+        }
         var prenom  = order.prenom || order.nom || 'cher client';
         var id      = order.id || 'N/A';
         var produit = order.produits || order.appareil || 'votre produit';
         var montant = (order.total || 0).toLocaleString('fr-FR');
-        return tpl.content
+        var msg = tpl.content
             .replace(/\{\{Nom\}\}/g, prenom)
             .replace(/\{\{OrderID\}\}/g, id)
             .replace(/\{\{Produit\}\}/g, produit)
@@ -37296,19 +37336,23 @@ function cfgShowToast(msg, type) {
             .replace(/\{\{LienDuSite\}\}/g, 'ecodila.com')
             .replace(/\{\{DateCommande\}\}/g, order.date || new Date().toLocaleDateString('fr-FR'))
             .replace(/\{\{Appareil\}\}/g, produit);
+        // Toujours ajouter le footer LIDA pour encourager l'utilisation du chatbot
+        return (typeof window._addLidaFooter === 'function') ? window._addLidaFooter(msg) : msg;
     };
 
     var _origTroc = window.genererMessageTroc;
     window.genererMessageTroc = function(t, statut) {
         var msgs = _getMessages();
         var tpl = msgs.find(function(m){ return m.cat === 'troc' && m.statut === statut && m.active; });
-        if (!tpl) return _origTroc ? _origTroc(t, statut) : '';
+        if (!tpl) {
+            return _origTroc ? _origTroc(t, statut) : '';
+        }
         var prenom   = t.nom || 'cher client';
         var id       = t.id || 'N/A';
         var appareil = (t.marque||'') + ' ' + (t.modele||'');
         var valeur   = (t.valEst||0).toLocaleString('fr-FR');
         var prodVoulu = t.appareilSouhaite || '—';
-        return tpl.content
+        var msg = tpl.content
             .replace(/\{\{Nom\}\}/g, prenom)
             .replace(/\{\{OrderID\}\}/g, id)
             .replace(/\{\{Appareil\}\}/g, appareil.trim() || 'votre appareil')
@@ -37316,20 +37360,25 @@ function cfgShowToast(msg, type) {
             .replace(/\{\{Montant\}\}/g, valeur + ' FCFA')
             .replace(/\{\{Statut\}\}/g, statut)
             .replace(/\{\{LienDuSite\}\}/g, 'ecodila.com');
+        return (typeof window._addLidaFooter === 'function') ? window._addLidaFooter(msg) : msg;
     };
 
     var _origNeg = window.genererMessageNeg;
     window.genererMessageNeg = function(neg, statut) {
         var msgs = _getMessages();
         var tpl = msgs.find(function(m){ return m.cat === 'negociation' && m.statut === statut && m.active; });
-        if (!tpl) return _origNeg ? _origNeg(neg, statut) : '';
+        if (!tpl) {
+            // Fallback original (qui peut ne pas contenir le footer)
+            var fallback = _origNeg ? _origNeg(neg, statut) : '';
+            return (typeof window._addLidaFooter === 'function') ? window._addLidaFooter(fallback) : fallback;
+        }
         var prixOff   = (neg.prixOfficiel||neg.prix||0).toLocaleString('fr-FR');
         var prixProp  = (neg.prixPropose||0).toLocaleString('fr-FR');
         var prixContr = neg.contreProposition ? neg.contreProposition.toLocaleString('fr-FR') + ' FCFA' : '—';
         var prixAcc   = neg.montantAccepte ? neg.montantAccepte.toLocaleString('fr-FR') + ' FCFA'
                       : neg.contreProposition ? neg.contreProposition.toLocaleString('fr-FR') + ' FCFA'
                       : prixProp + ' FCFA';
-        return tpl.content
+        var msg = tpl.content
             .replace(/\{\{Nom\}\}/g, neg.nom||'cher client')
             .replace(/\{\{OrderID\}\}/g, neg.id||'N/A')
             .replace(/\{\{Produit\}\}/g, neg.appareil||'votre produit')
@@ -37339,6 +37388,7 @@ function cfgShowToast(msg, type) {
             .replace(/\{\{PrixOfficiel\}\}/g, prixOff + ' FCFA')
             .replace(/\{\{Statut\}\}/g, statut)
             .replace(/\{\{LienDuSite\}\}/g, 'ecodila.com');
+        return (typeof window._addLidaFooter === 'function') ? window._addLidaFooter(msg) : msg;
     };
 })();
 
