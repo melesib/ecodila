@@ -749,7 +749,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .wa-float:hover{transform:scale(1.05);animation:none}
 @keyframes waPulseRing{0%,100%{box-shadow:0 6px 24px rgba(37,211,102,.55), 0 2px 6px rgba(0,0,0,.18)}50%{box-shadow:0 6px 30px rgba(37,211,102,.85), 0 2px 8px rgba(0,0,0,.22)}}
 @keyframes waPulseExpand{0%{transform:scale(1);opacity:.55}100%{transform:scale(1.45);opacity:0}}
-.wa-float-badge{position:absolute;top:-3px;left:-3px;width:14px;height:14px;border-radius:50%;background:#ef4444;border:2px solid #fff;animation:waBadgePulse 1.6s ease-in-out infinite;pointer-events:none;z-index:2}
+.wa-float-badge{position:absolute;top:-6px;left:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#ef4444;border:2px solid #fff;animation:waBadgePulse 1.6s ease-in-out infinite;pointer-events:none;z-index:2;color:#fff;font-size:.65rem;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
 @keyframes waBadgePulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.25);opacity:.85}}
 .wa-float-tip{position:absolute;right:calc(100% + .8rem);top:50%;transform:translateY(-50%) translateX(8px);background:#000;color:#fff;padding:.6rem .9rem;border-radius:14px 14px 0 14px;font-size:.78rem;font-weight:600;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s;font-family:inherit}
 .wa-float-tip::after{content:"";position:absolute;right:-6px;bottom:0;width:0;height:0;border:6px solid transparent;border-top-color:#000;border-right:0;border-bottom:0}
@@ -3972,6 +3972,244 @@ var _sb = window.supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ0dm93bG1yc2djYWllbnZob2pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0Mjk5NTYsImV4cCI6MjA5MDAwNTk1Nn0.1owVKN-R6-Edc3Rl7I0YyGxes8HFaTvOuff6dwZ2mX4"
 );
 
+/* ═══ Module LIDA Conversation ═══════════════════════════════════════════
+   Persiste les messages chat en Supabase et permet à l'admin de répondre depuis le BO.
+   Logique d'identification :
+   - Si connecté : client_id = numéro téléphone du compte (canonique)
+   - Sinon : client_id = UUID anonyme stocké en localStorage (suit le navigateur)
+*/
+window._lidaConv = (function(){
+  var POLL_INTERVAL = 8000;  // 8s : polling pour nouvelles réponses admin
+  var pollTimer = null;
+  var lastSeenId = 0;        // ID du dernier message reçu (évite doublons)
+  var unreadCount = 0;
+
+  // Récupérer ou créer un client_id stable
+  function getClientId(){
+    // Si connecté avec un téléphone, utiliser ça
+    try {
+      if(typeof userLoggedIn !== 'undefined' && userLoggedIn && currentUser && currentUser.tel){
+        return 'phone:' + String(currentUser.tel).replace(/\D/g, '');
+      }
+    } catch(e){}
+    // Sinon : UUID anonyme stable dans localStorage
+    var anon = null;
+    try { anon = localStorage.getItem('lida_client_id'); } catch(e){}
+    if(!anon){
+      anon = 'anon_' + Date.now() + '_' + Math.random().toString(36).substring(2, 10);
+      try { localStorage.setItem('lida_client_id', anon); } catch(e){}
+    }
+    return anon;
+  }
+
+  // Migration : à la connexion, transférer les conversations anonymes vers le compte
+  // Évite que le client perde son historique quand il se connecte après avoir chatté
+  async function migrateAnonToAccount(){
+    try {
+      var anon = null;
+      try { anon = localStorage.getItem('lida_client_id'); } catch(e){}
+      if(!anon || !anon.startsWith('anon_')) return;
+      if(typeof userLoggedIn === 'undefined' || !userLoggedIn || !currentUser || !currentUser.tel) return;
+      var newId = 'phone:' + String(currentUser.tel).replace(/\D/g, '');
+      // UPDATE toutes les lignes de l'ancien client_id vers le nouveau
+      await _sb.from('chat_conversations')
+        .update({
+          client_id: newId,
+          client_name: currentUser.nom || currentUser.name || null,
+          client_phone: currentUser.tel,
+          client_email: currentUser.email || null,
+          is_logged_in: true
+        })
+        .eq('client_id', anon);
+      // L'ancien anon n'est plus utilisé : on garde quand même en localStorage
+      // au cas où le client se déconnecte ensuite (ses messages anciens sont liés au compte maintenant)
+      console.log('[lida-conv] migration anon→compte OK');
+    } catch(e){
+      console.warn('[lida-conv] migration erreur:', e);
+    }
+  }
+
+  // Métadonnées du client (pour affichage BO)
+  function getClientMeta(){
+    var meta = { client_name: null, client_phone: null, client_email: null, is_logged_in: false };
+    try {
+      if(typeof userLoggedIn !== 'undefined' && userLoggedIn && currentUser){
+        meta.is_logged_in = true;
+        meta.client_name = currentUser.nom || currentUser.name || null;
+        meta.client_phone = currentUser.tel || null;
+        meta.client_email = currentUser.email || null;
+      }
+    } catch(e){}
+    return meta;
+  }
+
+  // Sauvegarder un message (client → admin)
+  async function saveMessage(message, sender, messageType){
+    if(!message || !message.trim()) return null;
+    sender = sender || 'client';
+    messageType = messageType || 'text';
+    try {
+      var meta = getClientMeta();
+      var clientId = getClientId();
+      // Récupérer ou créer le ticket actif pour ce client
+      var ticketId = null;
+      try {
+        var tk = await _sb.rpc('get_or_create_ticket', {
+          p_client_id: clientId,
+          p_client_name: meta.client_name,
+          p_client_phone: meta.client_phone,
+          p_client_email: meta.client_email,
+          p_first_message: message.substring(0, 80)
+        });
+        if(tk && !tk.error) ticketId = tk.data;
+      } catch(e){}
+
+      var row = {
+        client_id: clientId,
+        client_name: meta.client_name,
+        client_phone: meta.client_phone,
+        client_email: meta.client_email,
+        is_logged_in: meta.is_logged_in,
+        sender: sender,
+        message: message.substring(0, 2000),
+        message_type: messageType,
+        ticket_id: ticketId,
+        read_by_client: (sender === 'client'),
+        read_by_admin: (sender !== 'client')
+      };
+      var res = await _sb.from('chat_conversations').insert(row).select().single();
+      if(res.error){
+        console.warn('[lida-conv] erreur save:', res.error.message);
+        return null;
+      }
+      return res.data;
+    } catch(e){
+      console.warn('[lida-conv] save exception:', e);
+      return null;
+    }
+  }
+
+  // Charger l'historique des messages du client
+  async function loadHistory(){
+    try {
+      var res = await _sb.from('chat_conversations')
+        .select('*')
+        .eq('client_id', getClientId())
+        .order('created_at', { ascending: true })
+        .limit(100);
+      if(res.error) return [];
+      return res.data || [];
+    } catch(e){
+      return [];
+    }
+  }
+
+  // Vérifier les nouvelles réponses admin (non lues)
+  async function checkNewAdminReplies(){
+    try {
+      var res = await _sb.from('chat_conversations')
+        .select('*')
+        .eq('client_id', getClientId())
+        .eq('sender', 'admin')
+        .eq('read_by_client', false)
+        .order('created_at', { ascending: true });
+      if(res.error || !res.data) return [];
+      return res.data;
+    } catch(e){
+      return [];
+    }
+  }
+
+  // Marquer un message comme lu côté client
+  async function markAsRead(messageId){
+    try {
+      await _sb.from('chat_conversations')
+        .update({ read_by_client: true })
+        .eq('id', messageId);
+    } catch(e){}
+  }
+
+  // Démarrer le polling pour les réponses admin
+  function startPolling(){
+    if(pollTimer) return;
+    var poll = async function(){
+      var newMessages = await checkNewAdminReplies();
+      if(newMessages.length > 0){
+        unreadCount = newMessages.length;
+        showNewMessageBadge(newMessages);
+        // Stocker pour affichage à l'ouverture du chat
+        window._lidaPendingMessages = newMessages;
+      }
+    };
+    poll();  // immédiat
+    pollTimer = setInterval(poll, POLL_INTERVAL);
+  }
+
+  function stopPolling(){
+    if(pollTimer){
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  // Afficher le badge "Nouveau message" sur le bouton flottant
+  function showNewMessageBadge(messages){
+    var tip = document.getElementById('waFloatTip');
+    var badge = document.querySelector('.wa-float-badge');
+    var btn = document.getElementById('waFloatBtn');
+    if(tip){
+      tip.textContent = '💬 Nouveau message !';
+      tip.style.background = 'var(--green)';
+      tip.style.color = '#fff';
+      tip.classList.add('show');
+    }
+    if(badge){
+      badge.style.display = 'block';
+      badge.textContent = String(messages.length);
+    }
+    if(btn){
+      btn.classList.add('has-new-message');
+    }
+  }
+
+  // Cacher le badge (quand le client a vu les messages)
+  function hideNewMessageBadge(){
+    var tip = document.getElementById('waFloatTip');
+    var badge = document.querySelector('.wa-float-badge');
+    var btn = document.getElementById('waFloatBtn');
+    if(tip) tip.classList.remove('show');
+    if(badge){
+      badge.style.display = 'none';
+      badge.textContent = '';
+    }
+    if(btn) btn.classList.remove('has-new-message');
+    unreadCount = 0;
+  }
+
+  return {
+    getClientId: getClientId,
+    migrateAnonToAccount: migrateAnonToAccount,
+    saveMessage: saveMessage,
+    loadHistory: loadHistory,
+    checkNewAdminReplies: checkNewAdminReplies,
+    markAsRead: markAsRead,
+    startPolling: startPolling,
+    stopPolling: stopPolling,
+    showNewMessageBadge: showNewMessageBadge,
+    hideNewMessageBadge: hideNewMessageBadge,
+    getUnreadCount: function(){ return unreadCount; }
+  };
+})();
+
+// Démarrer le polling après chargement de la page
+if(document.readyState === 'complete' || document.readyState === 'interactive'){
+  setTimeout(function(){ try { _lidaConv.startPolling(); } catch(e){} }, 2000);
+} else {
+  window.addEventListener('load', function(){
+    setTimeout(function(){ try { _lidaConv.startPolling(); } catch(e){} }, 2000);
+  });
+}
+
 window._d = {
   products:[], orders:[], users:[], trocs:[], avis:[], coupons:[],
   parrains:[], commissions:[], paiements:[], offers:[], propositions:[],
@@ -7078,6 +7316,7 @@ function _restoreSession() {
         if(saved) {
             utilisateurConnecte = saved;
             userLoggedIn = true;
+            try { if(window._lidaConv) _lidaConv.migrateAnonToAccount(); } catch(e){}
             currentUser = {
                 nom: utilisateurConnecte.nom,
                 tel: utilisateurConnecte.telephone,
@@ -7144,6 +7383,7 @@ let donneesInscription=null;
 function verifierConnexion(){
     if(utilisateurConnecte){
         userLoggedIn=true;
+        try { if(window._lidaConv) _lidaConv.migrateAnonToAccount(); } catch(e){}
         currentUser=utilisateurConnecte;
         afficherBadgeUtilisateur();
     }
@@ -7364,6 +7604,8 @@ var RememberMe = (function() {
                 // ── Succès : établir la session ──────────────────
                 utilisateurConnecte = user;
                 userLoggedIn = true;
+                try { if(window._lidaConv) _lidaConv.migrateAnonToAccount(); } catch(e){}
+            try { if(window._lidaConv) _lidaConv.migrateAnonToAccount(); } catch(e){}
                 currentUser = {
                     nom:     user.nom,
                     tel:     user.telephone,
@@ -7507,6 +7749,7 @@ function connexion(e) {
             // ========== CRÉER LA SESSION ==========
             utilisateurConnecte = user;
             userLoggedIn = true;
+            try { if(window._lidaConv) _lidaConv.migrateAnonToAccount(); } catch(e){}
             currentUser = {
                 nom: user.nom,
                 tel: user.telephone,
@@ -7965,6 +8208,7 @@ function inscription(e){
             // Connexion automatique au NOUVEAU compte
             utilisateurConnecte = nouvelUtilisateur;
             userLoggedIn = true;
+            try { if(window._lidaConv) _lidaConv.migrateAnonToAccount(); } catch(e){}
             currentUser = {
                 nom: nouvelUtilisateur.nom,
                 tel: nouvelUtilisateur.telephone,
@@ -17235,19 +17479,22 @@ function openChat(initMsg){
   var badge = document.querySelector('.wa-float-badge');
   if(badge) badge.style.display = 'none';
 
-  // Toujours afficher le message d'accueil quand on (r)ouvre le chat,
-  // même si l'utilisateur a déjà eu une conversation précédente.
-  // Cela évite que le client tombe sur les options sans contexte.
   if(initMsg){
     addMsg(initMsg,'bot');
     return;
   }
 
-  // Réinitialiser l'historique pour repartir avec un message d'accueil propre.
-  // (l'ancien historique reste dans la session mais le DOM est rafraîchi)
+  // Réinitialiser le DOM
   chatHistory.length = 0;
   var body = document.getElementById('chatBody');
   if(body) body.innerHTML = '';
+
+  // Si l'admin a répondu (messages pending), afficher la conversation au lieu du Bonjour
+  var pending = window._lidaPendingMessages;
+  if(pending && pending.length > 0){
+    _chatRenderConversation(pending);
+    return;
+  }
 
   var welcomeVoice = "Bonjour, bienvenue chez EcoDila, je suis LIDA, comment puis-je vous aider ? Sélectionnez une option ci-dessous ou appuyez sur le bouton vert pour parler.";
 
@@ -17503,6 +17750,37 @@ function _chatDelay(ms){
 }
 
 /* ─── Boutons d'actions rapides au démarrage ────────────────────── */
+/* Affiche les messages d'une conversation existante (réponses admin) au lieu du Bonjour.
+   Appelé quand le client ouvre le chat et qu'il y a des messages admin pending. */
+function _chatRenderConversation(messages){
+  var body = document.getElementById('chatBody');
+  if(!body || !messages || !messages.length) return;
+
+  // En-tête : indique que c'est une réponse de l'équipe
+  addMsg('💬 <b>L\'équipe EcoDila vous a répondu :</b>', 'bot', true, "L'équipe EcoDila vous a répondu.");
+
+  // Afficher chaque message admin un par un avec un petit délai pour l'effet naturel
+  messages.forEach(function(msg, idx){
+    setTimeout(function(){
+      // L'admin parle à travers LIDA : on affiche comme bot mais avec une teinte spéciale
+      var html = '<b>👤 Équipe :</b> ' + _esc(msg.message);
+      addMsg(html, 'bot', true, msg.message);
+      // Marquer le message comme lu en base
+      try { if(window._lidaConv) _lidaConv.markAsRead(msg.id); } catch(e){}
+    }, 1200 + idx * 800);
+  });
+
+  // Cacher le badge sur le bouton flottant
+  try { if(window._lidaConv) _lidaConv.hideNewMessageBadge(); } catch(e){}
+  // Vider la liste des messages pending
+  window._lidaPendingMessages = [];
+
+  // Après affichage, proposer les options pour continuer la conversation
+  setTimeout(function(){
+    if(chatOpen) _chatShowQuickActions();
+  }, 1200 + messages.length * 800 + 500);
+}
+
 function _chatShowQuickActions(){
   var html = '<div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem">'
     + '<button onclick="_chatHandleAction(\'find\')" class="chat-quick-btn" style="background:var(--green);color:#fff;border:none;padding:.4rem .7rem;border-radius:14px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600">🔍 Chercher un produit</button>'
@@ -18189,6 +18467,9 @@ function sendMsg(){
   if(!val) return;
   addMsg(val, 'user');
   inp.value='';
+
+  // Persister le message en base pour que l'admin le voie dans le BO
+  try { if(window._lidaConv) _lidaConv.saveMessage(val, 'client', 'text'); } catch(e){}
 
   // Afficher l'indicateur "le bot tape..." pour rassurer pendant le délai
   _chatShowTyping();

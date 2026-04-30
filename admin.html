@@ -4724,6 +4724,7 @@ window._ecoBC = (function(){
     "https://ftvowlmrsgcaienvhojj.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ0dm93bG1yc2djYWllbnZob2pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0Mjk5NTYsImV4cCI6MjA5MDAwNTk1Nn0.1owVKN-R6-Edc3Rl7I0YyGxes8HFaTvOuff6dwZ2mX4"
   );
+  window._sb = _sb;  // expose pour les modules externes (chat-clients, etc.)
   console.log('[EcoDila] Supabase client prêt');
 
   // ── Sauvegarde/lecture settings — TOP LEVEL (même scope que _sb) ──
@@ -6563,6 +6564,11 @@ window._sbReload = async function() {
                     <span class="nav-item-icon">👥</span>
                     <span>Clients</span>
                     <span class="nav-item-badge" id="customers-count">0</span>
+                </a>
+                <a class="nav-item" data-page="chat-clients" onclick="navigateToPage('chat-clients');return false">
+                    <span class="nav-item-icon">💬</span>
+                    <span>Chat clients</span>
+                    <span class="nav-item-badge" id="chat-unread-count" style="background:rgba(239,68,68,.18);color:#ef4444;border:1px solid rgba(239,68,68,.4);display:none">0</span>
                 </a>
                 <a class="nav-item" data-page="rgpd-inactifs" onclick="navigateToPage('rgpd-inactifs');return false">
                     <span class="nav-item-icon">🔒</span>
@@ -8919,7 +8925,71 @@ window._sbReload = async function() {
 </div>
 
 
-<!-- ===== PAGE AVIS ===== -->
+<!-- ===== PAGE CHAT CLIENTS ===== -->
+<div id="page-chat-clients" class="page-content hidden">
+    <div class="page-header">
+        <h1 class="page-title">💬 Support clients</h1>
+        <div class="header-actions">
+            <button class="btn btn-secondary" onclick="ccLoadConversations();ccLoadDashboard()" aria-label="🔄 Actualiser">🔄 Actualiser</button>
+        </div>
+    </div>
+
+    <!-- Onglets -->
+    <div style="display:flex;gap:.4rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:0">
+        <button id="ccTabConvBtn" onclick="ccSwitchTab('conv')"
+            style="background:rgba(82,183,136,.18);color:#52b788;border:1px solid rgba(82,183,136,.3);border-bottom:none;padding:.6rem 1.2rem;border-radius:8px 8px 0 0;font-size:.86rem;font-weight:600;cursor:pointer;font-family:inherit">
+            💬 Conversations
+        </button>
+        <button id="ccTabDashBtn" onclick="ccSwitchTab('dash')"
+            style="background:rgba(255,255,255,.04);color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.08);border-bottom:none;padding:.6rem 1.2rem;border-radius:8px 8px 0 0;font-size:.86rem;font-weight:600;cursor:pointer;font-family:inherit">
+            📊 Dashboard KPIs
+        </button>
+    </div>
+
+    <!-- Onglet Conversations -->
+    <div id="ccTabConv" style="display:grid;grid-template-columns:380px 1fr;gap:1.5rem;height:calc(100vh - 280px);min-height:500px">
+        <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;display:flex;flex-direction:column;overflow:hidden">
+            <div style="padding:.8rem;border-bottom:1px solid rgba(255,255,255,.08)">
+                <input type="text" id="ccSearchInput" placeholder="🔍 Rechercher (nom, téléphone, email...)" oninput="ccFilterConversations()"
+                    style="width:100%;padding:.55rem .7rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;border-radius:8px;font-size:.82rem;outline:none">
+            </div>
+            <div id="ccConversationsList" style="flex:1;overflow-y:auto;padding:.4rem">
+                <div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4);font-size:.82rem">Chargement...</div>
+            </div>
+        </div>
+        <div id="ccConversationDetail" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;display:flex;flex-direction:column;overflow:hidden">
+            <div style="text-align:center;padding:3rem 2rem;color:rgba(255,255,255,.4);font-size:.92rem">
+                ← Sélectionnez une conversation pour la voir
+            </div>
+        </div>
+    </div>
+
+    <!-- Onglet Dashboard KPIs -->
+    <div id="ccTabDash" style="display:none">
+        <!-- Cartes KPIs principaux -->
+        <div id="ccKpiCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem">
+            <div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4);grid-column:1/-1">Chargement...</div>
+        </div>
+
+        <!-- Répartition par statut -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+            <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1.2rem">
+                <h3 style="margin:0 0 1rem 0;font-size:1rem;color:#fff">📋 Répartition par statut</h3>
+                <div id="ccKpiStatusBars"></div>
+            </div>
+            <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1.2rem">
+                <h3 style="margin:0 0 1rem 0;font-size:1rem;color:#fff">⏱️ Temps de traitement</h3>
+                <div id="ccKpiTimes"></div>
+            </div>
+        </div>
+
+        <!-- Graphique volume par jour -->
+        <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1.2rem">
+            <h3 style="margin:0 0 1rem 0;font-size:1rem;color:#fff">📈 Volume sur les 30 derniers jours</h3>
+            <div id="ccKpiDaily" style="display:flex;align-items:flex-end;gap:.2rem;height:180px;padding:.5rem 0;overflow-x:auto"></div>
+        </div>
+    </div>
+</div>
 <div id="page-reviews" class="page-content hidden">
 
     <!-- Header -->
@@ -13469,6 +13539,9 @@ function navigateToPage(pageName) {
             break;
         case 'customers':
             loadCustomers();
+            break;
+        case 'chat-clients':
+            ccLoadConversations();
             break;
         case 'errors':
             loadErrors();
@@ -20852,6 +20925,609 @@ function _getCustNotes(custId) {
 function _saveCustNotes(custId, notes) {
     window._sbCustNotes['ecodila_cust_notes_' + custId] = notes; _sb.from('settings').upsert({key:'ecodila_cust_notes_'+custId, value:notes, updated_at:new Date().toISOString()},{onConflict:'key'});
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Module Chat Clients (BO admin)
+// Gère la liste des conversations et la réponse aux clients depuis le BO
+// ════════════════════════════════════════════════════════════════════
+
+window._ccConversations = [];
+window._ccCurrentClientId = null;
+window._ccPollTimer = null;
+
+// Statuts de tickets (système de suivi des conversations)
+window._ccStatuses = {
+    'open':         { label: '🟢 Ouvert',        color: '#10b981', desc: 'En attente de réponse admin' },
+    'in_progress':  { label: '🔵 En cours',       color: '#3b82f6', desc: 'Admin a répondu, en attente du client' },
+    'resolved':     { label: '✅ Terminé',        color: '#6b7280', desc: 'Résolu manuellement' },
+    'order_made':   { label: '📦 Commande',       color: '#a855f7', desc: 'Devenu commande' },
+    'info_given':   { label: 'ℹ️ Info fournie',   color: '#0891b2', desc: 'Information donnée au client' },
+    'auto_closed':  { label: '⏰ Auto-fermé',     color: '#94a3b8', desc: 'Fermé après 48h sans retour' }
+};
+
+// Templates WhatsApp préremplis (le BO peut les insérer en 1 clic)
+window._ccTemplates = [
+    {
+        label: '✅ Confirmation commande',
+        text: "Bonjour 👋, votre commande a bien été enregistrée. Nous vous contactons dans les plus brefs délais pour la livraison. Merci pour votre confiance !"
+    },
+    {
+        label: '📦 Commande en livraison',
+        text: "Bonjour 👋, votre commande est en cours de livraison aujourd'hui. Notre livreur vous contactera bientôt. Merci de votre patience !"
+    },
+    {
+        label: '📅 Délai de livraison',
+        text: "Bonjour 👋, le délai de livraison est de 24 à 48 heures à Abidjan, et 2 à 5 jours pour les autres villes de Côte d'Ivoire. Pour plus d'infos, dites-moi votre ville."
+    },
+    {
+        label: '💳 Modes de paiement',
+        text: "Bonjour 👋, chez EcoDila vous pouvez payer à la livraison en espèces, ou via Wave, Orange Money, Moov Money, MTN Money. C'est sécurisé !"
+    },
+    {
+        label: '🛡️ Garantie produit',
+        text: "Bonjour 👋, tous nos produits sont vérifiés et garantis 7 jours minimum (jusqu'à 6 mois selon le produit). Si problème, on échange ou rembourse."
+    },
+    {
+        label: '🔄 Troc / Reprise',
+        text: "Bonjour 👋, pour troquer votre ancien appareil, envoyez-nous photos + description sur WhatsApp. On vous fait une estimation gratuite sous 24h."
+    },
+    {
+        label: '🤝 Parrainage',
+        text: "Bonjour 👋, notre programme parrainage : 5% à 10% de commission sur chaque vente. Devenez parrain Silver/Gold/Platinum selon votre activité. Plus d'infos sur la page Parrainage du site."
+    },
+    {
+        label: '📍 Notre localisation',
+        text: "Bonjour 👋, nous sommes basés à Abidjan, Bingerville. Pour la livraison, on couvre toute la Côte d'Ivoire. Pour récupérer en main propre, prenez RDV via WhatsApp."
+    },
+    {
+        label: '⏰ Horaires d\'ouverture',
+        text: "Bonjour 👋, notre équipe est disponible du lundi au samedi, de 8h à 18h. LIDA, votre assistante, est là 24/7 pour les questions courantes."
+    },
+    {
+        label: '❓ Question générale',
+        text: "Bonjour 👋, merci pour votre message. Pouvez-vous nous donner plus de détails sur votre demande ? On reviendra vers vous au plus vite."
+    },
+    {
+        label: '👋 Au revoir',
+        text: "Merci pour votre visite sur EcoDila ! N'hésitez pas à revenir vers nous si besoin. Bonne journée 🌟"
+    }
+];
+
+// Charger toutes les conversations depuis Supabase
+async function ccLoadConversations() {
+    const list = document.getElementById('ccConversationsList');
+    if (!list) return;
+    list.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4);font-size:.82rem">Chargement...</div>';
+    try {
+        const res = await window._sb.from('chat_conversations_summary')
+            .select('*')
+            .order('last_message_at', { ascending: false })
+            .limit(200);
+        if (res.error) throw res.error;
+        window._ccConversations = res.data || [];
+        ccRenderList();
+        ccUpdateUnreadBadge();
+    } catch (e) {
+        console.warn('[chat-clients] erreur:', e);
+        list.innerHTML = '<div style="text-align:center;padding:2rem;color:#ef4444;font-size:.82rem">Erreur de chargement. Vérifiez la table chat_conversations.</div>';
+    }
+}
+
+// Filtrer la liste selon la recherche
+function ccFilterConversations() {
+    ccRenderList();
+}
+
+// Rendre la liste de conversations
+function ccRenderList() {
+    const list = document.getElementById('ccConversationsList');
+    if (!list) return;
+    const search = (document.getElementById('ccSearchInput')?.value || '').toLowerCase().trim();
+    const filtered = window._ccConversations.filter(c => {
+        if (!search) return true;
+        const txt = [c.client_name, c.client_phone, c.client_email, c.last_message, c.client_id].filter(Boolean).join(' ').toLowerCase();
+        return txt.includes(search);
+    });
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4);font-size:.82rem">' + (search ? 'Aucun résultat' : 'Aucune conversation pour le moment') + '</div>';
+        return;
+    }
+
+    list.innerHTML = filtered.map(c => {
+        const isActive = c.client_id === window._ccCurrentClientId;
+        const displayName = c.client_name || (c.client_phone ? '📱 ' + c.client_phone : '👤 Client anonyme');
+        const lastDate = c.last_message_at ? new Date(c.last_message_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+        const unreadBadge = c.unread_count > 0 ? '<span style="background:#ef4444;color:#fff;border-radius:10px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;margin-left:.4rem">' + c.unread_count + '</span>' : '';
+        const lastSenderIcon = c.last_sender === 'admin' ? '↩️' : (c.last_sender === 'client' ? '💬' : '🤖');
+        const lastMessagePreview = c.last_message ? (c.last_message.substring(0, 60) + (c.last_message.length > 60 ? '...' : '')) : '';
+        // Statut du ticket
+        const status = c.current_ticket_status || 'open';
+        const statusInfo = window._ccStatuses[status] || window._ccStatuses['open'];
+        const statusBadge = `<span style="font-size:.62rem;background:${statusInfo.color}22;color:${statusInfo.color};border:1px solid ${statusInfo.color}55;padding:.1rem .4rem;border-radius:6px;font-weight:600;display:inline-block;margin-top:.2rem">${statusInfo.label}</span>`;
+        return `<div onclick="ccOpenConversation('${c.client_id.replace(/'/g, '&#39;')}')" 
+            style="padding:.7rem .8rem;border-radius:8px;cursor:pointer;margin-bottom:.3rem;background:${isActive ? 'rgba(82,183,136,.18)' : 'rgba(255,255,255,.03)'};border:1px solid ${isActive ? 'rgba(82,183,136,.3)' : 'transparent'};transition:background .15s">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.2rem">
+                <div style="font-weight:600;font-size:.84rem;color:#fff">${escapeHtml(displayName)}${unreadBadge}</div>
+                <div style="font-size:.66rem;color:rgba(255,255,255,.4);white-space:nowrap;margin-left:.4rem">${lastDate}</div>
+            </div>
+            <div style="font-size:.74rem;color:rgba(255,255,255,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lastSenderIcon} ${escapeHtml(lastMessagePreview)}</div>
+            ${statusBadge}
+        </div>`;
+    }).join('');
+}
+
+// Ouvrir une conversation
+async function ccOpenConversation(clientId) {
+    window._ccCurrentClientId = clientId;
+    ccRenderList(); // re-highlight la sélection
+    const detail = document.getElementById('ccConversationDetail');
+    if (!detail) return;
+    detail.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4)">Chargement...</div>';
+
+    try {
+        const res = await window._sb.from('chat_conversations')
+            .select('*')
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: true })
+            .limit(200);
+        if (res.error) throw res.error;
+        const messages = res.data || [];
+        ccRenderConversation(clientId, messages);
+
+        // Marquer tous les messages client comme lus côté admin
+        await window._sb.from('chat_conversations')
+            .update({ read_by_admin: true })
+            .eq('client_id', clientId)
+            .eq('sender', 'client')
+            .eq('read_by_admin', false);
+        // Refresh le badge
+        ccUpdateUnreadBadge();
+    } catch (e) {
+        console.warn('[chat-clients] erreur ouverture:', e);
+        detail.innerHTML = '<div style="text-align:center;padding:2rem;color:#ef4444">Erreur de chargement</div>';
+    }
+}
+
+// Rendre la conversation détaillée
+function ccRenderConversation(clientId, messages) {
+    const detail = document.getElementById('ccConversationDetail');
+    if (!detail) return;
+    const conv = window._ccConversations.find(c => c.client_id === clientId);
+    const headerName = conv ? (conv.client_name || conv.client_phone || '👤 Client anonyme') : '👤 Client';
+    const headerSubtitle = conv ? [conv.client_phone, conv.client_email].filter(Boolean).join(' · ') : clientId;
+    const currentStatus = conv ? (conv.current_ticket_status || 'open') : 'open';
+    const ticketId = conv ? conv.current_ticket_id : null;
+    const ticketSubject = conv ? (conv.current_ticket_subject || '') : '';
+    const statusInfo = window._ccStatuses[currentStatus] || window._ccStatuses['open'];
+
+    const messagesHtml = messages.map(m => {
+        const isClient = m.sender === 'client';
+        const isAdmin = m.sender === 'admin';
+        const time = new Date(m.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const align = isClient ? 'flex-start' : 'flex-end';
+        const bg = isClient ? 'rgba(255,255,255,.06)' : (isAdmin ? 'rgba(82,183,136,.18)' : 'rgba(102,102,255,.12)');
+        const sender = isClient ? '💬 Client' : (isAdmin ? '↩️ Vous' : '🤖 LIDA');
+        return `<div style="display:flex;justify-content:${align};margin-bottom:.6rem">
+            <div style="max-width:75%;background:${bg};padding:.6rem .8rem;border-radius:10px;font-size:.84rem;color:#fff">
+                <div style="font-size:.66rem;color:rgba(255,255,255,.5);margin-bottom:.2rem">${sender} · ${time}</div>
+                <div style="white-space:pre-wrap;word-break:break-word">${escapeHtml(m.message)}</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    const templateOptionsHtml = window._ccTemplates.map((t, i) =>
+        `<option value="${i}">${escapeHtml(t.label)}</option>`
+    ).join('');
+
+    // Sélecteur de statut du ticket
+    const statusOptionsHtml = Object.keys(window._ccStatuses).map(key => {
+        const info = window._ccStatuses[key];
+        const selected = key === currentStatus ? 'selected' : '';
+        return `<option value="${key}" ${selected}>${info.label}</option>`;
+    }).join('');
+
+    // Le ticket est-il terminé ? On désactive la zone de réponse si oui (mais on peut rouvrir).
+    const isClosed = ['resolved','order_made','info_given','auto_closed'].indexOf(currentStatus) !== -1;
+    const closedNotice = isClosed
+        ? `<div style="background:rgba(255,170,0,.1);border:1px solid rgba(255,170,0,.3);color:#ffaa00;padding:.5rem .7rem;border-radius:6px;font-size:.76rem;margin-bottom:.5rem">
+            ⚠️ Ce ticket est <b>fermé</b> (${statusInfo.label}). Vous pouvez quand même répondre — un nouveau message rouvrira le ticket.
+           </div>`
+        : '';
+
+    detail.innerHTML = `
+        <div style="padding:.8rem 1rem;border-bottom:1px solid rgba(255,255,255,.08)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:700;font-size:1rem;color:#fff">${escapeHtml(headerName)}</div>
+                    <div style="font-size:.74rem;color:rgba(255,255,255,.5)">${escapeHtml(headerSubtitle)}</div>
+                    ${ticketSubject ? `<div style="font-size:.72rem;color:rgba(255,255,255,.55);margin-top:.3rem"><b>Sujet :</b> ${escapeHtml(ticketSubject)}</div>` : ''}
+                </div>
+                <div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-end">
+                    ${conv && conv.client_phone ? `<a href="https://wa.me/${conv.client_phone.replace(/\\D/g,'')}" target="_blank" style="background:#25d366;color:#fff;padding:.4rem .7rem;border-radius:6px;font-size:.74rem;text-decoration:none;font-weight:600">📱 WhatsApp</a>` : ''}
+                </div>
+            </div>
+            ${ticketId ? `<div style="margin-top:.6rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+                <label style="font-size:.74rem;color:rgba(255,255,255,.7)">Statut :</label>
+                <select id="ccStatusSelect" onchange="ccChangeStatus(${ticketId}, this.value)"
+                    style="padding:.35rem .55rem;border:1px solid ${statusInfo.color}55;background:${statusInfo.color}22;color:${statusInfo.color};border-radius:6px;font-size:.74rem;font-weight:600">
+                    ${statusOptionsHtml}
+                </select>
+                <span style="font-size:.7rem;color:rgba(255,255,255,.4)">Ticket #${ticketId}</span>
+            </div>` : ''}
+        </div>
+        <div id="ccMessagesArea" style="flex:1;overflow-y:auto;padding:1rem;background:rgba(0,0,0,.15)">
+            ${messagesHtml || '<div style="text-align:center;color:rgba(255,255,255,.4);padding:2rem">Aucun message</div>'}
+        </div>
+        <div style="padding:.8rem;border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02)">
+            ${closedNotice}
+            <div style="display:flex;gap:.4rem;margin-bottom:.5rem;align-items:center">
+                <select id="ccTemplateSelect" onchange="ccApplyTemplate()" style="flex:1;padding:.4rem .55rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;border-radius:6px;font-size:.78rem">
+                    <option value="">📝 Choisir un template prérempli...</option>
+                    ${templateOptionsHtml}
+                </select>
+            </div>
+            <div style="display:flex;gap:.4rem">
+                <textarea id="ccReplyText" rows="3" placeholder="Tapez votre réponse..." style="flex:1;padding:.55rem .7rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;border-radius:8px;font-size:.86rem;resize:vertical;font-family:inherit"></textarea>
+                <button onclick="ccSendReply()" class="btn btn-primary" style="padding:.5rem 1rem;font-size:.84rem;font-weight:700;align-self:stretch">📤 Envoyer</button>
+            </div>
+            <div style="font-size:.66rem;color:rgba(255,255,255,.4);margin-top:.4rem;text-align:center;display:flex;align-items:center;justify-content:center;gap:.3rem">
+                ⏰ <span>Le ticket sera <b>auto-fermé après 48h</b> sans retour du client. S'il revient après, un nouveau ticket sera créé.</span>
+            </div>
+        </div>`;
+
+    // Auto-scroll vers le bas
+    setTimeout(() => {
+        const area = document.getElementById('ccMessagesArea');
+        if (area) area.scrollTop = area.scrollHeight;
+    }, 50);
+}
+
+// Changer le statut d'un ticket
+async function ccChangeStatus(ticketId, newStatus) {
+    if (!ticketId || !newStatus) return;
+    try {
+        const updates = { status: newStatus };
+        // Si statut résolu/fermé : enregistrer la date de fermeture
+        if (['resolved','order_made','info_given','auto_closed'].indexOf(newStatus) !== -1) {
+            updates.closed_at = new Date().toISOString();
+        } else {
+            updates.closed_at = null;
+        }
+        const res = await window._sb.from('chat_tickets')
+            .update(updates)
+            .eq('id', ticketId);
+        if (res.error) throw res.error;
+        // Refresh
+        await ccLoadConversations();
+        if (window._ccCurrentClientId) await ccOpenConversation(window._ccCurrentClientId);
+    } catch (e) {
+        console.warn('[chat-clients] erreur statut:', e);
+        alert('Erreur lors du changement de statut');
+    }
+}
+
+// Appliquer un template au champ de réponse
+function ccApplyTemplate() {
+    const select = document.getElementById('ccTemplateSelect');
+    const textarea = document.getElementById('ccReplyText');
+    if (!select || !textarea) return;
+    const idx = parseInt(select.value);
+    if (isNaN(idx)) return;
+    const tpl = window._ccTemplates[idx];
+    if (!tpl) return;
+    textarea.value = tpl.text;
+    textarea.focus();
+    select.value = ''; // reset
+}
+
+// Envoyer la réponse
+async function ccSendReply() {
+    const textarea = document.getElementById('ccReplyText');
+    if (!textarea) return;
+    const text = textarea.value.trim();
+    if (!text) {
+        alert('Veuillez écrire une réponse');
+        return;
+    }
+    const clientId = window._ccCurrentClientId;
+    if (!clientId) return;
+
+    try {
+        // Trouver les meta du client (nom, tel, email) pour les conserver dans la nouvelle ligne
+        const conv = window._ccConversations.find(c => c.client_id === clientId);
+        const ticketId = conv ? conv.current_ticket_id : null;
+        const row = {
+            client_id: clientId,
+            client_name: conv ? conv.client_name : null,
+            client_phone: conv ? conv.client_phone : null,
+            client_email: conv ? conv.client_email : null,
+            is_logged_in: conv ? conv.is_logged_in : false,
+            sender: 'admin',
+            message: text.substring(0, 2000),
+            message_type: 'admin_reply',
+            ticket_id: ticketId,
+            read_by_client: false,
+            read_by_admin: true
+        };
+        const res = await window._sb.from('chat_conversations').insert(row).select().single();
+        if (res.error) throw res.error;
+
+        // Mettre à jour le ticket : status → in_progress, last_admin_message_at → maintenant
+        // (sauf si déjà résolu/fermé : on rouvre dans ce cas)
+        if (ticketId) {
+            await window._sb.from('chat_tickets')
+                .update({
+                    status: 'in_progress',
+                    last_admin_message_at: new Date().toISOString(),
+                    closed_at: null
+                })
+                .eq('id', ticketId);
+        }
+
+        textarea.value = '';
+        // Refresh la conversation et la liste
+        await ccOpenConversation(clientId);
+        await ccLoadConversations();
+    } catch (e) {
+        console.warn('[chat-clients] erreur envoi:', e);
+        alert('Erreur lors de l\'envoi : ' + (e.message || 'inconnue'));
+    }
+}
+
+// Mettre à jour le badge "non lus" dans le menu
+async function ccUpdateUnreadBadge() {
+    try {
+        const res = await window._sb.from('chat_conversations')
+            .select('id', { count: 'exact', head: true })
+            .eq('sender', 'client')
+            .eq('read_by_admin', false);
+        const count = res.count || 0;
+        const badge = document.getElementById('chat-unread-count');
+        if (badge) {
+            if (count > 0) {
+                badge.style.display = 'inline-flex';
+                badge.textContent = count;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    } catch (e) {}
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Onglets : Conversations / Dashboard KPIs
+// ────────────────────────────────────────────────────────────────────
+
+window.ccSwitchTab = function(tab) {
+    const tabConv = document.getElementById('ccTabConv');
+    const tabDash = document.getElementById('ccTabDash');
+    const btnConv = document.getElementById('ccTabConvBtn');
+    const btnDash = document.getElementById('ccTabDashBtn');
+    if (!tabConv || !tabDash) return;
+
+    const activeStyle = 'background:rgba(82,183,136,.18);color:#52b788;border:1px solid rgba(82,183,136,.3);border-bottom:none';
+    const inactiveStyle = 'background:rgba(255,255,255,.04);color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.08);border-bottom:none';
+    const baseStyle = 'padding:.6rem 1.2rem;border-radius:8px 8px 0 0;font-size:.86rem;font-weight:600;cursor:pointer;font-family:inherit';
+
+    if (tab === 'dash') {
+        tabConv.style.display = 'none';
+        tabDash.style.display = 'block';
+        btnConv.setAttribute('style', inactiveStyle + ';' + baseStyle);
+        btnDash.setAttribute('style', activeStyle + ';' + baseStyle);
+        ccLoadDashboard();
+    } else {
+        tabConv.style.display = 'grid';
+        tabDash.style.display = 'none';
+        btnConv.setAttribute('style', activeStyle + ';' + baseStyle);
+        btnDash.setAttribute('style', inactiveStyle + ';' + baseStyle);
+    }
+};
+
+// Formatter une durée en secondes en texte humain
+function ccFormatDuration(seconds) {
+    if (seconds === null || seconds === undefined) return '—';
+    const s = Math.round(seconds);
+    if (s < 60) return s + 's';
+    if (s < 3600) return Math.round(s / 60) + ' min';
+    if (s < 86400) {
+        const h = Math.floor(s / 3600);
+        const m = Math.round((s % 3600) / 60);
+        return h + 'h' + (m > 0 ? ' ' + m + 'min' : '');
+    }
+    const d = Math.floor(s / 86400);
+    const h = Math.round((s % 86400) / 3600);
+    return d + 'j' + (h > 0 ? ' ' + h + 'h' : '');
+}
+
+// Charger les KPIs et les afficher
+async function ccLoadDashboard() {
+    const cardsEl = document.getElementById('ccKpiCards');
+    const statusEl = document.getElementById('ccKpiStatusBars');
+    const timesEl = document.getElementById('ccKpiTimes');
+    const dailyEl = document.getElementById('ccKpiDaily');
+    if (!cardsEl) return;
+
+    try {
+        // KPIs globaux
+        const globalRes = await window._sb.from('chat_kpis_global').select('*').single();
+        if (globalRes.error) throw globalRes.error;
+        const k = globalRes.data || {};
+
+        // Cards principaux
+        const cards = [
+            {
+                title: 'Tickets actifs',
+                value: k.active_tickets || 0,
+                sub: (k.open_tickets || 0) + ' ouverts · ' + (k.in_progress_tickets || 0) + ' en cours',
+                color: '#10b981',
+                icon: '🟢'
+            },
+            {
+                title: 'Total tickets',
+                value: k.total_tickets || 0,
+                sub: (k.tickets_last_24h || 0) + ' aujourd\'hui · ' + (k.tickets_last_7d || 0) + ' cette semaine',
+                color: '#3b82f6',
+                icon: '🎫'
+            },
+            {
+                title: 'First Response Time',
+                value: ccFormatDuration(k.avg_first_response_seconds),
+                sub: 'Médiane : ' + ccFormatDuration(k.median_first_response_seconds),
+                color: '#f59e0b',
+                icon: '⚡'
+            },
+            {
+                title: 'Temps de résolution moyen',
+                value: ccFormatDuration(k.avg_resolution_seconds),
+                sub: (k.resolved_tickets || 0) + ' résolus · ' + (k.order_tickets || 0) + ' commandes',
+                color: '#a855f7',
+                icon: '✅'
+            },
+            {
+                title: 'Taux d\'auto-fermeture',
+                value: (k.auto_close_rate_percent !== null ? k.auto_close_rate_percent + '%' : '—'),
+                sub: (k.auto_closed_tickets || 0) + ' tickets abandonnés (>48h)',
+                color: (k.auto_close_rate_percent > 30 ? '#ef4444' : '#94a3b8'),
+                icon: (k.auto_close_rate_percent > 30 ? '⚠️' : '⏰')
+            },
+            {
+                title: 'Temps réponse moyen',
+                value: ccFormatDuration(k.avg_response_seconds),
+                sub: 'Sur toute la conversation',
+                color: '#0891b2',
+                icon: '💬'
+            }
+        ];
+
+        cardsEl.innerHTML = cards.map(c => `
+            <div style="background:rgba(255,255,255,.04);border:1px solid ${c.color}33;border-radius:12px;padding:1.2rem;position:relative;overflow:hidden">
+                <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${c.color}"></div>
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.6rem">
+                    <span style="font-size:.74rem;color:rgba(255,255,255,.6);font-weight:500">${c.title}</span>
+                    <span style="font-size:1.4rem">${c.icon}</span>
+                </div>
+                <div style="font-size:1.8rem;font-weight:700;color:${c.color};line-height:1.1;margin-bottom:.3rem">${c.value}</div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.5)">${c.sub}</div>
+            </div>
+        `).join('');
+
+        // Répartition par statut (barres)
+        if (statusEl) {
+            const statusBreakdown = [
+                { key: 'open', count: k.open_tickets || 0 },
+                { key: 'in_progress', count: k.in_progress_tickets || 0 },
+                { key: 'resolved', count: k.resolved_tickets || 0 },
+                { key: 'order_made', count: k.order_tickets || 0 },
+                { key: 'info_given', count: k.info_tickets || 0 },
+                { key: 'auto_closed', count: k.auto_closed_tickets || 0 }
+            ];
+            const total = statusBreakdown.reduce((s, x) => s + x.count, 0) || 1;
+            statusEl.innerHTML = statusBreakdown.map(s => {
+                const info = window._ccStatuses[s.key];
+                const pct = Math.round((s.count / total) * 100);
+                return `<div style="margin-bottom:.7rem">
+                    <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.25rem">
+                        <span style="color:#fff">${info.label}</span>
+                        <span style="color:rgba(255,255,255,.6)">${s.count} (${pct}%)</span>
+                    </div>
+                    <div style="background:rgba(255,255,255,.06);border-radius:4px;height:8px;overflow:hidden">
+                        <div style="background:${info.color};width:${pct}%;height:100%;transition:width .3s"></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // Tableau temps de traitement
+        if (timesEl) {
+            timesEl.innerHTML = `
+                <div style="display:flex;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid rgba(255,255,255,.06)">
+                    <span style="color:rgba(255,255,255,.7);font-size:.84rem">⚡ 1ère réponse moyenne</span>
+                    <span style="color:#fff;font-weight:600">${ccFormatDuration(k.avg_first_response_seconds)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid rgba(255,255,255,.06)">
+                    <span style="color:rgba(255,255,255,.7);font-size:.84rem">⚡ 1ère réponse médiane</span>
+                    <span style="color:#fff;font-weight:600">${ccFormatDuration(k.median_first_response_seconds)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid rgba(255,255,255,.06)">
+                    <span style="color:rgba(255,255,255,.7);font-size:.84rem">💬 Temps de réponse moyen</span>
+                    <span style="color:#fff;font-weight:600">${ccFormatDuration(k.avg_response_seconds)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:.6rem 0">
+                    <span style="color:rgba(255,255,255,.7);font-size:.84rem">✅ Résolution moyenne</span>
+                    <span style="color:#fff;font-weight:600">${ccFormatDuration(k.avg_resolution_seconds)}</span>
+                </div>`;
+        }
+
+        // Graphique volume par jour (30 derniers jours)
+        const dailyRes = await window._sb.from('chat_kpis_daily').select('*').limit(30);
+        if (!dailyRes.error && dailyEl) {
+            const days = (dailyRes.data || []).slice().reverse();
+            if (days.length === 0) {
+                dailyEl.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.4);width:100%;padding:2rem">Aucune donnée</div>';
+            } else {
+                const maxVal = Math.max(...days.map(d => d.tickets_created || 0), 1);
+                dailyEl.innerHTML = days.map(d => {
+                    const h = Math.round(((d.tickets_created || 0) / maxVal) * 150);
+                    const date = new Date(d.day);
+                    const dayLabel = date.getDate() + '/' + (date.getMonth() + 1);
+                    return `<div style="display:flex;flex-direction:column;align-items:center;min-width:24px;flex:1">
+                        <div style="font-size:.6rem;color:rgba(255,255,255,.6);margin-bottom:.2rem;height:14px">${d.tickets_created || 0}</div>
+                        <div title="${dayLabel} : ${d.tickets_created || 0} tickets" style="width:80%;background:#52b788;border-radius:3px 3px 0 0;height:${h}px;min-height:2px;transition:opacity .2s;cursor:pointer" onmouseover="this.style.opacity=.7" onmouseout="this.style.opacity=1"></div>
+                        <div style="font-size:.6rem;color:rgba(255,255,255,.4);margin-top:.3rem">${dayLabel}</div>
+                    </div>`;
+                }).join('');
+            }
+        }
+    } catch (e) {
+        console.warn('[chat-clients] dashboard erreur:', e);
+        cardsEl.innerHTML = '<div style="text-align:center;padding:2rem;color:#ef4444;grid-column:1/-1">Erreur : ' + (e.message || 'inconnue') + '<br><small style="opacity:.7">Vérifiez que les vues SQL chat_ticket_kpis, chat_kpis_global et chat_kpis_daily sont créées dans Supabase.</small></div>';
+    }
+}
+
+// Helper d'échappement HTML (si pas déjà disponible)
+if (typeof escapeHtml !== 'function') {
+    window.escapeHtml = function(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+}
+
+// Auto-refresh toutes les 15s quand la page chat-clients est active
+window._ccPollTimer = setInterval(() => {
+    const page = document.getElementById('page-chat-clients');
+    if (page && !page.classList.contains('hidden')) {
+        ccLoadConversations();
+        // Refresh la conversation ouverte si elle est visible
+        if (window._ccCurrentClientId) {
+            // ne pas tout reload, juste les nouveaux messages
+            ccOpenConversation(window._ccCurrentClientId);
+        }
+    } else {
+        // Sur les autres pages, juste mettre à jour le badge
+        ccUpdateUnreadBadge();
+    }
+}, 15000);
+
+// Auto-fermeture des tickets > 48h sans retour client (toutes les 5 min)
+async function ccAutoCloseStale() {
+    try {
+        const res = await window._sb.rpc('auto_close_stale_tickets');
+        if (res.data && res.data > 0) {
+            console.log('[chat-clients] ' + res.data + ' ticket(s) auto-fermé(s) (>48h)');
+            // Si la page est visible, refresh la liste
+            const page = document.getElementById('page-chat-clients');
+            if (page && !page.classList.contains('hidden')) {
+                ccLoadConversations();
+            }
+        }
+    } catch (e) {}
+}
+// Vérifier au démarrage puis toutes les 5 min
+setTimeout(ccAutoCloseStale, 5000);
+setInterval(ccAutoCloseStale, 5 * 60 * 1000);
+
+// Premier chargement du badge au démarrage
+setTimeout(() => { try { ccUpdateUnreadBadge(); } catch(e){} }, 3000);
 
 // ── Chargement / stats ───────────────────────────────────────────────
 
