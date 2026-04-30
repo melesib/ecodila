@@ -21596,32 +21596,57 @@ window.ccOpenProductPicker = async function () {
         </div>`;
     document.body.appendChild(modal);
 
-    // Charger les produits depuis Supabase
+    // Charger les produits : priorité à adminData.products (déjà chargé) sinon Supabase avec '*'
     try {
-        const res = await window._sb.from('products').select('id,name,price,image,images').order('id', { ascending: false }).limit(200);
+        let products = [];
+        // Préférer la cache locale qui contient déjà les produits avec tous les champs
+        if (window.adminData && Array.isArray(window.adminData.products) && window.adminData.products.length > 0) {
+            products = window.adminData.products.slice();
+        } else {
+            // Fallback : charger depuis Supabase avec '*' pour avoir tous les champs (nom, prix, etc.)
+            const res = await window._sb.from('products').select('*').order('id', { ascending: false }).limit(200);
+            if (res.error) throw res.error;
+            products = res.data || [];
+        }
+
         const list = document.getElementById('ccPickerList');
         const search = document.getElementById('ccPickerSearch');
-        if (res.error) throw res.error;
-        const products = res.data || [];
+
+        // Helper : extraire les infos d'un produit avec tous les noms de colonnes possibles
+        function getProductInfo(p) {
+            const nom = ((p.brand || p.marque || '') + ' ' + (p.model || p.modele || p.nom || '')).trim() || p.nom || p.name || '(sans nom)';
+            const prix = p.prix || p.price || 0;
+            // Image : essayer plusieurs sources possibles
+            let img = p.image || p.photo || '';
+            if (!img && Array.isArray(p.images) && p.images[0]) img = p.images[0];
+            if (!img && Array.isArray(p.photos) && p.photos[0]) {
+                // p.photos peut être un tableau d'objets {data: 'data:...'} ou de strings
+                const first = p.photos[0];
+                img = (typeof first === 'string') ? first : (first && first.data ? first.data : '');
+            }
+            return { nom: nom, prix: prix, img: img };
+        }
 
         function render(filter) {
             const filtered = products.filter(p => {
                 if (!filter) return true;
-                return (p.name || '').toLowerCase().includes(filter.toLowerCase());
+                const info = getProductInfo(p);
+                const haystack = (info.nom + ' ' + (p.categorie||'') + ' ' + (p.code||'')).toLowerCase();
+                return haystack.includes(filter.toLowerCase());
             });
             if (filtered.length === 0) {
                 list.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4)">Aucun produit</div>';
                 return;
             }
             list.innerHTML = filtered.map(p => {
-                const img = p.image || (Array.isArray(p.images) && p.images[0]) || '';
-                const price = p.price ? new Intl.NumberFormat('fr-FR').format(p.price) + ' FCFA' : '';
-                return `<div onclick="ccPickProduct(${p.id}, this)" data-name="${escapeHtml(p.name||'')}" data-image="${escapeHtml(img)}" data-price="${escapeHtml(price)}"
+                const info = getProductInfo(p);
+                const priceStr = info.prix ? new Intl.NumberFormat('fr-FR').format(info.prix) + ' FCFA' : '';
+                return `<div onclick="ccPickProduct(${p.id}, this)" data-name="${escapeHtml(info.nom)}" data-image="${escapeHtml(info.img)}" data-price="${escapeHtml(priceStr)}"
                     style="display:flex;gap:.7rem;padding:.6rem;border-radius:8px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(82,183,136,.1)'" onmouseout="this.style.background=''">
-                    ${img ? `<img src="${escapeHtml(img)}" style="width:60px;height:60px;object-fit:cover;border-radius:6px">` : '<div style="width:60px;height:60px;background:rgba(255,255,255,.05);border-radius:6px"></div>'}
-                    <div style="flex:1">
-                        <div style="color:#fff;font-weight:600;font-size:.86rem">${escapeHtml(p.name || '(sans nom)')}</div>
-                        <div style="color:#52b788;font-weight:700;font-size:.82rem">${price}</div>
+                    ${info.img ? `<img src="${escapeHtml(info.img)}" style="width:60px;height:60px;object-fit:cover;border-radius:6px">` : '<div style="width:60px;height:60px;background:rgba(255,255,255,.05);border-radius:6px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.3)">📦</div>'}
+                    <div style="flex:1;min-width:0">
+                        <div style="color:#fff;font-weight:600;font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(info.nom)}</div>
+                        <div style="color:#52b788;font-weight:700;font-size:.82rem">${priceStr}</div>
                     </div>
                 </div>`;
             }).join('');
@@ -21631,7 +21656,7 @@ window.ccOpenProductPicker = async function () {
     } catch (e) {
         console.warn('[BO] picker erreur:', e);
         const list = document.getElementById('ccPickerList');
-        if (list) list.innerHTML = '<div style="color:#ef4444;text-align:center;padding:2rem">Erreur de chargement</div>';
+        if (list) list.innerHTML = '<div style="color:#ef4444;text-align:center;padding:2rem">Erreur de chargement : '+escapeHtml(e.message||'inconnue')+'</div>';
     }
 };
 
