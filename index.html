@@ -8139,17 +8139,48 @@ function inscription(e){
       }
     }
 
-    // 🔒 COUCHE 3 : IP — MAX 2 comptes par IP (même raison : CGNAT mobile, wifi partagé, cyber)
-    // Avant : 1 seul compte par IP
-    // Après : jusqu'à 2 comptes autorisés, 3e → blocage
+    // 🔒 COUCHE 3 : IP + FINGERPRINT — Bloquer SEULEMENT si IP **ET** appareil identiques
+    //
+    // ⚠️ CONTEXTE CÔTE D'IVOIRE :
+    // - CGNAT mobile MTN/Orange/Moov : des MILLIERS d'utilisateurs partagent
+    //   la même IP publique sortante. C'est légitime, pas de la fraude.
+    // - Cybercafés : 1 IP pour 10-20 clients différents.
+    // - Wifi public (école, université, marché) : pareil.
+    // - Wifi familial : 4-5 personnes, 4-5 appareils différents.
+    //
+    // Donc on ne bloque QUE si IP partagée + même fingerprint (vraie tentative
+    // de créer plusieurs comptes depuis le même téléphone/PC).
     var _regIp = '';
     try { _regIp = sessionStorage.getItem('ecodila_visit_ip') || ''; } catch(e){}
-    if(_regIp && _regIp !== 'unknown'){
-      var ipCount = utilisateurs.filter(function(u){
+    if(_regIp && _regIp !== 'unknown' && _fp && _fp !== 'fp_unknown'){
+      // Re-extraction du préfixe UUID stable
+      var _fpUuidIp = (_fp.match(/^fp_([a-f0-9]{6,})_/) || [])[1] || null;
+
+      // Compter UNIQUEMENT les comptes qui partagent IP **ET** fingerprint
+      var sameIpAndDevice = utilisateurs.filter(function(u){
+        if(u.bloque) return false;
+        if(!u.registrationIp || u.registrationIp !== _regIp) return false;
+        if(!u.fingerprint) return false; // Pas de fingerprint enregistré : ne compte pas
+        // Match exact ou par UUID stable
+        if(u.fingerprint === _fp) return true;
+        if(_fpUuidIp){
+          var m = u.fingerprint.match(/^fp_([a-f0-9]{6,})_/);
+          if(m && m[1] === _fpUuidIp) return true;
+        }
+        return false;
+      }).length;
+      if(sameIpAndDevice >= 2){
+        showToast('❌ 2 comptes existent déjà depuis cet appareil et cette connexion. Si c\'est une erreur, contactez-nous sur WhatsApp au +225 05 96 27 55 55.');
+        return;
+      }
+    } else if(_regIp && _regIp !== 'unknown' && (!_fp || _fp === 'fp_unknown')){
+      // Pas de fingerprint disponible (vieux navigateur, cookies bloqués) :
+      // tomber sur l'ancien comportement permissif (max 5 comptes / IP)
+      var ipCountFallback = utilisateurs.filter(function(u){
         return u.registrationIp && u.registrationIp === _regIp && !u.bloque;
       }).length;
-      if(ipCount >= 2){
-        showToast('❌ 2 comptes existent déjà depuis cette connexion internet. Si c\'est une erreur, contactez-nous sur WhatsApp au +225 05 96 27 55 55.');
+      if(ipCountFallback >= 5){
+        showToast('❌ Trop de comptes depuis cette connexion internet. Contactez-nous sur WhatsApp au +225 05 96 27 55 55.');
         return;
       }
     }
@@ -8286,15 +8317,42 @@ function inscription(e){
                 return;
             }
             // Check IP en base aussi (timeout court + catch tolérant)
+            // ⚠️ On ne bloque QUE si IP+fingerprint identiques (vrai doublon)
+            // pour ne pas pénaliser les utilisateurs CGNAT (MTN/Orange/Moov en CI)
             if(_regIp && _regIp !== 'unknown'){
                 _withTimeout(
-                    _sb.from('users').select('id').eq('registrationIp', _regIp),
+                    _sb.from('users').select('id,fingerprint').eq('registrationIp', _regIp),
                     6000, 'ip-check'
                 ).then(function(ipRes){
                     var ipExists = (ipRes && ipRes.data) ? ipRes.data : [];
-                    if(ipExists.length >= 2 && !_isWhitelisted){
+                    // Compter uniquement les comptes qui ont le MÊME fingerprint
+                    var sameDeviceCount = 0;
+                    if(_fp && _fp !== 'fp_unknown'){
+                        var _fpUuidSb = (_fp.match(/^fp_([a-f0-9]{6,})_/) || [])[1] || null;
+                        sameDeviceCount = ipExists.filter(function(u){
+                            if(!u.fingerprint) return false;
+                            if(u.fingerprint === _fp) return true;
+                            if(_fpUuidSb){
+                                var m = u.fingerprint.match(/^fp_([a-f0-9]{6,})_/);
+                                if(m && m[1] === _fpUuidSb) return true;
+                            }
+                            return false;
+                        }).length;
+                    }
+
+                    // Bloquer si vrai doublon (même appareil)
+                    if(sameDeviceCount >= 2 && !_isWhitelisted){
                         _btnReset();
-                        showToast('❌ 2 comptes existent déjà depuis cette connexion internet. Contactez-nous sur WhatsApp si c\'est une erreur.');
+                        showToast('❌ 2 comptes existent déjà depuis cet appareil et cette connexion. Contactez-nous sur WhatsApp si c\'est une erreur.');
+                        return;
+                    }
+                    // Si beaucoup de comptes IP mais TOUS différents appareils : c'est CGNAT, OK
+                    // (déjà filtré par COUCHE 3 locale, ici en double-check)
+                    if(ipExists.length >= 10 && sameDeviceCount === 0 && !_isWhitelisted){
+                        // Cas extrême : >10 comptes IP même sans fingerprint match
+                        // Probablement bot / fraude organisée. Bloquer.
+                        _btnReset();
+                        showToast('❌ Trop de comptes depuis cette connexion. Contactez-nous sur WhatsApp.');
                         return;
                     }
                     _doInsertUser(nouvelUtilisateur, _tel8, _isWhitelisted);
@@ -24587,6 +24645,60 @@ var K_PAR = 'ecodila_parrains_v1';
 var K_CFG = 'ecodila_parrain_cfg_v1';
 var K_RL  = 'par_rl_';          // + date key for rate limit
 
+/* ── FINGERPRINT NAVIGATEUR ─────────────────────────────────────
+   Génère un identifiant stable de l'appareil/navigateur pour distinguer
+   plusieurs utilisateurs derrière une même IP (CGNAT en CI : MTN/Orange/Moov
+   peuvent partager la même IP publique entre milliers d'abonnés).
+   On combine canvas, language, platform, hardware, écran, timezone.
+   Persiste en localStorage pour résister aux relances. */
+function _ecoGetBrowserFingerprint(){
+  try {
+    // Si déjà calculé ET persisté, le réutiliser
+    var cached = localStorage.getItem('_ecodila_fp_v1');
+    if(cached && cached.length > 5) return cached;
+
+    var nav = window.navigator;
+    var parts = [
+      nav.language || '',
+      nav.languages ? nav.languages.join(',') : '',
+      nav.platform || '',
+      nav.hardwareConcurrency || 0,
+      nav.deviceMemory || 0,
+      (screen.width || 0) + 'x' + (screen.height || 0),
+      (screen.colorDepth || 0),
+      new Date().getTimezoneOffset(),
+      (nav.userAgent || '').substring(0, 80)
+    ];
+
+    // Canvas fingerprint (rendu unique par GPU/driver)
+    try {
+      var c = document.createElement('canvas');
+      c.width = 200; c.height = 50;
+      var ctx = c.getContext('2d');
+      ctx.textBaseline = 'top';
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#52b788';
+      ctx.fillRect(0, 0, 200, 50);
+      ctx.fillStyle = '#fff';
+      ctx.fillText('EcoDila-FP-Test 🔒 ' + parts[0], 2, 2);
+      parts.push(c.toDataURL().substring(50, 150));
+    } catch(eC){}
+
+    var s = parts.join('|');
+    var h = 5381;
+    for(var i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+    var fp = 'fp_' + Math.abs(h).toString(36) + '_' + s.length.toString(36);
+
+    // Persister
+    try { localStorage.setItem('_ecodila_fp_v1', fp); } catch(e){}
+    return fp;
+  } catch(e) {
+    return 'fp_unknown_' + Date.now();
+  }
+}
+window._ecoGetBrowserFingerprint = _ecoGetBrowserFingerprint;
+
+
 /* ── UTILS ──────────────────────────────────────────────────── */
 function lsGet(k){ try{var v=window._sbRead(k);return v?v:null;}catch(e){return null;} }
 function lsSet(k,v){ try{window._sbWrite(k, v);}catch(e){} }
@@ -25401,8 +25513,9 @@ window._parSubmit = function(){
 
     // Try shared module first (available if bo_final.html is loaded alongside)
     var result = { ok:true };
+    var _fp = _ecoGetBrowserFingerprint();
     if(typeof window.prSubmitDemande === 'function'){
-      result = window.prSubmitDemande(nom.trim(), tel.trim(), email.trim(), canal, 'site');
+      result = window.prSubmitDemande(nom.trim(), tel.trim(), email.trim(), canal, 'site', _fp);
     } else {
       // Fallback: write directly to shared Supabase (protégé par _sbWrite)
       var dems = lsGet(K_DEM)||[];
@@ -25414,7 +25527,9 @@ window._parSubmit = function(){
         dems.push({
           id:'REQ-'+Date.now(), nom:nom.trim(), wa:tel.trim(),
           email:email.trim(), source:canal, motif:motif.trim(),
-          ip:(function(){try{return sessionStorage.getItem('ecodila_visit_ip')||'site';}catch(e){return 'site';}})(), created:new Date().toISOString()
+          ip:(function(){try{return sessionStorage.getItem('ecodila_visit_ip')||'site';}catch(e){return 'site';}})(),
+          fingerprint: _fp,
+          created:new Date().toISOString()
         });
         lsSet(K_DEM, dems);
         // Notifier le BO Admin en temps réel (nouvelle demande parrainage depuis le site)

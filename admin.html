@@ -7428,6 +7428,18 @@ window._sbReload = async function() {
                     <!-- Liste IPs suspectes -->
                     <div style="font-size:.72rem;font-weight:700;color:#ff4466;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem">🚨 Activités suspectes détectées (≥2 comptes / même IP)</div>
                     <div id="ip-suspicious-list"><div style="color:var(--text-muted);font-size:.85rem;font-style:italic;padding:.5rem 0">Aucune activité suspecte détectée.</div></div>
+
+                    <hr style="border:none;border-top:1px solid var(--border);margin:.8rem 0">
+                    <!-- Outil de réhabilitation -->
+                    <div style="background:rgba(82,183,136,.06);border:1px solid rgba(82,183,136,.25);border-radius:8px;padding:.8rem;margin-top:.6rem">
+                        <div style="font-size:.78rem;font-weight:700;color:#52b788;margin-bottom:.4rem">🔓 Réhabiliter les faux positifs CGNAT</div>
+                        <div style="font-size:.72rem;color:var(--text-muted);line-height:1.5;margin-bottom:.6rem">
+                            En Côte d'Ivoire, les opérateurs mobiles (MTN, Orange, Moov) utilisent du <b>CGNAT</b> : plusieurs milliers d'utilisateurs partagent la même IP publique.
+                            Cliquez ci-dessous pour <b>débloquer automatiquement</b> les comptes injustement bloqués (IP partagée mais appareils différents).
+                            Les vrais doublons (même IP + même appareil) restent bloqués.
+                        </div>
+                        <button onclick="ipUnblockFalsePositives()" style="background:#52b788;color:#fff;border:none;padding:.45rem .9rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:.78rem;font-family:inherit">🔓 Réhabiliter les comptes</button>
+                    </div>
                 </div>
             </div>
 
@@ -24306,7 +24318,22 @@ function _ipIsWhitelisted(ip) {
 }
 
 // ── Obtenir tous les comptes créés depuis la même IP (hors current) ──────
-function _ipGetSiblings(ip, excludeId) {
+// IMPORTANT : avec CGNAT (cas des opérateurs mobiles en CI), une même IP
+// peut être partagée par des milliers d'utilisateurs. On utilise donc
+// AUSSI le fingerprint du navigateur pour distinguer les vrais doublons.
+function _ipGetSiblings(ip, excludeId, fingerprint) {
+    if (!ip) return [];
+    return (adminData.customers || []).filter(function(c){
+        if(c.id === excludeId) return false;
+        if(c.registrationIp !== ip) return false;
+        // Si fingerprint disponible des deux côtés : exiger qu'ils matchent
+        if(fingerprint && c.fingerprint && c.fingerprint !== fingerprint) return false;
+        return true;
+    });
+}
+
+// Variante : siblings avec ET sans fingerprint match (pour info admin)
+function _ipGetSiblingsLoose(ip, excludeId) {
     if (!ip) return [];
     return (adminData.customers || []).filter(c => c.registrationIp === ip && c.id !== excludeId);
 }
@@ -24346,20 +24373,105 @@ async function ipRecordCreation(customer) {
     customer.registrationIp = ip;
     customer.registrationDate = customer.registrationDate || new Date().toISOString();
 
-    // Vérifier si d'autres comptes ont cette même IP
-    const siblings = _ipGetSiblings(ip, customer.id);
+    // Capturer aussi le fingerprint navigateur pour distinguer les utilisateurs
+    // derrière une même IP partagée (CGNAT, cybercafé, wifi public)
+    if(!customer.fingerprint && typeof window._ecoGetBrowserFingerprint === 'function') {
+        customer.fingerprint = window._ecoGetBrowserFingerprint();
+    } else if(!customer.fingerprint && typeof _getBrowserFingerprint === 'function') {
+        customer.fingerprint = _getBrowserFingerprint();
+    }
+
+    // Vérifier si d'autres comptes ont cette même IP **ET** même fingerprint
+    // (vrai doublon depuis le même appareil)
+    const siblings = _ipGetSiblings(ip, customer.id, customer.fingerprint);
     if (siblings.length >= 1 && !_ipIsWhitelisted(ip)) {
-        // Bloquer automatiquement le nouveau compte et les comptes frères
-        customer.bloque = true;
-        customer.suspiciousIp = true;
-        siblings.forEach(s => {
-            s.bloque = true;
-            s.suspiciousIp = true;
+        // Vérifier si au moins un sibling a le MÊME fingerprint
+        const sameDeviceSibling = siblings.find(function(s){
+            return s.fingerprint && customer.fingerprint && s.fingerprint === customer.fingerprint;
         });
-        _saveCustomers();
-        showNotification('🚨 Activité suspecte : ' + (siblings.length + 1) + ' comptes depuis IP ' + ip + ' — tous bloqués.', 'error');
+
+        if(sameDeviceSibling) {
+            // Vrai doublon : même IP + même appareil → blocage justifié
+            customer.bloque = true;
+            customer.suspiciousIp = true;
+            siblings.forEach(s => {
+                if(s.fingerprint === customer.fingerprint) {
+                    s.bloque = true;
+                    s.suspiciousIp = true;
+                }
+            });
+            _saveCustomers();
+            showNotification('🚨 Activité suspecte : ' + (siblings.length + 1) + ' comptes depuis IP+appareil identiques — bloqués.', 'error');
+        } else {
+            // IP partagée mais appareils différents : SIGNALER mais ne pas bloquer
+            // (cas légitime : famille partageant un wifi, cybercafé, CGNAT)
+            customer.suspiciousIpFlag = true; // Flag de monitoring (non bloquant)
+            _saveCustomers();
+            console.log('[IP] IP partagée détectée pour ' + customer.id + ' avec ' + siblings.length + ' autres comptes (appareils différents) — non bloqué.');
+        }
     }
 }
+
+// ── Réhabilitation : débloquer les comptes bloqués à tort sur IP partagée ──
+// Cas typique : CGNAT mobile en CI où plusieurs utilisateurs ont la même IP.
+// Cette fonction parcourt tous les comptes bloqués pour fraude IP et les
+// débloque si leur fingerprint diffère des autres comptes de la même IP.
+window.ipUnblockFalsePositives = async function() {
+    if(!confirm('🔓 Réhabiliter les comptes bloqués à tort ?\n\nCette action débloque les comptes marqués \"suspiciousIp\" qui ont une IP partagée mais un fingerprint d\'appareil DIFFÉRENT des autres comptes de cette IP.\n\nLes vrais doublons (même IP + même appareil) restent bloqués.\n\nContinuer ?')) return;
+
+    const customers = adminData.customers || [];
+    const blocked = customers.filter(function(c){ return c.bloque && c.suspiciousIp; });
+    if(!blocked.length) {
+        showNotification('Aucun compte bloqué pour fraude IP', 'info');
+        return;
+    }
+
+    let unblockedCount = 0;
+    let keptBlockedCount = 0;
+    const detailReport = [];
+
+    blocked.forEach(function(c){
+        if(!c.registrationIp || !c.fingerprint) {
+            // Pas de fingerprint → on garde bloqué (ancien compte, doute)
+            keptBlockedCount++;
+            return;
+        }
+        // Chercher tous les autres comptes sur cette IP
+        const others = customers.filter(function(o){
+            return o.id !== c.id && o.registrationIp === c.registrationIp;
+        });
+        // Y a-t-il un compte avec le MÊME fingerprint ? Si oui, vrai doublon : on garde
+        const hasSameDeviceSibling = others.some(function(o){
+            return o.fingerprint && o.fingerprint === c.fingerprint;
+        });
+        if(hasSameDeviceSibling) {
+            keptBlockedCount++;
+            detailReport.push('🔒 ' + (c.nom||c.id) + ' : reste bloqué (même IP + même appareil qu\'un autre)');
+        } else {
+            // Aucun autre compte avec le même fingerprint → débloquer
+            c.bloque = false;
+            c.suspiciousIp = false;
+            c.suspiciousIpFlag = true; // Garder un flag de monitoring (non bloquant)
+            c.unblockedAt = new Date().toISOString();
+            c.unblockedReason = 'IP partagée mais fingerprint différent (CGNAT/wifi public probable)';
+            unblockedCount++;
+            detailReport.push('✅ ' + (c.nom||c.id) + ' : débloqué (IP partagée, appareil différent)');
+        }
+    });
+
+    _saveCustomers();
+    console.log('[IP] Rapport de réhabilitation:\n' + detailReport.join('\n'));
+
+    const msg = '✅ Réhabilitation terminée\n\n'
+        + '🔓 ' + unblockedCount + ' compte(s) débloqué(s) (faux positifs CGNAT)\n'
+        + '🔒 ' + keptBlockedCount + ' compte(s) restés bloqués (vrais doublons ou pas de fingerprint)\n\n'
+        + 'Voir le détail dans la console (F12).';
+    alert(msg);
+    showNotification('🔓 ' + unblockedCount + ' compte(s) débloqué(s)', 'success');
+
+    // Refresh la vue
+    if(typeof renderCustomers === 'function') renderCustomers();
+};
 
 // ── Panneau IP : afficher/masquer ─────────────────────────────────────────
 function ipPanelToggle() {
@@ -24512,10 +24624,27 @@ function _ipRenderSuspiciousList() {
         var allBlocked = clients.every(function(c){ return c.bloque; });
         var names = clients.map(function(c){ return c.nom || c.id || '?'; }).join(', ');
         var safeIp = ip.replace(/"/g, '');
+
+        // Analyser si les fingerprints sont identiques (vrai doublon) ou différents (CGNAT/wifi)
+        var fps = clients.map(function(c){ return c.fingerprint; }).filter(Boolean);
+        var uniqueFps = fps.filter(function(v,i,a){ return a.indexOf(v) === i; });
+        var sameDevice = fps.length >= 2 && uniqueFps.length === 1;
+        var differentDevices = fps.length >= 2 && uniqueFps.length === fps.length;
+
+        var deviceBadge = '';
+        if(sameDevice) {
+            deviceBadge = '<span style="background:rgba(239,68,68,.15);color:#ef4444;padding:.15rem .4rem;border-radius:4px;font-size:.65rem;font-weight:700;margin-left:.3rem" title="Vrai doublon : même IP + même appareil">⚠ MÊME APPAREIL</span>';
+        } else if(differentDevices) {
+            deviceBadge = '<span style="background:rgba(82,183,136,.15);color:#52b788;padding:.15rem .4rem;border-radius:4px;font-size:.65rem;font-weight:700;margin-left:.3rem" title="IP partagée mais appareils différents (CGNAT/wifi public)">✓ APPAREILS DIFFÉRENTS</span>';
+        } else if(fps.length === 0) {
+            deviceBadge = '<span style="background:rgba(245,158,11,.15);color:#f59e0b;padding:.15rem .4rem;border-radius:4px;font-size:.65rem;font-weight:700;margin-left:.3rem" title="Pas de fingerprint enregistré">? INCONNU</span>';
+        }
+
         html += '<div class="ip-row ip-row-suspicious" data-ip="' + safeIp + '">'
-            + '<span style="font-size:1rem">🚨</span>'
-            + '<span class="ip-addr" style="color:#ff4466">' + ip + '</span>'
-            + '<span class="ip-count" style="color:#ff4466">' + clients.length + ' comptes</span>'
+            + '<span style="font-size:1rem">' + (sameDevice ? '🚨' : (differentDevices ? '⚠️' : '🔍')) + '</span>'
+            + '<span class="ip-addr" style="color:' + (sameDevice ? '#ff4466' : '#f59e0b') + '">' + ip + '</span>'
+            + '<span class="ip-count" style="color:' + (sameDevice ? '#ff4466' : '#f59e0b') + '">' + clients.length + ' comptes</span>'
+            + deviceBadge
             + '<span class="ip-accounts" title="' + names.replace(/"/g,'') + '">' + names + '</span>'
             + '<div class="ip-actions">'
             + (allBlocked
@@ -24539,15 +24668,43 @@ function _ipRenderSuspiciousList() {
 }
 
 function ipBlockAll(ip) {
+    // Détecter intelligemment : ne bloquer que les vrais doublons (même fingerprint)
+    // sauf si l'admin force "Bloquer tous" via un confirm
+    const allOnIp = (adminData.customers || []).filter(c => c.registrationIp === ip);
+    const fps = allOnIp.map(c => c.fingerprint).filter(Boolean);
+    const uniqueFps = fps.filter((v,i,a) => a.indexOf(v) === i);
+
+    let toBlock;
+    let mode;
+    if (fps.length >= 2 && uniqueFps.length < fps.length) {
+        // Il existe au moins 1 paire avec même fingerprint → vrai doublon
+        // Trouver les fingerprints en double
+        const dupFps = uniqueFps.filter(fp => fps.filter(f => f === fp).length >= 2);
+        toBlock = allOnIp.filter(c => c.fingerprint && dupFps.includes(c.fingerprint));
+        mode = 'doublons';
+    } else if (fps.length >= 2 && uniqueFps.length === fps.length) {
+        // Tous les fingerprints différents : c'est CGNAT/wifi public → demander confirmation
+        if(!confirm('⚠️ Cette IP est partagée par ' + allOnIp.length + ' comptes mais tous ont des appareils DIFFÉRENTS.\n\nC\'est probablement du CGNAT mobile (MTN/Orange) ou un wifi public légitime.\n\nVoulez-vous quand même bloquer TOUS les comptes ? (Non recommandé)')) return;
+        toBlock = allOnIp;
+        mode = 'tous (forcé)';
+    } else {
+        // Pas de fingerprint → fallback : bloquer tous (ancien comportement)
+        if(!confirm('⚠️ Aucun fingerprint enregistré pour ces comptes.\n\nVoulez-vous bloquer tous les ' + allOnIp.length + ' comptes sur cette IP ?')) return;
+        toBlock = allOnIp;
+        mode = 'tous (sans fp)';
+    }
+
     let count = 0;
-    (adminData.customers || []).forEach(c => {
-        if (c.registrationIp === ip) { c.bloque = true; c.suspiciousIp = true; count++; }
+    toBlock.forEach(c => {
+        c.bloque = true;
+        c.suspiciousIp = true;
+        count++;
     });
     _saveCustomers();
     _ipRenderSuspiciousList();
     filterAndRenderCustomers();
     _updateCustStats();
-    showNotification('🔒 ' + count + ' compte(s) bloqué(s) — IP : ' + ip, 'error');
+    showNotification('🔒 ' + count + ' compte(s) bloqué(s) — IP : ' + ip + ' (mode : ' + mode + ')', 'error');
 }
 
 function ipUnblockAll(ip) {
@@ -24575,21 +24732,51 @@ function ipWhitelistFromPanel(ip) {
     filterAndRenderCustomers();
 }
 
-// ── Hook : après chargement des clients, màj stat suspectes + scan auto ──
+// ── Hook : après chargement des clients, màj stat suspectes ──
+// IMPORTANT : on ne bloque AUTOMATIQUEMENT que les vrais doublons
+// (même IP + même fingerprint). Les IP partagées sans fingerprint match
+// (CGNAT, cybercafés, wifi) sont signalées mais PAS bloquées.
 function _ipPostLoadScan() {
     const groups = _ipGroupByIp();
     let suspCount = 0;
+    let autoBlockedCount = 0;
+
     Object.entries(groups).forEach(([ip, clients]) => {
         if (ip === 'non-capturee') return; // Ignorer les IPs non capturées
-        if (clients.length >= 2 && !_ipIsWhitelisted(ip)) {
+        if (clients.length < 2 || _ipIsWhitelisted(ip)) return;
+
+        // Compter les fingerprints pour détecter vrais doublons vs CGNAT
+        const fps = clients.map(c => c.fingerprint).filter(Boolean);
+        const uniqueFps = fps.filter((v,i,a) => a.indexOf(v) === i);
+        const hasFingerprintData = fps.length > 0;
+        const allSameDevice = hasFingerprintData && uniqueFps.length === 1 && fps.length === clients.length;
+
+        if (allSameDevice) {
+            // VRAI DOUBLON : tous les comptes partagent IP + fingerprint
+            // → blocage automatique justifié
             suspCount++;
-            // Auto-bloquer les comptes suspicieux non encore bloqués
             clients.forEach(c => {
-                if (!c.bloque) { c.bloque = true; c.suspiciousIp = true; }
+                if (!c.bloque) {
+                    c.bloque = true;
+                    c.suspiciousIp = true;
+                    autoBlockedCount++;
+                }
+            });
+        } else {
+            // IP partagée mais appareils différents (ou fingerprint manquant)
+            // → SIGNALER seulement, NE PAS bloquer
+            suspCount++;
+            clients.forEach(c => {
+                // Marquer comme "à surveiller" mais ne pas bloquer
+                if (!c.suspiciousIpFlag) c.suspiciousIpFlag = true;
             });
         }
     });
-    if (suspCount > 0) _saveCustomers();
+
+    if (autoBlockedCount > 0 || suspCount > 0) _saveCustomers();
+    if (autoBlockedCount > 0) {
+        console.log('[IP] ' + autoBlockedCount + ' compte(s) auto-bloqués (vrais doublons : même IP + même appareil)');
+    }
     const el = document.getElementById('cust-stat-suspicious');
     if (el) el.textContent = suspCount;
 }
@@ -39106,13 +39293,28 @@ function fraudScore(dem) {
   var orders   = ls('ecodila_commandes') || [];
   var flags    = []; /* détails pour l'UI */
 
-  /* ── Règle 1 : IP déjà prise par un parrain actif ── */
+  /* ── Règle 1 : IP déjà prise par un parrain actif ──
+     IMPORTANT : en Côte d'Ivoire (et beaucoup de pays), le CGNAT mobile
+     fait que des milliers d'utilisateurs partagent la même IP publique.
+     Donc on ne pénalise QUE si l'IP **et** le fingerprint sont identiques
+     (vrai cas de duplicata depuis le même appareil), ou si le fingerprint
+     n'est pas disponible (ancien compte). */
   var sameIPPar = parrains.filter(function(p){
-    return p.ip && p.ip !== 'admin' && p.ip === dem.ip && p.statut === 'Actif';
+    if(!p.ip || p.ip === 'admin' || p.ip !== dem.ip) return false;
+    if(p.statut !== 'Actif') return false;
+    /* Si les deux ont un fingerprint, ils doivent matcher pour suspecter */
+    if(p.fingerprint && dem.fingerprint && p.fingerprint !== dem.fingerprint) return false;
+    return true;
   });
   if(sameIPPar.length > 0) {
-    score -= rules.sameIpParrain;
-    flags.push('IP partagée avec ' + sameIPPar[0].nom);
+    /* Pénalité réduite si pas de fingerprint (incertain) */
+    var penaltyMult = (sameIPPar[0].fingerprint && dem.fingerprint && sameIPPar[0].fingerprint === dem.fingerprint) ? 1 : 0.4;
+    score -= Math.round(rules.sameIpParrain * penaltyMult);
+    if(penaltyMult === 1) {
+      flags.push('IP + appareil identiques à ' + sameIPPar[0].nom);
+    } else {
+      flags.push('IP partagée avec ' + sameIPPar[0].nom + ' (mais appareils différents)');
+    }
   }
 
   /* ── Règle 2 : WA déjà utilisé par un parrain ── */
@@ -39125,11 +39327,24 @@ function fraudScore(dem) {
     return p.email && p.email.toLowerCase() === dem.email.toLowerCase();
   })) { score -= rules.sameEmailParrain; flags.push('Email déjà parrain'); }
 
-  /* ── Règle 4 : ≥2 demandes en attente sur même IP ── */
-  var sameIPDem = dems.filter(function(d){ return d.id !== dem.id && d.ip === dem.ip; });
+  /* ── Règle 4 : ≥2 demandes en attente sur même IP ET même fingerprint ──
+     Si fingerprint disponible, on n'alerte que pour vrai duplicata d'appareil. */
+  var sameIPDem = dems.filter(function(d){
+    if(d.id === dem.id || d.ip !== dem.ip) return false;
+    /* Si les deux ont un fingerprint, ils doivent matcher */
+    if(d.fingerprint && dem.fingerprint && d.fingerprint !== dem.fingerprint) return false;
+    return true;
+  });
   if(sameIPDem.length >= 2) {
-    score -= rules.sameIpDemandes;
-    flags.push(sameIPDem.length + ' autres demandes même IP');
+    var sameDevice = sameIPDem.some(function(d){ return d.fingerprint && dem.fingerprint && d.fingerprint === dem.fingerprint; });
+    if(sameDevice) {
+      score -= rules.sameIpDemandes;
+      flags.push(sameIPDem.length + ' autres demandes même IP + appareil');
+    } else {
+      /* IP partagée mais appareils différents : pénalité légère seulement */
+      score -= Math.round(rules.sameIpDemandes * 0.3);
+      flags.push(sameIPDem.length + ' demandes même IP (appareils différents possibles)');
+    }
   }
 
   /* ── Règle 5 : WA correspond à un client (auto-parrainage) ── */
@@ -46502,10 +46717,13 @@ function _fetchRealIP() {
 window._fetchRealIP = _fetchRealIP; /* exposée pour le site.html */
 
 /* ── PUBLIC API for site.html (demande from site) ────────────── */
-window.prSubmitDemande = function(nom, wa, email, source, ipHint) {
+window.prSubmitDemande = function(nom, wa, email, source, ipHint, fpHint) {
   /* ipHint = IP optionnelle fournie par le site (non fiable).
+     fpHint = fingerprint navigateur (identifiant stable de l'appareil)
      On capture toujours l'IP réelle de façon indépendante et on
-     utilise la meilleure valeur disponible. */
+     utilise la meilleure valeur disponible.
+     IMPORTANT : Le fingerprint distingue plusieurs utilisateurs
+     derrière la même IP (CGNAT mobile en CI, cybercafés, wifi public). */
 
   /* Validation préliminaire synchrone */
   var existing = getDemandes();
@@ -46524,6 +46742,7 @@ window.prSubmitDemande = function(nom, wa, email, source, ipHint) {
     email   : email || '',
     source  : source|| 'Site',
     ip      : provisionalIP,
+    fingerprint: fpHint || (typeof _getBrowserFingerprint === 'function' ? _getBrowserFingerprint() : null),
     ipVerified: false, /* sera true une fois l'IP réelle obtenue */
     created : pnow()
   };

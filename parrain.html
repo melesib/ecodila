@@ -3305,6 +3305,46 @@ function _getMyCommissions(parrainId){
   return (_lsGet(_SK.COMS)||[]).filter(c => (c.parrainId||c.parrain_id) === parrainId);
 }
 
+/* ── Fingerprint navigateur pour identifier l'appareil de façon stable ──
+   Permet de distinguer les comptes derrière une même IP partagée (CGNAT). */
+if(typeof window._ecoGetBrowserFingerprint !== 'function'){
+  window._ecoGetBrowserFingerprint = function(){
+    try {
+      var cached = localStorage.getItem('_ecodila_fp_v1');
+      if(cached && cached.length > 5) return cached;
+      var nav = window.navigator;
+      var parts = [
+        nav.language || '',
+        nav.platform || '',
+        nav.hardwareConcurrency || 0,
+        nav.deviceMemory || 0,
+        (screen.width || 0) + 'x' + (screen.height || 0),
+        (screen.colorDepth || 0),
+        new Date().getTimezoneOffset(),
+        (nav.userAgent || '').substring(0, 80)
+      ];
+      try {
+        var c = document.createElement('canvas');
+        c.width = 200; c.height = 50;
+        var ctx = c.getContext('2d');
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#52b788';
+        ctx.fillRect(0, 0, 200, 50);
+        ctx.fillStyle = '#fff';
+        ctx.fillText('EcoDila-FP-Test 🔒 ' + parts[0], 2, 2);
+        parts.push(c.toDataURL().substring(50, 150));
+      } catch(eC){}
+      var s = parts.join('|');
+      var h = 5381;
+      for(var i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+      var fp = 'fp_' + Math.abs(h).toString(36) + '_' + s.length.toString(36);
+      try { localStorage.setItem('_ecodila_fp_v1', fp); } catch(e){}
+      return fp;
+    } catch(e) { return 'fp_unknown_' + Date.now(); }
+  };
+}
+
 /* ── Mettre à jour un seul parrain dans Supabase (sans réécrire tout le tableau) ── */
 function _updateParrain(parrainId, fields){
   // Mettre à jour le cache mémoire
@@ -7050,12 +7090,19 @@ async function doLogin(){
      si l'utilisateur revient sur la page de login (logout, re-load partiel, etc.) */
   _loginBtnReset();
 
-  /* ── Capturer l'IP du parrain pour l'exclure des stats ── */
+  /* ── Capturer l'IP du parrain pour l'exclure des stats + fingerprint ── */
   (async function(){
     try {
       var resp = await fetch('https://api.ipify.org?format=json');
       var data = await resp.json();
-      if(data.ip) _updateParrain(parrain.id, {lastIp: data.ip});
+      var update = {};
+      if(data.ip) update.lastIp = data.ip;
+      // Fingerprint navigateur pour identifier l'appareil de manière fiable
+      try {
+        var fp = (typeof window._ecoGetBrowserFingerprint === 'function') ? window._ecoGetBrowserFingerprint() : null;
+        if(fp) update.fingerprint = fp;
+      } catch(e){}
+      if(Object.keys(update).length) _updateParrain(parrain.id, update);
     } catch(e){}
   })();
   window._parrainLink = parrain.code ? `https://ecodila.com/ref/${parrain.code}` : '';
