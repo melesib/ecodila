@@ -4044,10 +4044,11 @@ window._lidaConv = (function(){
   }
 
   // Sauvegarder un message (client → admin)
-  async function saveMessage(message, sender, messageType){
-    if(!message || !message.trim()) return null;
+  async function saveMessage(message, sender, messageType, attachments){
+    if((!message || !message.trim()) && (!attachments || !attachments.length)) return null;
     sender = sender || 'client';
     messageType = messageType || 'text';
+    attachments = attachments || [];
     try {
       var meta = getClientMeta();
       var clientId = getClientId();
@@ -4082,9 +4083,10 @@ window._lidaConv = (function(){
         client_email: meta.client_email,
         is_logged_in: meta.is_logged_in,
         sender: sender,
-        message: message.substring(0, 2000),
+        message: (message || '').substring(0, 2000),
         message_type: messageType,
         ticket_id: ticketId,
+        attachments: attachments,
         read_by_client: (sender === 'client'),
         read_by_admin: (sender !== 'client')
       };
@@ -4219,6 +4221,119 @@ if(document.readyState === 'complete' || document.readyState === 'interactive'){
   window.addEventListener('load', function(){
     setTimeout(function(){ try { _lidaConv.startPolling(); } catch(e){} }, 2000);
   });
+}
+
+// Auto-ouvrir le chat si l'URL contient ?openchat=1 (lien depuis emails / WhatsApp)
+// Optimisé pour smartphones lents + réseau 2G/3G : attente patiente jusqu'à 60s,
+// avec délais progressifs (commence court, puis allonge si besoin).
+function _autoOpenChatFromURL(){
+  try {
+    var params = new URLSearchParams(window.location.search);
+    if(params.get('openchat') !== '1') return;
+
+    var attempts = 0;
+    var maxAttempts = 60; // jusqu'à ~60 tentatives = jusqu'à 60s d'attente
+    var startTime = Date.now();
+    var openedSuccess = false;
+
+    // Afficher un indicateur visuel pour rassurer l'utilisateur sur smartphone lent
+    var showLoadingHint = function(){
+      // Ne pas spammer : afficher seulement après 3s d'attente
+      if(document.getElementById('lidaLoadingHint')) return;
+      var hint = document.createElement('div');
+      hint.id = 'lidaLoadingHint';
+      hint.style.cssText = 'position:fixed;bottom:20px;right:20px;background:linear-gradient(135deg,#52b788,#0a8b4a);color:#fff;padding:.7rem 1rem;border-radius:12px;font-size:.82rem;font-weight:600;font-family:DM Sans,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.2);z-index:9999;display:flex;align-items:center;gap:.5rem;animation:lidaHintFadeIn .3s ease';
+      hint.innerHTML = '<span style="font-size:1.1rem">⏳</span><span>Ouverture du chat LIDA...</span>';
+      document.body.appendChild(hint);
+      // Animation CSS si pas encore définie
+      if(!document.getElementById('lidaLoadingHintCSS')){
+        var st = document.createElement('style');
+        st.id = 'lidaLoadingHintCSS';
+        st.textContent = '@keyframes lidaHintFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}';
+        document.head.appendChild(st);
+      }
+    };
+
+    var hideLoadingHint = function(){
+      var el = document.getElementById('lidaLoadingHint');
+      if(el) el.remove();
+    };
+
+    var trigger = function(){
+      attempts++;
+      var elapsed = Date.now() - startTime;
+      var chatWrap = document.getElementById('chatWrap');
+      var fnReady = (typeof window.toggleChat === 'function') || (typeof toggleChat === 'function');
+
+      // Afficher le hint après 3s pour rassurer sur les appareils lents
+      if(elapsed > 3000 && !openedSuccess){
+        showLoadingHint();
+      }
+
+      if(chatWrap && fnReady){
+        try {
+          // Si déjà ouvert, ne rien faire
+          if(chatWrap.classList.contains('show')){
+            hideLoadingHint();
+            return;
+          }
+          if(typeof window.toggleChat === 'function') window.toggleChat();
+          else if(typeof toggleChat === 'function') toggleChat();
+          openedSuccess = true;
+          hideLoadingHint();
+          console.log('[LIDA] Chat ouvert depuis URL ?openchat=1 (après ' + elapsed + 'ms)');
+          // Nettoyer le paramètre URL pour éviter de rouvrir au refresh
+          try {
+            var newUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, '', newUrl);
+          } catch(e){}
+        } catch(e){
+          console.warn('[LIDA] erreur ouverture auto:', e);
+          // Réessayer même en cas d'erreur
+          if(attempts < maxAttempts){
+            setTimeout(trigger, 1000);
+          }
+        }
+        return;
+      }
+
+      // Délai progressif : court au début, puis allonge progressivement
+      // pour ne pas spammer un appareil très lent
+      var nextDelay;
+      if(attempts < 5) nextDelay = 500;        // 0-2.5s : try chaque 500ms
+      else if(attempts < 15) nextDelay = 1000; // 2.5-12.5s : try chaque 1s
+      else nextDelay = 2000;                    // 12.5+s : try chaque 2s
+
+      if(attempts < maxAttempts){
+        setTimeout(trigger, nextDelay);
+      } else {
+        hideLoadingHint();
+        console.warn('[LIDA] Impossible d\'ouvrir le chat après ' + maxAttempts + ' tentatives (' + elapsed + 'ms)');
+        // Afficher un message à l'utilisateur pour qu'il clique manuellement
+        var fallback = document.createElement('div');
+        fallback.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#fff;color:#1a2332;padding:1rem 1.2rem;border-radius:12px;font-size:.84rem;font-family:DM Sans,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.2);z-index:9999;max-width:280px;border:2px solid var(--green,#52b788)';
+        fallback.innerHTML = '<div style="font-weight:700;margin-bottom:.4rem">💬 Cliquez sur LIDA</div>'
+          + '<div style="font-size:.78rem;color:#475569">Le chat met du temps à charger. Cliquez sur le bouton vert en bas à droite quand il apparaît.</div>'
+          + '<button onclick="this.parentElement.remove()" style="margin-top:.6rem;background:var(--green,#52b788);color:#fff;border:none;padding:.4rem .8rem;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit">Compris ✓</button>';
+        document.body.appendChild(fallback);
+        // Auto-cacher après 10s
+        setTimeout(function(){ if(fallback && fallback.parentElement) fallback.remove(); }, 10000);
+      }
+    };
+
+    // Premier essai différé pour laisser le DOM s'initialiser
+    // Sur smartphone lent, 'load' ne signifie pas que tout est interactif
+    setTimeout(trigger, 800);
+  } catch(e){ console.warn('[LIDA] openchat erreur:', e); }
+}
+
+// Lancer le handler dès que possible (DOMContentLoaded est plus tôt que load)
+if(document.readyState === 'complete' || document.readyState === 'interactive'){
+  _autoOpenChatFromURL();
+} else {
+  // Tenter dès DOMContentLoaded ET window.load au cas où
+  document.addEventListener('DOMContentLoaded', _autoOpenChatFromURL);
+  window.addEventListener('load', _autoOpenChatFromURL);
 }
 
 window._d = {
@@ -5355,8 +5470,12 @@ setTimeout(_pStart,3000);
     </div>
   </div>
   <div class="chat-body" id="chatBody"></div>
+  <!-- Zone de prévisualisation des pièces jointes (cachée par défaut) -->
+  <div id="chatAttachPreview" style="display:none;padding:.4rem .6rem;border-top:1px solid var(--border);background:rgba(82,183,136,.05);font-size:.72rem;color:#475569"></div>
   <div class="chat-input-area">
     <button class="chat-mic" id="chatMicBtn" onclick="_chatMicToggle()" title="Parler au lieu d'écrire" aria-label="Activer le micro"><svg id="chatMicIcon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.42 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.3 6-6.72h-1.7z"/></svg></button>
+    <button class="chat-mic" id="chatAttachBtn" onclick="document.getElementById('chatAttachInput').click()" title="Joindre une photo" aria-label="Joindre une photo" style="background:#f59e0b"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg></button>
+    <input type="file" id="chatAttachInput" accept="image/*" multiple style="display:none" onchange="_chatHandleAttach(this.files)">
     <input class="chat-input" id="chatInput" placeholder="Votre message ou parlez avec 🎤…" onkeydown="if(event.key==='Enter')sendMsg()">
     <button class="chat-send" onclick="sendMsg()" aria-label="Envoyer">➤</button>
   </div>
@@ -17773,10 +17892,20 @@ function _chatRenderConversation(messages){
   // Afficher chaque message admin un par un avec un petit délai pour l'effet naturel
   messages.forEach(function(msg, idx){
     setTimeout(function(){
-      // L'admin parle à travers LIDA : on affiche comme bot mais avec une teinte spéciale
+      // Construire le HTML : message texte + images jointes éventuelles
       var html = '<b>👤 Équipe :</b> ' + _esc(msg.message);
+      if(msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0){
+        html += '<div style="margin-top:.5rem;display:flex;flex-wrap:wrap;gap:.4rem">';
+        msg.attachments.forEach(function(att){
+          if(att && att.url){
+            html += '<a href="'+_esc(att.url)+'" target="_blank" style="display:inline-block;max-width:180px;border-radius:8px;overflow:hidden;border:1px solid rgba(0,0,0,.08)">'
+              + '<img src="'+_esc(att.url)+'" alt="'+_esc(att.name||'image')+'" style="width:100%;height:auto;display:block;cursor:pointer" loading="lazy">'
+              + '</a>';
+          }
+        });
+        html += '</div>';
+      }
       addMsg(html, 'bot', true, msg.message);
-      // Marquer le message comme lu en base
       try { if(window._lidaConv) _lidaConv.markAsRead(msg.id); } catch(e){}
     }, 1200 + idx * 800);
   });
@@ -18519,15 +18648,105 @@ function _chatDetectIntent(text){
 }
 
 /* ─── Nouveau sendMsg intelligent ──────────────────────────────── */
+// ── Gestion des pièces jointes (images) ────────────────────────────
+window._chatPendingAttachments = [];
+
+window._chatHandleAttach = async function(files){
+  if(!files || !files.length) return;
+  if(!window._sb){ alert('Système non prêt'); return; }
+  var preview = document.getElementById('chatAttachPreview');
+  if(preview){ preview.style.display = 'block'; preview.innerHTML = '⏳ Upload en cours...'; }
+
+  for(var i = 0; i < files.length; i++){
+    var file = files[i];
+    if(!file.type.startsWith('image/')){ continue; }
+    if(file.size > 5 * 1024 * 1024){ alert('Image trop grande (max 5MB) : '+file.name); continue; }
+    try {
+      var clientId = (window._lidaConv ? _lidaConv.getClientId() : 'anon');
+      var safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      var path = clientId.replace(/[^a-zA-Z0-9_-]/g, '_') + '/' + Date.now() + '_' + safeName;
+      var up = await _sb.storage.from('chat-attachments').upload(path, file, {
+        contentType: file.type,
+        upsert: false
+      });
+      if(up.error){
+        console.warn('[chat] upload erreur:', up.error);
+        alert('Erreur upload : ' + up.error.message);
+        continue;
+      }
+      var pub = _sb.storage.from('chat-attachments').getPublicUrl(path);
+      window._chatPendingAttachments.push({
+        url: pub.data.publicUrl,
+        name: file.name,
+        size: file.size
+      });
+    } catch(e){
+      console.warn('[chat] upload exception:', e);
+    }
+  }
+  // Reset le file input pour permettre la même image deux fois
+  var input = document.getElementById('chatAttachInput');
+  if(input) input.value = '';
+  _chatRenderAttachPreview();
+};
+
+function _chatRenderAttachPreview(){
+  var preview = document.getElementById('chatAttachPreview');
+  if(!preview) return;
+  if(!window._chatPendingAttachments || !window._chatPendingAttachments.length){
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+    return;
+  }
+  preview.style.display = 'block';
+  var html = '<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">'
+    + '<span style="font-weight:600;color:#0a8b4a">📎 '+window._chatPendingAttachments.length+' image(s) prête(s)</span>';
+  window._chatPendingAttachments.forEach(function(att, i){
+    html += '<div style="position:relative;display:inline-block">'
+      + '<img src="'+_esc(att.url)+'" style="width:42px;height:42px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">'
+      + '<button onclick="_chatRemoveAttach('+i+')" style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border:none;width:16px;height:16px;border-radius:50%;font-size:.6rem;cursor:pointer;line-height:1;font-weight:700">×</button>'
+      + '</div>';
+  });
+  html += '</div>';
+  preview.innerHTML = html;
+}
+
+window._chatRemoveAttach = function(idx){
+  if(!window._chatPendingAttachments) return;
+  window._chatPendingAttachments.splice(idx, 1);
+  _chatRenderAttachPreview();
+};
+
 function sendMsg(){
   var inp=document.getElementById('chatInput');
   var val=inp.value.trim();
-  if(!val) return;
-  addMsg(val, 'user');
+  var hasAttach = window._chatPendingAttachments && window._chatPendingAttachments.length > 0;
+  // Permettre d'envoyer même sans texte si on a des pièces jointes
+  if(!val && !hasAttach) return;
+
+  // Afficher le message côté client avec les images
+  var displayHtml = val ? _esc(val) : '';
+  if(hasAttach){
+    if(displayHtml) displayHtml += '<br>';
+    displayHtml += '<div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem">';
+    window._chatPendingAttachments.forEach(function(att){
+      displayHtml += '<a href="'+_esc(att.url)+'" target="_blank"><img src="'+_esc(att.url)+'" alt="'+_esc(att.name||'photo')+'" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid rgba(0,0,0,.08);cursor:pointer" loading="lazy"></a>';
+    });
+    displayHtml += '</div>';
+  }
+  addMsg(displayHtml, 'user', true);
   inp.value='';
 
-  // Persister le message en base pour que l'admin le voie dans le BO
-  try { if(window._lidaConv) _lidaConv.saveMessage(val, 'client', 'text'); } catch(e){}
+  // Persister le message en base avec les attachments
+  var messageToSave = val || '📷 Photo(s) jointe(s)';
+  var attachments = hasAttach ? window._chatPendingAttachments.slice() : [];
+  try {
+    if(window._lidaConv) _lidaConv.saveMessage(messageToSave, 'client', 'text', attachments);
+  } catch(e){}
+
+  // Reset pending attachments
+  window._chatPendingAttachments = [];
+  _chatRenderAttachPreview();
 
   // Afficher l'indicateur "le bot tape..." pour rassurer pendant le délai
   _chatShowTyping();

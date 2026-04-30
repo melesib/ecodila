@@ -8931,6 +8931,7 @@ window._sbReload = async function() {
         <h1 class="page-title">💬 Support clients</h1>
         <div class="header-actions">
             <button class="btn btn-secondary" onclick="ccLoadConversations();ccLoadDashboard()" aria-label="🔄 Actualiser">🔄 Actualiser</button>
+            <button id="ccPurgeBtn" class="btn btn-secondary" onclick="ccOpenPurgeModal()" style="display:none;color:#ef4444;border-color:rgba(239,68,68,.4)" aria-label="🗑 Purger" title="Suppression définitive (Super Admin)">🗑 Purger archive</button>
         </div>
     </div>
 
@@ -16211,6 +16212,15 @@ function saveOrderChanges(orderId) {
 }
 
 // ── Génération du message WhatsApp selon le statut ─────────────────────────
+// Helper global : ajoute le footer LIDA à un message texte (WhatsApp, email, etc.)
+// pour encourager les clients à revenir vers le chatbot.
+window._addLidaFooter = function(text){
+    if(!text) return text;
+    // Ne pas dupliquer si déjà présent
+    if(text.indexOf('chatbot LIDA') !== -1) return text;
+    return text + '\n\n💡 *Pour une réponse rapide et un suivi de vos requêtes,*\n*utilisez notre chatbot LIDA :*\n👉 https://ecodila.com/?openchat=1';
+};
+
 function genererMessageStatut(order, oldStatus, newStatus) {
     const prenom = order.prenom || order.nom || 'cher client';
     const id     = order.id || 'N/A';
@@ -16237,7 +16247,8 @@ function genererMessageStatut(order, oldStatus, newStatus) {
             `Bonjour ${prenom} 👋\n\nNous vous informons que votre commande *#${id}* a été annulée.\n\n${order.notes_internes ? `Raison : ${order.notes_internes}\n\n` : ''}Pour toute question, contactez-nous directement.\n\nMerci de votre compréhension. 🙏\n\n— *EcoDila*`,
     };
 
-    return messages[newStatus] || `Bonjour ${prenom} 👋\n\nLe statut de votre commande *#${id}* a été mis à jour : *${newStatus}*.\n\nMerci de votre confiance ! 🙏\n\n— *EcoDila*`;
+    var msg = messages[newStatus] || `Bonjour ${prenom} 👋\n\nLe statut de votre commande *#${id}* a été mis à jour : *${newStatus}*.\n\nMerci de votre confiance ! 🙏\n\n— *EcoDila*`;
+    return window._addLidaFooter(msg);
 }
 
 // ── Ouverture WhatsApp directe ─────────────────────────────────────────────
@@ -17455,7 +17466,7 @@ function genererMessageTroc(t, statut) {
         'Terminé':
             `Bonjour ${prenom} 👋\n\nVotre troc *${id}* est maintenant finalisé ! 🏁\n\nMerci d'avoir fait confiance à EcoDila. Profitez bien de votre nouvel appareil ! 😊\n\n— *EcoDila*`,
     };
-    return msgs[statut] || `Bonjour ${prenom} 👋\n\nLe statut de votre demande de troc *${id}* a été mis à jour : *${statut}*.\n\n— *EcoDila*`;
+    return window._addLidaFooter(msgs[statut] || `Bonjour ${prenom} 👋\n\nLe statut de votre demande de troc *${id}* a été mis à jour : *${statut}*.\n\n— *EcoDila*`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -21104,6 +21115,17 @@ function ccGetRelevantTemplates(context) {
 async function ccLoadConversations() {
     const list = document.getElementById('ccConversationsList');
     if (!list) return;
+
+    // Afficher le bouton "Purger archive" UNIQUEMENT pour le Super Admin
+    try {
+        const purgeBtn = document.getElementById('ccPurgeBtn');
+        if (purgeBtn) {
+            const admin = (typeof window.getSessionAdmin === 'function') ? window.getSessionAdmin() : null;
+            const isSuperAdmin = !admin || admin.isSuperRoot || admin.role === 'super_admin';
+            purgeBtn.style.display = isSuperAdmin ? '' : 'none';
+        }
+    } catch(e){}
+
     list.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4);font-size:.82rem">Chargement...</div>';
     try {
         const res = await window._sb.from('chat_conversations_summary')
@@ -21119,6 +21141,87 @@ async function ccLoadConversations() {
         list.innerHTML = '<div style="text-align:center;padding:2rem;color:#ef4444;font-size:.82rem">Erreur de chargement. Vérifiez la table chat_conversations.</div>';
     }
 }
+
+// ── SUPPRESSION DÉFINITIVE PAR DATE (Super Admin uniquement) ────────
+window.ccOpenPurgeModal = function() {
+    // Re-vérifier que l'admin est bien Super Admin
+    const admin = (typeof window.getSessionAdmin === 'function') ? window.getSessionAdmin() : null;
+    const isSuperAdmin = !admin || admin.isSuperRoot || admin.role === 'super_admin';
+    if (!isSuperAdmin) {
+        alert('⛔ Accès refusé. Cette action est réservée au Super Administrateur.');
+        return;
+    }
+
+    // Date par défaut : il y a 90 jours
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() - 90);
+    const defaultStr = defaultDate.toISOString().substring(0, 10);
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+        <div style="background:var(--card,#1a2332);border:2px solid #ef4444;border-radius:12px;max-width:520px;width:100%;padding:1.5rem;color:#fff">
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem">
+                <div style="font-size:2rem">⚠️</div>
+                <h3 style="margin:0;color:#ef4444">Suppression définitive d'archive</h3>
+            </div>
+            <p style="font-size:.86rem;line-height:1.5;color:rgba(255,255,255,.85);margin:.5rem 0">
+                Cette action <b>supprime définitivement</b> toutes les conversations et tickets <b>antérieurs à la date choisie</b>. Cette opération est <b>irréversible</b> et est utilisée pour libérer de l'espace serveur.
+            </p>
+            <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:.7rem;margin:1rem 0;font-size:.82rem">
+                ⚠️ <b>Attention :</b> les messages, tickets et leurs KPIs historiques seront perdus à jamais.
+            </div>
+            <label style="display:block;font-size:.84rem;font-weight:600;margin-bottom:.4rem">Supprimer tout ce qui est avant le :</label>
+            <input type="date" id="ccPurgeDate" value="${defaultStr}" style="width:100%;padding:.55rem .7rem;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;border-radius:8px;font-size:.92rem;font-family:inherit">
+            <div style="font-size:.74rem;color:rgba(255,255,255,.5);margin-top:.4rem">💡 Exemple : sélectionner aujourd'hui supprime <b>tout l'historique</b>. Sélectionner il y a 90 jours garde les 3 derniers mois.</div>
+            <label style="display:flex;align-items:center;gap:.5rem;margin-top:1.2rem;font-size:.84rem;cursor:pointer">
+                <input type="checkbox" id="ccPurgeConfirm" style="width:18px;height:18px;cursor:pointer">
+                <span>Je comprends que cette action est <b>définitive</b> et <b>irréversible</b></span>
+            </label>
+            <div style="display:flex;gap:.6rem;margin-top:1.5rem">
+                <button onclick="this.closest('[style*=fixed]').remove()" class="btn btn-secondary" style="flex:1">Annuler</button>
+                <button onclick="ccConfirmPurge()" style="flex:1;padding:.6rem;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:.86rem">🗑 Supprimer définitivement</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+};
+
+window.ccConfirmPurge = async function() {
+    const dateInput = document.getElementById('ccPurgeDate');
+    const confirmCheck = document.getElementById('ccPurgeConfirm');
+    if (!dateInput || !confirmCheck) return;
+    if (!confirmCheck.checked) {
+        alert('⚠️ Veuillez cocher la confirmation que vous comprenez les conséquences.');
+        return;
+    }
+    const dateStr = dateInput.value;
+    if (!dateStr) {
+        alert('Veuillez choisir une date');
+        return;
+    }
+    const beforeDate = new Date(dateStr).toISOString();
+
+    // Double confirmation
+    if (!confirm('🗑 SUPPRESSION DÉFINITIVE\n\nVous êtes sur le point de supprimer définitivement toutes les conversations et tickets avant le ' + dateStr + '.\n\nCette action est IRRÉVERSIBLE. Continuer ?')) return;
+
+    try {
+        const res = await window._sb.rpc('admin_purge_chat_before', { p_before_date: beforeDate });
+        if (res.error) throw res.error;
+        const data = (res.data && res.data[0]) || {};
+        const msgCount = data.deleted_messages || 0;
+        const tkCount = data.deleted_tickets || 0;
+        alert('✅ Suppression effectuée\n\n' + msgCount + ' message(s) supprimé(s)\n' + tkCount + ' ticket(s) supprimé(s)\n\nL\'espace serveur a été libéré.');
+        // Fermer le modal et refresh
+        const modal = document.querySelector('[style*="position:fixed"]');
+        if (modal) modal.remove();
+        await ccLoadConversations();
+        if (typeof ccLoadDashboard === 'function') ccLoadDashboard();
+    } catch (e) {
+        console.warn('[chat-clients] purge erreur:', e);
+        alert('❌ Erreur lors de la suppression : ' + (e.message || 'inconnue'));
+    }
+};
 
 // Filtrer la liste selon la recherche
 function ccFilterConversations() {
@@ -21337,12 +21440,16 @@ function ccRenderConversation(clientId, messages, tickets) {
         </div>
         <div style="padding:.8rem;border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02)">
             ${closedNotice}
-            <div style="display:flex;gap:.4rem;margin-bottom:.5rem;align-items:center">
-                <select id="ccTemplateSelect" onchange="ccApplyTemplate()" style="flex:1;padding:.4rem .55rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;border-radius:6px;font-size:.78rem">
+            <div style="display:flex;gap:.4rem;margin-bottom:.5rem;align-items:center;flex-wrap:wrap">
+                <select id="ccTemplateSelect" onchange="ccApplyTemplate()" style="flex:1;min-width:200px;padding:.4rem .55rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;border-radius:6px;font-size:.78rem">
                     <option value="">📝 Choisir un template prérempli...</option>
                     ${templateOptionsHtml}
                 </select>
+                <button onclick="document.getElementById('ccAttachInput').click()" style="padding:.4rem .7rem;background:rgba(245,158,11,.18);color:#f59e0b;border:1px solid rgba(245,158,11,.4);border-radius:6px;font-size:.74rem;cursor:pointer;font-family:inherit;font-weight:600" title="Joindre des photos">📎 Photos</button>
+                <button onclick="ccOpenProductPicker()" style="padding:.4rem .7rem;background:rgba(82,183,136,.18);color:#52b788;border:1px solid rgba(82,183,136,.4);border-radius:6px;font-size:.74rem;cursor:pointer;font-family:inherit;font-weight:600" title="Joindre un produit du catalogue">🛒 Produit</button>
+                <input type="file" id="ccAttachInput" accept="image/*" multiple style="display:none" onchange="ccHandleAttach(this.files)">
             </div>
+            <div id="ccAttachPreview" style="display:none;padding:.5rem;background:rgba(245,158,11,.08);border-radius:8px;margin-bottom:.5rem"></div>
             <div style="display:flex;gap:.4rem">
                 <textarea id="ccReplyText" rows="3" placeholder="Tapez votre réponse..." style="flex:1;padding:.55rem .7rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;border-radius:8px;font-size:.86rem;resize:vertical;font-family:inherit"></textarea>
                 <button onclick="ccSendReply()" class="btn btn-primary" style="padding:.5rem 1rem;font-size:.84rem;font-weight:700;align-self:stretch">📤 Envoyer</button>
@@ -21398,12 +21505,160 @@ function ccApplyTemplate() {
 }
 
 // Envoyer la réponse
+// ────────────────────────────────────────────────────────────────────
+// Pièces jointes BO admin (images personnelles + produits du catalogue)
+// ────────────────────────────────────────────────────────────────────
+window._ccPendingAttachments = [];
+
+window.ccHandleAttach = async function(files) {
+    if (!files || !files.length) return;
+    if (!window._sb) { alert('Système non prêt'); return; }
+    const preview = document.getElementById('ccAttachPreview');
+    if (preview) { preview.style.display = 'block'; preview.innerHTML = '⏳ Upload en cours...'; }
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/')) continue;
+        if (file.size > 5 * 1024 * 1024) { alert('Image trop grande (max 5MB) : ' + file.name); continue; }
+        try {
+            const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const path = 'admin/' + Date.now() + '_' + safeName;
+            const up = await window._sb.storage.from('chat-attachments').upload(path, file, {
+                contentType: file.type,
+                upsert: false
+            });
+            if (up.error) { console.warn('[BO] upload erreur:', up.error); alert('Erreur : ' + up.error.message); continue; }
+            const pub = window._sb.storage.from('chat-attachments').getPublicUrl(path);
+            window._ccPendingAttachments.push({
+                url: pub.data.publicUrl,
+                name: file.name,
+                size: file.size
+            });
+        } catch (e) { console.warn('[BO] upload exception:', e); }
+    }
+    const input = document.getElementById('ccAttachInput');
+    if (input) input.value = '';
+    ccRenderAttachPreview();
+};
+
+function ccRenderAttachPreview() {
+    const preview = document.getElementById('ccAttachPreview');
+    if (!preview) return;
+    if (!window._ccPendingAttachments || !window._ccPendingAttachments.length) {
+        preview.style.display = 'none';
+        preview.innerHTML = '';
+        return;
+    }
+    preview.style.display = 'block';
+    let html = '<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">'
+        + '<span style="font-weight:600;color:#f59e0b;font-size:.78rem">📎 ' + window._ccPendingAttachments.length + ' image(s) prête(s) :</span>';
+    window._ccPendingAttachments.forEach(function (att, i) {
+        html += '<div style="position:relative;display:inline-block">'
+            + '<img src="' + escapeHtml(att.url) + '" style="width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,.15)" title="' + escapeHtml(att.name || 'image') + '">'
+            + '<button onclick="ccRemoveAttach(' + i + ')" style="position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;border:none;width:18px;height:18px;border-radius:50%;font-size:.7rem;cursor:pointer;line-height:1;font-weight:700">×</button>'
+            + '</div>';
+    });
+    html += '</div>';
+    preview.innerHTML = html;
+}
+
+window.ccRemoveAttach = function (idx) {
+    if (!window._ccPendingAttachments) return;
+    window._ccPendingAttachments.splice(idx, 1);
+    ccRenderAttachPreview();
+};
+
+// Picker de produits du catalogue (utile pour proposer un produit alternatif au client)
+window.ccOpenProductPicker = async function () {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+        <div style="background:var(--card,#1a2332);border:1px solid rgba(255,255,255,.1);border-radius:12px;max-width:700px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden">
+            <div style="padding:1rem;border-bottom:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center">
+                <h3 style="margin:0;color:#fff">🛒 Choisir un produit à envoyer</h3>
+                <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer">×</button>
+            </div>
+            <div style="padding:.7rem 1rem;border-bottom:1px solid rgba(255,255,255,.08)">
+                <input type="text" id="ccPickerSearch" placeholder="🔍 Rechercher un produit..." style="width:100%;padding:.5rem .7rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;border-radius:8px;font-size:.86rem">
+            </div>
+            <div id="ccPickerList" style="flex:1;overflow-y:auto;padding:.5rem">
+                <div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4)">Chargement...</div>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+
+    // Charger les produits depuis Supabase
+    try {
+        const res = await window._sb.from('products').select('id,name,price,image,images').order('id', { ascending: false }).limit(200);
+        const list = document.getElementById('ccPickerList');
+        const search = document.getElementById('ccPickerSearch');
+        if (res.error) throw res.error;
+        const products = res.data || [];
+
+        function render(filter) {
+            const filtered = products.filter(p => {
+                if (!filter) return true;
+                return (p.name || '').toLowerCase().includes(filter.toLowerCase());
+            });
+            if (filtered.length === 0) {
+                list.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4)">Aucun produit</div>';
+                return;
+            }
+            list.innerHTML = filtered.map(p => {
+                const img = p.image || (Array.isArray(p.images) && p.images[0]) || '';
+                const price = p.price ? new Intl.NumberFormat('fr-FR').format(p.price) + ' FCFA' : '';
+                return `<div onclick="ccPickProduct(${p.id}, this)" data-name="${escapeHtml(p.name||'')}" data-image="${escapeHtml(img)}" data-price="${escapeHtml(price)}"
+                    style="display:flex;gap:.7rem;padding:.6rem;border-radius:8px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(82,183,136,.1)'" onmouseout="this.style.background=''">
+                    ${img ? `<img src="${escapeHtml(img)}" style="width:60px;height:60px;object-fit:cover;border-radius:6px">` : '<div style="width:60px;height:60px;background:rgba(255,255,255,.05);border-radius:6px"></div>'}
+                    <div style="flex:1">
+                        <div style="color:#fff;font-weight:600;font-size:.86rem">${escapeHtml(p.name || '(sans nom)')}</div>
+                        <div style="color:#52b788;font-weight:700;font-size:.82rem">${price}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        render('');
+        search.addEventListener('input', () => render(search.value));
+    } catch (e) {
+        console.warn('[BO] picker erreur:', e);
+        const list = document.getElementById('ccPickerList');
+        if (list) list.innerHTML = '<div style="color:#ef4444;text-align:center;padding:2rem">Erreur de chargement</div>';
+    }
+};
+
+window.ccPickProduct = function (productId, el) {
+    const name = el.getAttribute('data-name');
+    const image = el.getAttribute('data-image');
+    const price = el.getAttribute('data-price');
+    if (image) {
+        window._ccPendingAttachments.push({
+            url: image,
+            name: name + (price ? ' (' + price + ')' : ''),
+            size: 0,
+            isProduct: true,
+            productId: productId
+        });
+    }
+    // Insérer aussi le texte dans la zone de réponse
+    const textarea = document.getElementById('ccReplyText');
+    if (textarea) {
+        const productLine = '🛒 ' + name + (price ? ' — ' + price : '');
+        textarea.value = (textarea.value ? textarea.value + '\n\n' : '') + productLine;
+    }
+    ccRenderAttachPreview();
+    // Fermer le modal
+    const modal = el.closest('[style*=fixed]');
+    if (modal) modal.remove();
+};
+
 async function ccSendReply() {
     const textarea = document.getElementById('ccReplyText');
     if (!textarea) return;
     const text = textarea.value.trim();
-    if (!text) {
-        alert('Veuillez écrire une réponse');
+    const hasAttach = window._ccPendingAttachments && window._ccPendingAttachments.length > 0;
+    if (!text && !hasAttach) {
+        alert('Veuillez écrire une réponse ou joindre une image');
         return;
     }
     const clientId = window._ccCurrentClientId;
@@ -21413,6 +21668,12 @@ async function ccSendReply() {
         // Trouver les meta du client (nom, tel, email) pour les conserver dans la nouvelle ligne
         const conv = window._ccConversations.find(c => c.client_id === clientId);
         const ticketId = conv ? conv.current_ticket_id : null;
+
+        // Footer LIDA ajouté à chaque réponse admin pour encourager le retour au chatbot
+        const lidaFooter = "\n\n— — —\nPour une réponse rapide et un suivi de vos requêtes, utilisez notre chatbot LIDA : https://ecodila.com/?openchat=1";
+        const fullText = (text || '📷 Photos jointes') + lidaFooter;
+
+        const attachments = hasAttach ? window._ccPendingAttachments.slice() : [];
         const row = {
             client_id: clientId,
             client_name: conv ? conv.client_name : null,
@@ -21420,9 +21681,10 @@ async function ccSendReply() {
             client_email: conv ? conv.client_email : null,
             is_logged_in: conv ? conv.is_logged_in : false,
             sender: 'admin',
-            message: text.substring(0, 2000),
+            message: fullText.substring(0, 2000),
             message_type: 'admin_reply',
             ticket_id: ticketId,
+            attachments: attachments,
             read_by_client: false,
             read_by_admin: true
         };
@@ -21430,7 +21692,6 @@ async function ccSendReply() {
         if (res.error) throw res.error;
 
         // Mettre à jour le ticket : status → in_progress, last_admin_message_at → maintenant
-        // (sauf si déjà résolu/fermé : on rouvre dans ce cas)
         if (ticketId) {
             await window._sb.from('chat_tickets')
                 .update({
@@ -21442,6 +21703,9 @@ async function ccSendReply() {
         }
 
         textarea.value = '';
+        // Reset attachments
+        window._ccPendingAttachments = [];
+        ccRenderAttachPreview();
 
         // Ajouter le message envoyé directement au DOM (sans re-render complet)
         // pour ne pas casser le focus / les interactions de l'admin.
@@ -21789,10 +22053,24 @@ function ccRenderSingleMessageHtml(m) {
     const bg = isClient ? 'rgba(255,255,255,.06)' : (isAdmin ? 'rgba(82,183,136,.18)' : 'rgba(102,102,255,.12)');
     const sender = isClient ? '💬 Client' : (isAdmin ? '↩️ Vous' : '🤖 LIDA');
     const typeBadge = isClient ? ccGetMessageTypeBadge(m.message_type) : '';
+    // Affichage des pièces jointes (images)
+    let attachHtml = '';
+    if (m.attachments && Array.isArray(m.attachments) && m.attachments.length > 0) {
+        attachHtml = '<div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem">';
+        m.attachments.forEach(function(att){
+            if (att && att.url) {
+                attachHtml += `<a href="${escapeHtml(att.url)}" target="_blank" style="display:inline-block">
+                    <img src="${escapeHtml(att.url)}" alt="${escapeHtml(att.name||'image')}" style="max-width:150px;max-height:150px;border-radius:6px;border:1px solid rgba(255,255,255,.1);cursor:pointer" loading="lazy">
+                </a>`;
+            }
+        });
+        attachHtml += '</div>';
+    }
     return `<div data-msg-id="${m.id}" style="display:flex;justify-content:${align};margin-bottom:.6rem">
         <div style="max-width:75%;background:${bg};padding:.6rem .8rem;border-radius:10px;font-size:.84rem;color:#fff">
             <div style="font-size:.66rem;color:rgba(255,255,255,.5);margin-bottom:.2rem">${sender} · ${time}${typeBadge}</div>
             <div style="white-space:pre-wrap;word-break:break-word">${escapeHtml(m.message)}</div>
+            ${attachHtml}
         </div>
     </div>`;
 }
@@ -22042,7 +22320,7 @@ window._waSeqShowNext = function(){
   if(idx >= total){ showNotification('✅ '+total+' messages WhatsApp traités', 'success'); return; }
   var c = q[idx];
   var tel = _waFmtTel(c.wa||c.tel||'');
-  var msg = window._waSeqMsgFn(c);
+  var msg = window._addLidaFooter(window._waSeqMsgFn(c));
   var url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(msg);
 
   var m = document.createElement('div');
@@ -22120,7 +22398,7 @@ function _waShowNextClient(){
 
   var client = q[idx];
   var tel = _waFmtTel(client.tel||'');
-  var encoded = encodeURIComponent(msg);
+  var encoded = encodeURIComponent(window._addLidaFooter(msg));
   var url = 'https://wa.me/' + tel + '?text=' + encoded;
 
   var m = document.createElement('div');
@@ -23488,7 +23766,7 @@ function cmApplyPwd() {
         document.getElementById('cm-edit-pwd').value = '';
         var msg = 'Bonjour ' + c.nom + ',\n\nVotre mot de passe EcoDila a été réinitialisé.\nNouveau mot de passe : ' + pwd + '\n\nMerci de le modifier après connexion.\n\nEcoDila';
         var tel = (c.telephone || c.tel || '').replace(/\+/g,'');
-        if(tel) window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank');
+        if(tel) window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(window._addLidaFooter(msg)), '_blank');
     });
 }
 
@@ -31160,7 +31438,7 @@ function _rgpdOpenWhatsApp(ctx) {
                 return;
             }
         }
-        window.open('https://wa.me/' + ctx.cleanTel + '?text=' + encodeURIComponent(ctx.message), '_blank');
+        window.open('https://wa.me/' + ctx.cleanTel + '?text=' + encodeURIComponent(window._addLidaFooter(ctx.message)), '_blank');
     } catch(e) {
         console.error('[RGPD] Erreur ouverture WhatsApp :', e);
     }
@@ -31195,7 +31473,12 @@ function _rgpdOpenEmail(ctx) {
             }
         }
         var sujet = 'Votre compte EcoDila inactif — Action requise';
-        window.open('mailto:' + ctx.email + '?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(ctx.message), '_blank');
+        var bodyWithFooter = ctx.message + '\n\n— — — — — — — — — — — — — — — — — — —\n'
+            + 'Pour une réponse rapide et un suivi de vos requêtes,\n'
+            + 'utilisez notre chatbot LIDA 🤖\n'
+            + '👉 https://ecodila.com/?openchat=1\n\n'
+            + 'L\'équipe EcoDila';
+        window.open('mailto:' + ctx.email + '?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(bodyWithFooter), '_blank');
     } catch(e) {
         console.error('[RGPD] Erreur ouverture Email :', e);
     }
@@ -53552,6 +53835,18 @@ window._safeOpenMail = function(email, subject, body, options) {
   options = options || {};
   var mode = options.mode || 'auto';
   var parrainId = options.parrainId || null;
+
+  // Ajouter automatiquement le footer LIDA au corps de l'email,
+  // pour encourager les clients à utiliser le chatbot pour leurs prochaines requêtes
+  // (sauf si options.skipFooter = true pour cas spéciaux)
+  if (body && !options.skipFooter && body.indexOf('chatbot LIDA') === -1) {
+    body = body + '\n\n' +
+           '— — — — — — — — — — — — — — — — — — —\n' +
+           'Pour une réponse rapide et un suivi de vos requêtes,\n' +
+           'utilisez notre chatbot LIDA 🤖\n' +
+           '👉 https://ecodila.com/?openchat=1\n\n' +
+           'L\'équipe EcoDila';
+  }
 
   if (mode === 'manual' || !parrainId || options.force === true) {
     if (options.force) console.warn('[RGPD MAIL] FORCE override pour', parrainId);
