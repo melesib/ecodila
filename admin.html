@@ -21158,68 +21158,167 @@ window.ccOpenPurgeModal = function() {
     const defaultStr = defaultDate.toISOString().substring(0, 10);
 
     const modal = document.createElement('div');
+    modal.id = 'ccPurgeModal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
-        <div style="background:var(--card,#1a2332);border:2px solid #ef4444;border-radius:12px;max-width:520px;width:100%;padding:1.5rem;color:#fff">
+        <div style="background:var(--card,#1a2332);border:2px solid #ef4444;border-radius:12px;max-width:560px;width:100%;padding:1.5rem;color:#fff;max-height:90vh;overflow-y:auto">
             <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem">
                 <div style="font-size:2rem">⚠️</div>
                 <h3 style="margin:0;color:#ef4444">Suppression définitive d'archive</h3>
             </div>
             <p style="font-size:.86rem;line-height:1.5;color:rgba(255,255,255,.85);margin:.5rem 0">
-                Cette action <b>supprime définitivement</b> toutes les conversations et tickets <b>antérieurs à la date choisie</b>. Cette opération est <b>irréversible</b> et est utilisée pour libérer de l'espace serveur.
+                Cette action <b>supprime définitivement</b> les conversations et tickets selon le critère choisi. Cette opération est <b>irréversible</b>.
             </p>
             <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:.7rem;margin:1rem 0;font-size:.82rem">
                 ⚠️ <b>Attention :</b> les messages, tickets et leurs KPIs historiques seront perdus à jamais.
             </div>
-            <label style="display:block;font-size:.84rem;font-weight:600;margin-bottom:.4rem">Supprimer tout ce qui est avant le :</label>
-            <input type="date" id="ccPurgeDate" value="${defaultStr}" style="width:100%;padding:.55rem .7rem;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;border-radius:8px;font-size:.92rem;font-family:inherit">
-            <div style="font-size:.74rem;color:rgba(255,255,255,.5);margin-top:.4rem">💡 Exemple : sélectionner aujourd'hui supprime <b>tout l'historique</b>. Sélectionner il y a 90 jours garde les 3 derniers mois.</div>
+
+            <label style="display:block;font-size:.84rem;font-weight:600;margin-bottom:.6rem">Que voulez-vous supprimer ?</label>
+
+            <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem">
+                <label style="display:flex;align-items:center;gap:.6rem;padding:.7rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;cursor:pointer">
+                    <input type="radio" name="ccPurgeMode" value="date" checked onchange="ccTogglePurgeMode()">
+                    <div>
+                        <div style="font-weight:600">📅 Plus anciens qu'une date</div>
+                        <div style="font-size:.74rem;color:rgba(255,255,255,.5);margin-top:.2rem">Garde les conversations récentes</div>
+                    </div>
+                </label>
+
+                <label style="display:flex;align-items:center;gap:.6rem;padding:.7rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;cursor:pointer">
+                    <input type="radio" name="ccPurgeMode" value="days" onchange="ccTogglePurgeMode()">
+                    <div>
+                        <div style="font-weight:600">⏱ Plus vieux que X jours</div>
+                        <div style="font-size:.74rem;color:rgba(255,255,255,.5);margin-top:.2rem">Pratique pour rotation périodique</div>
+                    </div>
+                </label>
+
+                <label style="display:flex;align-items:center;gap:.6rem;padding:.7rem;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;cursor:pointer">
+                    <input type="radio" name="ccPurgeMode" value="all" onchange="ccTogglePurgeMode()">
+                    <div>
+                        <div style="font-weight:600;color:#ef4444">🔥 TOUT supprimer</div>
+                        <div style="font-size:.74rem;color:rgba(255,255,255,.5);margin-top:.2rem">Vide complètement le système (KPIs reset à zéro)</div>
+                    </div>
+                </label>
+            </div>
+
+            <div id="ccPurgeDateBlock">
+                <label style="display:block;font-size:.78rem;color:rgba(255,255,255,.7);margin-bottom:.4rem">Date limite :</label>
+                <input type="date" id="ccPurgeDate" value="${defaultStr}" style="width:100%;padding:.55rem .7rem;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;border-radius:8px;font-size:.92rem;font-family:inherit">
+                <div style="font-size:.7rem;color:rgba(255,255,255,.5);margin-top:.3rem">Tickets sans activité avant cette date seront supprimés.</div>
+            </div>
+
+            <div id="ccPurgeDaysBlock" style="display:none">
+                <label style="display:block;font-size:.78rem;color:rgba(255,255,255,.7);margin-bottom:.4rem">Nombre de jours :</label>
+                <input type="number" id="ccPurgeDays" value="90" min="1" max="3650" style="width:100%;padding:.55rem .7rem;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;border-radius:8px;font-size:.92rem;font-family:inherit">
+                <div style="font-size:.7rem;color:rgba(255,255,255,.5);margin-top:.3rem">Tickets inactifs depuis plus de X jours seront supprimés.</div>
+            </div>
+
             <label style="display:flex;align-items:center;gap:.5rem;margin-top:1.2rem;font-size:.84rem;cursor:pointer">
                 <input type="checkbox" id="ccPurgeConfirm" style="width:18px;height:18px;cursor:pointer">
                 <span>Je comprends que cette action est <b>définitive</b> et <b>irréversible</b></span>
             </label>
             <div style="display:flex;gap:.6rem;margin-top:1.5rem">
-                <button onclick="this.closest('[style*=fixed]').remove()" class="btn btn-secondary" style="flex:1">Annuler</button>
-                <button onclick="ccConfirmPurge()" style="flex:1;padding:.6rem;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:.86rem">🗑 Supprimer définitivement</button>
+                <button onclick="document.getElementById('ccPurgeModal').remove()" class="btn btn-secondary" style="flex:1">Annuler</button>
+                <button onclick="ccConfirmPurge()" id="ccPurgeBtnConfirm" style="flex:1;padding:.6rem;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:.86rem">🗑 Supprimer définitivement</button>
             </div>
         </div>`;
     document.body.appendChild(modal);
 };
 
+window.ccTogglePurgeMode = function() {
+    const mode = (document.querySelector('input[name="ccPurgeMode"]:checked') || {}).value || 'date';
+    const dateBlock = document.getElementById('ccPurgeDateBlock');
+    const daysBlock = document.getElementById('ccPurgeDaysBlock');
+    if (dateBlock) dateBlock.style.display = (mode === 'date') ? '' : 'none';
+    if (daysBlock) daysBlock.style.display = (mode === 'days') ? '' : 'none';
+    // Si mode "all" : changer le bouton pour signaler l'urgence
+    const btn = document.getElementById('ccPurgeBtnConfirm');
+    if (btn) {
+        btn.textContent = (mode === 'all') ? '🔥 TOUT EFFACER' : '🗑 Supprimer définitivement';
+    }
+};
+
 window.ccConfirmPurge = async function() {
-    const dateInput = document.getElementById('ccPurgeDate');
     const confirmCheck = document.getElementById('ccPurgeConfirm');
-    if (!dateInput || !confirmCheck) return;
-    if (!confirmCheck.checked) {
+    if (!confirmCheck || !confirmCheck.checked) {
         alert('⚠️ Veuillez cocher la confirmation que vous comprenez les conséquences.');
         return;
     }
-    const dateStr = dateInput.value;
-    if (!dateStr) {
-        alert('Veuillez choisir une date');
-        return;
-    }
-    const beforeDate = new Date(dateStr).toISOString();
+    const mode = (document.querySelector('input[name="ccPurgeMode"]:checked') || {}).value || 'date';
+    let beforeDate = null;
+    let humanDesc = '';
 
-    // Double confirmation
-    if (!confirm('🗑 SUPPRESSION DÉFINITIVE\n\nVous êtes sur le point de supprimer définitivement toutes les conversations et tickets avant le ' + dateStr + '.\n\nCette action est IRRÉVERSIBLE. Continuer ?')) return;
+    if (mode === 'date') {
+        const dateStr = (document.getElementById('ccPurgeDate') || {}).value;
+        if (!dateStr) { alert('Veuillez choisir une date'); return; }
+        beforeDate = new Date(dateStr).toISOString();
+        humanDesc = 'avant le ' + dateStr;
+    } else if (mode === 'days') {
+        const days = parseInt((document.getElementById('ccPurgeDays') || {}).value);
+        if (!days || days < 1) { alert('Nombre de jours invalide'); return; }
+        const d = new Date();
+        d.setDate(d.getDate() - days);
+        beforeDate = d.toISOString();
+        humanDesc = 'inactif depuis plus de ' + days + ' jour(s)';
+    } else if (mode === 'all') {
+        beforeDate = null; // signal "tout effacer" pour le SQL
+        humanDesc = 'TOUT (toutes les conversations et tous les tickets)';
+    }
+
+    // Double confirmation native
+    const warningPrefix = mode === 'all' ? '🔥 SUPPRESSION TOTALE\n\n' : '🗑 SUPPRESSION DÉFINITIVE\n\n';
+    if (!confirm(warningPrefix + 'Vous êtes sur le point de supprimer ' + humanDesc + '.\n\nCette action est IRRÉVERSIBLE. Continuer ?')) return;
+
+    // Pour mode "all", demander une 3e confirmation supplémentaire en tapant un texte
+    if (mode === 'all') {
+        const typed = prompt('⚠️ Confirmation finale\n\nPour confirmer la suppression TOTALE, tapez : EFFACER TOUT');
+        if (typed !== 'EFFACER TOUT') {
+            alert('Annulé : confirmation incorrecte.');
+            return;
+        }
+    }
 
     try {
-        const res = await window._sb.rpc('admin_purge_chat_before', { p_before_date: beforeDate });
+        // Appeler la fonction SQL (NULL = tout effacer)
+        const params = (beforeDate === null) ? { p_before_date: null } : { p_before_date: beforeDate };
+        const res = await window._sb.rpc('admin_purge_chat_before', params);
         if (res.error) throw res.error;
         const data = (res.data && res.data[0]) || {};
         const msgCount = data.deleted_messages || 0;
         const tkCount = data.deleted_tickets || 0;
+
         alert('✅ Suppression effectuée\n\n' + msgCount + ' message(s) supprimé(s)\n' + tkCount + ' ticket(s) supprimé(s)\n\nL\'espace serveur a été libéré.');
-        // Fermer le modal et refresh
-        const modal = document.querySelector('[style*="position:fixed"]');
-        if (modal) modal.remove();
+
+        // Fermer le modal de purge
+        const purgeModal = document.getElementById('ccPurgeModal');
+        if (purgeModal) purgeModal.remove();
+
+        // CRITIQUE : reset complet de l'état local + rafraîchir l'UI
+        window._ccConversations = [];
+        window._ccCurrentClientId = null;
+        window._ccCurrentTickets = [];
+
+        // Vider le détail à droite
+        const detail = document.getElementById('ccConversationDetail');
+        if (detail) {
+            detail.innerHTML = '<div style="text-align:center;padding:3rem 2rem;color:rgba(255,255,255,.4);font-size:.92rem">← Sélectionnez une conversation pour la voir</div>';
+        }
+
+        // Vider la liste de gauche
+        const list = document.getElementById('ccConversationsList');
+        if (list) {
+            list.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4);font-size:.82rem">Rechargement...</div>';
+        }
+
+        // Recharger depuis la base (qui devrait être vide ou allégée)
         await ccLoadConversations();
         if (typeof ccLoadDashboard === 'function') ccLoadDashboard();
+        // Mettre à jour le badge "non lus" dans le menu
+        if (typeof ccUpdateUnreadBadge === 'function') ccUpdateUnreadBadge();
     } catch (e) {
         console.warn('[chat-clients] purge erreur:', e);
-        alert('❌ Erreur lors de la suppression : ' + (e.message || 'inconnue'));
+        alert('❌ Erreur lors de la suppression : ' + (e.message || 'inconnue') + '\n\nSi le problème persiste, vérifiez que la fonction SQL admin_purge_chat_before est à jour (fichier chat_purge_v2.sql).');
     }
 };
 
