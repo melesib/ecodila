@@ -3626,16 +3626,25 @@ function syncLoadData(){
       if(!key) key = 'uid:'+(u.id||Math.random());
       const tsInscrit = new Date(u.dateCreation||u.created||u.dateInscription||0).getTime()||0;
       const tsLogin   = new Date(u.lastLogin||u.lastActive||0).getTime()||0;
-      const tsAct     = Math.max(tsInscrit, tsLogin);
+      // ⚠️ "Actif" signifie : a EU une activité APRÈS l'inscription.
+      // Si seul tsInscrit existe (jamais reconnecté, pas de transaction), on garde tsInscrit
+      // mais SEULEMENT comme indicateur de "période de grâce" courte (7j) - voir étape 3.
+      // Pour le moment on stocke les deux séparément.
       if(!clientMap[key]){
-        clientMap[key] = { nom, tel, email, derniereActivite: tsAct, dateInscription: tsInscrit, fraudeIP: !!(u.bloque && u.suspiciousIp) };
+        clientMap[key] = {
+          nom, tel, email,
+          tsInscrit: tsInscrit,
+          tsLoginExplicite: tsLogin,           // Login réel post-inscription
+          tsTransaction: 0,                    // Mis à jour par _enrich plus bas
+          fraudeIP: !!(u.bloque && u.suspiciousIp)
+        };
       } else {
-        if(tsAct > clientMap[key].derniereActivite) clientMap[key].derniereActivite = tsAct;
-        if(tsInscrit && !clientMap[key].dateInscription) clientMap[key].dateInscription = tsInscrit;
+        if(tsInscrit && (!clientMap[key].tsInscrit || tsInscrit > clientMap[key].tsInscrit)) clientMap[key].tsInscrit = tsInscrit;
+        if(tsLogin > (clientMap[key].tsLoginExplicite||0)) clientMap[key].tsLoginExplicite = tsLogin;
       }
     });
 
-    /* ── 2. Enrichissement : mettre à jour derniereActivite depuis les transactions ── */
+    /* ── 2. Enrichissement : mettre à jour tsTransaction depuis les transactions ── */
     function _enrich(arr, getNom, getTel, getEmail){
       arr.forEach(function(obj){
         const tel   = getTel(obj);
@@ -3644,7 +3653,7 @@ function syncLoadData(){
         const key   = _key(tel, email, nom);
         if(!key || !clientMap[key]) return; /* n'ajoute pas de nouveau filleul */
         const ts = _ts(obj);
-        if(ts > clientMap[key].derniereActivite) clientMap[key].derniereActivite = ts;
+        if(ts > (clientMap[key].tsTransaction||0)) clientMap[key].tsTransaction = ts;
       });
     }
     let orders=[]; try{orders=(_sbRead('ecodila_commandes')||[]);}catch(e){}
@@ -3664,21 +3673,41 @@ function syncLoadData(){
       const key   = _key(tel, email, nom);
       if(!key || !clientMap[key]) return;
       const ts = v.timestamp||_ts(v);
-      if(ts > clientMap[key].derniereActivite) clientMap[key].derniereActivite = ts;
+      if(ts > (clientMap[key].tsTransaction||0)) clientMap[key].tsTransaction = ts;
     });
 
-    /* ── 3. Construire la liste ── */
+    /* ── 3. Construire la liste avec règle d'activité corrigée ── */
+    // Un filleul est "Actif" SI :
+    //   1. Il a une activité réelle (transaction OU re-login) dans les 30 derniers jours, OU
+    //   2. Il vient juste de s'inscrire (< 7j) — période de grâce
+    // Les filleuls inscrits depuis >7j SANS activité réelle sont "Inactifs"
+    const PERIODE_GRACE_MS = 7  * 24 * 3600 * 1000;
     return Object.entries(clientMap).map(function(entry){
       const data  = entry[1];
-      const actif = data.derniereActivite >= SEUIL;
+      // L'activité VRAIE est le max entre login post-inscription et transactions
+      // (on EXCLUT volontairement tsInscrit pour ne pas marquer "actif" un compte créé puis abandonné)
+      const tsActiviteReelle = Math.max(data.tsLoginExplicite||0, data.tsTransaction||0);
+
+      let actif = false;
+      let derniereActivite = tsActiviteReelle;
+
+      if (tsActiviteReelle >= SEUIL) {
+        // Activité récente détectée
+        actif = true;
+      } else if (data.tsInscrit && (Date.now() - data.tsInscrit) <= PERIODE_GRACE_MS) {
+        // Période de grâce : viens de s'inscrire (< 7j), on lui laisse le bénéfice du doute
+        actif = true;
+        derniereActivite = data.tsInscrit;
+      }
+
       return {
         _key             : entry[0],
         nom              : data.nom,
         tel              : data.tel,
         email            : data.email,
         wa               : data.tel || '',
-        derniereActivite : data.derniereActivite,
-        dateInscription  : data.dateInscription,
+        derniereActivite : derniereActivite || data.tsInscrit,
+        dateInscription  : data.tsInscrit,
         statut           : actif ? 'Actif' : 'Inactif',
         fraudeIP         : data.fraudeIP || false,
         ventes           : 0

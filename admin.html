@@ -41824,7 +41824,13 @@ function renderFraude() {
     });
   });
 
-  /* ── Règle IP unique : détecter les parrains actifs partageant la même IP ── */
+  /* ── Règle IP unique : détecter les parrains actifs partageant la même IP ──
+     IMPORTANT : en Côte d'Ivoire, le CGNAT mobile (MTN/Orange/Moov) fait que
+     plusieurs utilisateurs partagent la même IP publique. On distingue donc
+     deux niveaux d'alerte :
+     - "IP + appareil identiques" → alerte ÉLEVÉ (vrai doublon)
+     - "IP partagée appareils différents" → alerte info MOYEN (à vérifier mais pas
+       forcément frauduleux : CGNAT, cybercafé, wifi familial, bureau partagé) */
   var ipMap = {};
   parrains.forEach(function(p){
     if(p.ip && p.ip !== 'admin' && p.statut === 'Actif'){
@@ -41836,9 +41842,51 @@ function renderFraude() {
     var group = ipMap[ip];
     if(group.length > 1){
       group.forEach(function(p){
-        var others = group.filter(function(x){ return x.id !== p.id; }).map(function(x){ return x.nom; }).join(', ');
-        if(!alerts.find(function(a){ return a.pid===p.id && a.type==='IP en doublon'; }))
-          alerts.push({ type:'IP en doublon', pid:p.id, parrain:p.nom, desc:'IP ' + ip + ' partagée avec : ' + others, sev:'high' });
+        // Pour chaque parrain, séparer ceux qui partagent l'IP en :
+        // - sameDevice : même fingerprint (vrai doublon)
+        // - differentDevice : fingerprint différent (CGNAT probable)
+        var others = group.filter(function(x){ return x.id !== p.id; });
+        var sameDevice = others.filter(function(x){
+          return x.fingerprint && p.fingerprint && x.fingerprint === p.fingerprint;
+        });
+        var differentDevice = others.filter(function(x){
+          return x.fingerprint && p.fingerprint && x.fingerprint !== p.fingerprint;
+        });
+        var unknownDevice = others.filter(function(x){
+          return !x.fingerprint || !p.fingerprint;
+        });
+
+        if(sameDevice.length > 0){
+          // VRAI DOUBLON → alerte ÉLEVÉ
+          var sdNames = sameDevice.map(function(x){ return x.nom; }).join(', ');
+          if(!alerts.find(function(a){ return a.pid===p.id && a.type==='IP + appareil identiques'; }))
+            alerts.push({
+              type:'IP + appareil identiques',
+              pid:p.id, parrain:p.nom,
+              desc:'IP ' + ip + ' + même appareil que : ' + sdNames,
+              sev:'high'
+            });
+        } else if(differentDevice.length > 0 && unknownDevice.length === 0){
+          // IP partagée mais TOUS appareils différents → CGNAT légitime probable, alerte info
+          var ddNames = differentDevice.map(function(x){ return x.nom; }).join(', ');
+          if(!alerts.find(function(a){ return a.pid===p.id && a.type==='IP partagée (appareils différents)'; }))
+            alerts.push({
+              type:'IP partagée (appareils différents)',
+              pid:p.id, parrain:p.nom,
+              desc:'IP ' + ip + ' avec : ' + ddNames + ' — appareils différents (CGNAT/wifi probable)',
+              sev:'info'
+            });
+        } else if(unknownDevice.length > 0){
+          // Au moins un parrain n'a pas de fingerprint enregistré → ambigu
+          var unNames = unknownDevice.map(function(x){ return x.nom; }).join(', ');
+          if(!alerts.find(function(a){ return a.pid===p.id && a.type==='IP partagée (à vérifier)'; }))
+            alerts.push({
+              type:'IP partagée (à vérifier)',
+              pid:p.id, parrain:p.nom,
+              desc:'IP ' + ip + ' partagée avec : ' + unNames + ' — fingerprint manquant pour vérifier',
+              sev:'med'
+            });
+        }
       });
     }
   });
@@ -41848,17 +41896,34 @@ function renderFraude() {
     if(!alerts.length) {
       fl.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-muted)">✅ Aucune alerte fraude détectée</div>';
     } else {
+      // Trier : ÉLEVÉ d'abord, puis MOYEN, puis INFO
+      var sevOrder = { 'high': 0, 'med': 1, 'info': 2 };
+      alerts.sort(function(a, b){ return (sevOrder[a.sev]||9) - (sevOrder[b.sev]||9); });
+
       fl.innerHTML = alerts.map(function(a){
+        // Couleurs selon sévérité
+        var sevColor = a.sev === 'high' ? 'var(--danger)' : (a.sev === 'med' ? '#f59e0b' : '#52b788');
+        var sevBg    = a.sev === 'high' ? 'rgba(255,68,102,.18)' : (a.sev === 'med' ? 'rgba(245,158,11,.18)' : 'rgba(82,183,136,.18)');
+        var sevIconBg= a.sev === 'high' ? 'rgba(255,68,102,.12)' : (a.sev === 'med' ? 'rgba(245,158,11,.12)' : 'rgba(82,183,136,.12)');
+        var sevIcon  = a.sev === 'high' ? '🚨' : (a.sev === 'med' ? '⚠️' : 'ℹ️');
+        var sevLabel = a.sev === 'high' ? 'ÉLEVÉ' : (a.sev === 'med' ? 'MOYEN' : 'INFO');
+
+        // Pour les alertes "info" (CGNAT légitime), pas de bouton Suspendre/Flaguer
+        // (l'admin peut toujours bloquer manuellement depuis la fiche parrain)
+        var actionsHtml = (a.sev === 'info')
+          ? '<div style="display:flex;gap:.35rem;flex-shrink:0;align-items:center"><span style="font-size:.7rem;color:var(--text-muted);font-style:italic">CGNAT/wifi probable</span></div>'
+          : '<div style="display:flex;gap:.35rem;flex-shrink:0">' +
+              '<button class="pr-btn pr-btn-warn" data-flag-id="' + a.pid + '">🚩 Flaguer</button>' +
+              '<button class="pr-btn pr-btn-reject" data-suspend-id="' + a.pid + '">🚫 Suspendre</button>' +
+            '</div>';
+
         return '<div style="display:flex;align-items:flex-start;gap:1rem;padding:.9rem 1.2rem;border-bottom:1px solid var(--border)">' +
-          '<div style="width:34px;height:34px;background:rgba(255,68,102,.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0">⚠️</div>' +
+          '<div style="width:34px;height:34px;background:' + sevIconBg + ';border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0">' + sevIcon + '</div>' +
           '<div style="flex:1"><strong style="display:block;font-size:.83rem;color:var(--text)">' + a.type +
-            ' <span style="background:rgba(255,68,102,.18);color:var(--danger);padding:.08rem .38rem;border-radius:4px;font-size:.63rem;font-weight:700">' + (a.sev==='high'?'ÉLEVÉ':'MOYEN') + '</span></strong>' +
+            ' <span style="background:' + sevBg + ';color:' + sevColor + ';padding:.08rem .38rem;border-radius:4px;font-size:.63rem;font-weight:700">' + sevLabel + '</span></strong>' +
             '<span style="font-size:.77rem;color:var(--text-muted)">' + a.desc + '</span>' +
             '<div style="font-size:.7rem;color:var(--text-muted);margin-top:.15rem">' + a.parrain + '</div></div>' +
-          '<div style="display:flex;gap:.35rem;flex-shrink:0">' +
-            '<button class="pr-btn pr-btn-warn" data-flag-id="' + a.pid + '">🚩 Flaguer</button>' +
-            '<button class="pr-btn pr-btn-reject" data-suspend-id="' + a.pid + '">🚫 Suspendre</button>' +
-          '</div></div>';
+          actionsHtml + '</div>';
       }).join('');
       // Event delegation
       fl.querySelectorAll('[data-flag-id]').forEach(function(btn){
@@ -41876,7 +41941,25 @@ function renderFraude() {
     if(p.ip && p.ip !== 'admin') { ipMap[p.ip] = ipMap[p.ip]||[]; ipMap[p.ip].push(p); }
   });
   var linked = Object.keys(ipMap).filter(function(ip){ return ipMap[ip].length > 1; }).map(function(ip){
-    return { id:ip, comptes:ipMap[ip].length+' comptes', parrains:ipMap[ip].map(function(p){ return p.nom; }).join(', '), risque:ipMap[ip].length>2?'Élevé':'Moyen' };
+    var group = ipMap[ip];
+    // Évaluer si vrai doublon (même fingerprint) ou CGNAT (différents)
+    var fps = group.map(function(p){ return p.fingerprint; }).filter(Boolean);
+    var uniqueFps = fps.filter(function(v,i,a){ return a.indexOf(v) === i; });
+    var risque, badge;
+    if(fps.length >= 2 && uniqueFps.length < fps.length) {
+      risque = 'Élevé'; badge = '🚨 Doublon réel';
+    } else if(fps.length >= 2 && uniqueFps.length === fps.length) {
+      risque = 'Faible'; badge = '✓ CGNAT/wifi';
+    } else {
+      risque = group.length > 2 ? 'Moyen' : 'Faible'; badge = '? Fingerprint manquant';
+    }
+    return {
+      id:ip,
+      comptes:group.length+' comptes',
+      parrains:group.map(function(p){ return p.nom; }).join(', '),
+      risque:risque,
+      badge:badge
+    };
   });
   var lt = g('pr-linked-tbody');
   if(lt) {
@@ -41884,13 +41967,14 @@ function renderFraude() {
       lt.innerHTML = '<tr><td colspan="6" style="padding:2rem;text-align:center;color:var(--text-muted)">Aucun compte lié détecté</td></tr>';
     } else {
       lt.innerHTML = linked.map(function(l){
+        var badgeClass = l.risque==='Élevé' ? 'pr-b-red' : (l.risque==='Moyen' ? 'pr-b-yellow' : 'pr-b-green');
         return '<tr class="pr-tr">' +
           '<td class="pr-td"><code>' + l.id + '</code></td>' +
-          '<td class="pr-td">IP</td>' +
+          '<td class="pr-td">' + l.badge + '</td>' +
           '<td class="pr-td">' + l.comptes + '</td>' +
           '<td class="pr-td">' + l.parrains + '</td>' +
-          '<td class="pr-td"><span class="pr-badge ' + (l.risque==='Élevé'?'pr-b-red':'pr-b-yellow') + '">' + l.risque + '</span></td>' +
-          '<td class="pr-td"><button class="pr-btn pr-btn-reject" onclick="showToast(\'🚫 IP bloquée\',\'error\')">🚫 Bloquer IP</button></td>' +
+          '<td class="pr-td"><span class="pr-badge ' + badgeClass + '">' + l.risque + '</span></td>' +
+          '<td class="pr-td">' + (l.risque==='Élevé' ? '<button class="pr-btn pr-btn-reject" onclick="showToast(\'🚫 IP bloquée\',\'error\')">🚫 Bloquer IP</button>' : '<span style="color:var(--text-muted);font-size:.7rem;font-style:italic">Pas d\'action</span>') + '</td>' +
         '</tr>';
       }).join('');
     }
@@ -42086,6 +42170,37 @@ function _adminCountFilleulsActifs(parrain, allUsers) {
   if (!Array.isArray(allUsers)) return 0;
   var code = parrain.code;
   var seuil = Date.now() - (ADMIN_SEUIL_FILLEUL_ACTIF_J * 24 * 3600 * 1000);
+  var graceMs = 7 * 24 * 3600 * 1000; // Période de grâce 7j post-inscription
+  var nowMs = Date.now();
+
+  // Pour vérifier l'activité RÉELLE, on a besoin des transactions
+  var orders = [], trocs = [], negs = [];
+  try { orders = ls('ecodila_commandes') || []; } catch(e){}
+  try { trocs  = ls('ecodila_trocs') || []; } catch(e){}
+  try { negs   = ls('ecodila_propositions') || []; } catch(e){}
+
+  function _hasTransaction(user){
+    var uTel = (user.telephone||user.tel||'').replace(/[^0-9]/g,'').slice(-8);
+    var uEmail = (user.email||'').toLowerCase();
+    if(!uTel && !uEmail) return 0;
+
+    var maxTs = 0;
+    function _check(arr, telKey, emailKey, dateKey){
+      arr.forEach(function(o){
+        var oTel = (o[telKey]||'').replace(/[^0-9]/g,'').slice(-8);
+        var oEmail = (o[emailKey]||'').toLowerCase();
+        if((uTel && oTel && uTel === oTel) || (uEmail && oEmail && uEmail === oEmail)){
+          var ts = o[dateKey] ? new Date(o[dateKey]).getTime() : (o.timestamp||0);
+          if(ts > maxTs) maxTs = ts;
+        }
+      });
+    }
+    _check(orders, 'clientTel', 'clientEmail', 'dateCreation');
+    _check(trocs,  'tel',       'email',       'dateCreation');
+    _check(negs,   'tel',       'email',       'dateCreation');
+    return maxTs;
+  }
+
   var count = 0;
   allUsers.forEach(function(u){
     if (!u) return;
@@ -42094,10 +42209,25 @@ function _adminCountFilleulsActifs(parrain, allUsers) {
     var matches = (refCode === code) || (!refCode && couponCode === code);
     if (!matches) return;
     if (u.bloque && u.suspiciousIp) return;
+
+    // Activité RÉELLE = login post-inscription OU transactions (commande/troc/négo)
     var tsLogin = new Date(u.lastLogin || u.lastActive || 0).getTime() || 0;
-    var tsCreate = new Date(u.dateCreation || u.created || u.dateInscription || 0).getTime() || 0;
-    var tsAct = Math.max(tsLogin, tsCreate);
-    if (tsAct > seuil) count++;
+    var tsInscrit = new Date(u.dateCreation || u.created || u.dateInscription || 0).getTime() || 0;
+    var tsTransaction = _hasTransaction(u);
+
+    // Le tsLogin doit être DIFFÉRENT de tsInscrit (sinon c'est le login de création seulement)
+    // On considère qu'il y a vrai login si tsLogin > tsInscrit + 1 minute
+    var hasRealLogin = tsLogin > 0 && tsLogin > (tsInscrit + 60000);
+    var tsActiviteReelle = Math.max(hasRealLogin ? tsLogin : 0, tsTransaction);
+
+    // Actif si :
+    //  1. Activité réelle dans les 30 derniers jours, OU
+    //  2. Tout juste inscrit (< 7j) — période de grâce
+    if (tsActiviteReelle > seuil) {
+      count++;
+    } else if (tsInscrit && (nowMs - tsInscrit) <= graceMs) {
+      count++;
+    }
   });
   return count;
 }
