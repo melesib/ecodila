@@ -20946,52 +20946,158 @@ window._ccStatuses = {
 };
 
 // Templates WhatsApp préremplis (le BO peut les insérer en 1 clic)
+// Templates regroupés par catégorie. Chaque template a un "context" qui indique quels
+// types de message client le déclenchent en priorité. Le BO sélectionnera intelligemment
+// les templates pertinents selon le contexte du dernier message client.
 window._ccTemplates = [
+    // Templates pour "📲 Envoyer message vocal" (whatsapp_voice)
+    {
+        label: '🎙️ Réponse au message vocal',
+        text: "Bonjour 👋, j'ai bien reçu votre message vocal. Je traite votre demande et reviens vers vous très vite avec une réponse précise.",
+        contexts: ['whatsapp_voice', 'action_voicewa']
+    },
+    {
+        label: '🎙️ Vocal mal entendu',
+        text: "Bonjour 👋, désolé, votre message vocal n'est pas très clair. Pouvez-vous me préciser votre demande par écrit ou refaire un vocal dans un endroit plus calme ?",
+        contexts: ['whatsapp_voice', 'action_voicewa']
+    },
+    // Templates pour "💬 Chat WhatsApp" (whatsapp_chat / action_wa)
+    {
+        label: '💬 Bienvenue WhatsApp',
+        text: "Bonjour 👋, bienvenue sur WhatsApp EcoDila ! Je suis à votre disposition. Quelle est votre demande ?",
+        contexts: ['whatsapp_chat', 'action_wa']
+    },
+    // Templates pour "💬 Demander à un conseiller" (whatsapp_advisor)
+    {
+        label: '🛒 Conseil produit',
+        text: "Bonjour 👋, je peux vous conseiller le produit qui vous correspond. Dites-moi votre budget, l'usage prévu et vos préférences (marque, capacité, etc.).",
+        contexts: ['whatsapp_advisor', 'action_find']
+    },
+    {
+        label: '🛒 Produit en stock',
+        text: "Bonjour 👋, oui ce produit est bien disponible chez nous. Voulez-vous que je vous envoie les photos et le prix exact ?",
+        contexts: ['whatsapp_advisor', 'action_find']
+    },
+    {
+        label: '🛒 Produit indisponible',
+        text: "Bonjour 👋, ce modèle précis n'est pas en stock actuellement. Mais j'ai des alternatives similaires. Voulez-vous que je vous les propose ?",
+        contexts: ['whatsapp_advisor', 'action_find']
+    },
+    // Commande
     {
         label: '✅ Confirmation commande',
-        text: "Bonjour 👋, votre commande a bien été enregistrée. Nous vous contactons dans les plus brefs délais pour la livraison. Merci pour votre confiance !"
+        text: "Bonjour 👋, votre commande a bien été enregistrée. Nous vous contactons dans les plus brefs délais pour la livraison. Merci pour votre confiance !",
+        contexts: ['whatsapp_order', 'action_order']
     },
     {
         label: '📦 Commande en livraison',
-        text: "Bonjour 👋, votre commande est en cours de livraison aujourd'hui. Notre livreur vous contactera bientôt. Merci de votre patience !"
+        text: "Bonjour 👋, votre commande est en cours de livraison aujourd'hui. Notre livreur vous contactera bientôt. Merci de votre patience !",
+        contexts: ['whatsapp_order', 'action_order']
     },
     {
         label: '📅 Délai de livraison',
-        text: "Bonjour 👋, le délai de livraison est de 24 à 48 heures à Abidjan, et 2 à 5 jours pour les autres villes de Côte d'Ivoire. Pour plus d'infos, dites-moi votre ville."
+        text: "Bonjour 👋, le délai de livraison est de 24 à 48 heures à Abidjan, et 2 à 5 jours pour les autres villes de Côte d'Ivoire. Pour plus d'infos, dites-moi votre ville.",
+        contexts: ['whatsapp_order', 'action_order']
+    },
+    // Troc
+    {
+        label: '🔄 Demander photos pour troc',
+        text: "Bonjour 👋, pour estimer votre appareil, envoyez-moi : photos (face avant, arrière, écran allumé), modèle, état général, accessoires inclus. Réponse sous 24h.",
+        contexts: ['whatsapp_troc', 'action_troc']
     },
     {
+        label: '🔄 Estimation troc',
+        text: "Bonjour 👋, après vérification de votre appareil, voici notre estimation : ___ FCFA. Vous pouvez l'utiliser comme acompte sur un autre produit chez EcoDila.",
+        contexts: ['whatsapp_troc', 'action_troc']
+    },
+    // Parrainage
+    {
+        label: '🤝 Devenir parrain',
+        text: "Bonjour 👋, pour devenir parrain : créez votre compte, accédez à la page Parrainage, partagez votre code unique. 5% à 10% de commission selon votre tier. Besoin d'aide pour démarrer ?",
+        contexts: ['whatsapp_parrain']
+    },
+    // Génériques (toutes catégories)
+    {
         label: '💳 Modes de paiement',
-        text: "Bonjour 👋, chez EcoDila vous pouvez payer à la livraison en espèces, ou via Wave, Orange Money, Moov Money, MTN Money. C'est sécurisé !"
+        text: "Bonjour 👋, chez EcoDila vous pouvez payer à la livraison en espèces, ou via Wave, Orange Money, Moov Money, MTN Money. C'est sécurisé !",
+        contexts: []
     },
     {
         label: '🛡️ Garantie produit',
-        text: "Bonjour 👋, tous nos produits sont vérifiés et garantis 7 jours minimum (jusqu'à 6 mois selon le produit). Si problème, on échange ou rembourse."
-    },
-    {
-        label: '🔄 Troc / Reprise',
-        text: "Bonjour 👋, pour troquer votre ancien appareil, envoyez-nous photos + description sur WhatsApp. On vous fait une estimation gratuite sous 24h."
-    },
-    {
-        label: '🤝 Parrainage',
-        text: "Bonjour 👋, notre programme parrainage : 5% à 10% de commission sur chaque vente. Devenez parrain Silver/Gold/Platinum selon votre activité. Plus d'infos sur la page Parrainage du site."
+        text: "Bonjour 👋, tous nos produits sont vérifiés et garantis 7 jours minimum (jusqu'à 6 mois selon le produit). Si problème, on échange ou rembourse.",
+        contexts: []
     },
     {
         label: '📍 Notre localisation',
-        text: "Bonjour 👋, nous sommes basés à Abidjan, Bingerville. Pour la livraison, on couvre toute la Côte d'Ivoire. Pour récupérer en main propre, prenez RDV via WhatsApp."
+        text: "Bonjour 👋, nous sommes basés à Abidjan, Bingerville. Pour la livraison, on couvre toute la Côte d'Ivoire. Pour récupérer en main propre, prenez RDV via WhatsApp.",
+        contexts: []
     },
     {
         label: '⏰ Horaires d\'ouverture',
-        text: "Bonjour 👋, notre équipe est disponible du lundi au samedi, de 8h à 18h. LIDA, votre assistante, est là 24/7 pour les questions courantes."
+        text: "Bonjour 👋, notre équipe est disponible du lundi au samedi, de 8h à 18h. LIDA, votre assistante, est là 24/7 pour les questions courantes.",
+        contexts: []
     },
     {
         label: '❓ Question générale',
-        text: "Bonjour 👋, merci pour votre message. Pouvez-vous nous donner plus de détails sur votre demande ? On reviendra vers vous au plus vite."
+        text: "Bonjour 👋, merci pour votre message. Pouvez-vous nous donner plus de détails sur votre demande ? On reviendra vers vous au plus vite.",
+        contexts: []
     },
     {
         label: '👋 Au revoir',
-        text: "Merci pour votre visite sur EcoDila ! N'hésitez pas à revenir vers nous si besoin. Bonne journée 🌟"
+        text: "Merci pour votre visite sur EcoDila ! N'hésitez pas à revenir vers nous si besoin. Bonne journée 🌟",
+        contexts: []
     }
 ];
+
+// Helper : labels lisibles pour les types de message
+window._ccMessageTypeLabels = {
+    'text':              { label: '💬 Texte', color: '#94a3b8' },
+    'voice':             { label: '🎙️ Vocal', color: '#a855f7' },
+    'admin_reply':       { label: '↩️ Réponse admin', color: '#10b981' },
+    'whatsapp_redirect': { label: '📲 WhatsApp', color: '#25d366' },
+    'whatsapp_voice':    { label: '🎙️ Message vocal WhatsApp', color: '#a855f7' },
+    'whatsapp_chat':     { label: '💬 Chat WhatsApp', color: '#25d366' },
+    'whatsapp_advisor':  { label: '🛒 Demande conseiller', color: '#f59e0b' },
+    'whatsapp_order':    { label: '📦 Commande WhatsApp', color: '#3b82f6' },
+    'whatsapp_troc':     { label: '🔄 Troc WhatsApp', color: '#a855f7' },
+    'whatsapp_parrain':  { label: '🤝 Parrainage WhatsApp', color: '#0891b2' },
+    'action_find':       { label: '🔍 Cherche produit', color: '#f59e0b' },
+    'action_voicewa':    { label: '📲 Veut envoyer vocal', color: '#a855f7' },
+    'action_order':      { label: '📦 Veut suivi commande', color: '#3b82f6' },
+    'action_troc':       { label: '🔄 Veut troquer', color: '#a855f7' },
+    'action_faq':        { label: '❓ Consulte FAQ', color: '#94a3b8' },
+    'action_wa':         { label: '💬 Veut chat WA', color: '#25d366' }
+};
+
+function ccGetMessageTypeBadge(messageType) {
+    const info = window._ccMessageTypeLabels[messageType];
+    if (!info || messageType === 'text') return '';
+    return `<span style="display:inline-block;font-size:.6rem;background:${info.color}22;color:${info.color};border:1px solid ${info.color}55;padding:.05rem .35rem;border-radius:4px;font-weight:600;margin-left:.4rem">${info.label}</span>`;
+}
+
+// Détecter le contexte courant (dernier type de message client) pour suggérer des templates
+function ccGetCurrentContext(messages) {
+    if (!messages || messages.length === 0) return null;
+    // Chercher le dernier message client (en partant de la fin)
+    for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].sender === 'client' && messages[i].message_type && messages[i].message_type !== 'text') {
+            return messages[i].message_type;
+        }
+    }
+    return null;
+}
+
+// Filtrer/trier les templates selon le contexte
+function ccGetRelevantTemplates(context) {
+    if (!context) return window._ccTemplates;
+    // Priorité : templates qui matchent le contexte en premier, puis génériques
+    const matching = window._ccTemplates.filter(t => t.contexts && t.contexts.indexOf(context) !== -1);
+    const generic = window._ccTemplates.filter(t => !t.contexts || t.contexts.length === 0);
+    const others = window._ccTemplates.filter(t => 
+        t.contexts && t.contexts.length > 0 && t.contexts.indexOf(context) === -1
+    );
+    return [...matching, ...generic, ...others];
+}
 
 // Charger toutes les conversations depuis Supabase
 async function ccLoadConversations() {
@@ -21108,17 +21214,44 @@ function ccRenderConversation(clientId, messages) {
         const align = isClient ? 'flex-start' : 'flex-end';
         const bg = isClient ? 'rgba(255,255,255,.06)' : (isAdmin ? 'rgba(82,183,136,.18)' : 'rgba(102,102,255,.12)');
         const sender = isClient ? '💬 Client' : (isAdmin ? '↩️ Vous' : '🤖 LIDA');
+        const typeBadge = isClient ? ccGetMessageTypeBadge(m.message_type) : '';
         return `<div style="display:flex;justify-content:${align};margin-bottom:.6rem">
             <div style="max-width:75%;background:${bg};padding:.6rem .8rem;border-radius:10px;font-size:.84rem;color:#fff">
-                <div style="font-size:.66rem;color:rgba(255,255,255,.5);margin-bottom:.2rem">${sender} · ${time}</div>
+                <div style="font-size:.66rem;color:rgba(255,255,255,.5);margin-bottom:.2rem">${sender} · ${time}${typeBadge}</div>
                 <div style="white-space:pre-wrap;word-break:break-word">${escapeHtml(m.message)}</div>
             </div>
         </div>`;
     }).join('');
 
-    const templateOptionsHtml = window._ccTemplates.map((t, i) =>
-        `<option value="${i}">${escapeHtml(t.label)}</option>`
-    ).join('');
+    // Détection du contexte courant (dernier type de demande client)
+    const currentContext = ccGetCurrentContext(messages);
+    const relevantTemplates = ccGetRelevantTemplates(currentContext);
+    const matchingCount = currentContext
+        ? window._ccTemplates.filter(t => t.contexts && t.contexts.indexOf(currentContext) !== -1).length
+        : 0;
+
+    // Construire les options : séparer les templates contextuels (en haut) des autres
+    let templateOptionsHtml = '<option value="">📝 Choisir un template prérempli...</option>';
+    if (matchingCount > 0) {
+        templateOptionsHtml += '<optgroup label="✨ Suggérés pour ce contexte">';
+        for (let i = 0; i < matchingCount; i++) {
+            const t = relevantTemplates[i];
+            const idxInOriginal = window._ccTemplates.indexOf(t);
+            templateOptionsHtml += `<option value="${idxInOriginal}">${escapeHtml(t.label)}</option>`;
+        }
+        templateOptionsHtml += '</optgroup>';
+        templateOptionsHtml += '<optgroup label="📚 Tous les templates">';
+        for (let i = matchingCount; i < relevantTemplates.length; i++) {
+            const t = relevantTemplates[i];
+            const idxInOriginal = window._ccTemplates.indexOf(t);
+            templateOptionsHtml += `<option value="${idxInOriginal}">${escapeHtml(t.label)}</option>`;
+        }
+        templateOptionsHtml += '</optgroup>';
+    } else {
+        templateOptionsHtml += window._ccTemplates.map((t, i) =>
+            `<option value="${i}">${escapeHtml(t.label)}</option>`
+        ).join('');
+    }
 
     // Sélecteur de statut du ticket
     const statusOptionsHtml = Object.keys(window._ccStatuses).map(key => {
@@ -21142,6 +21275,7 @@ function ccRenderConversation(clientId, messages) {
                     <div style="font-weight:700;font-size:1rem;color:#fff">${escapeHtml(headerName)}</div>
                     <div style="font-size:.74rem;color:rgba(255,255,255,.5)">${escapeHtml(headerSubtitle)}</div>
                     ${ticketSubject ? `<div style="font-size:.72rem;color:rgba(255,255,255,.55);margin-top:.3rem"><b>Sujet :</b> ${escapeHtml(ticketSubject)}</div>` : ''}
+                    ${currentContext && window._ccMessageTypeLabels[currentContext] ? `<div style="margin-top:.4rem"><span style="display:inline-block;font-size:.7rem;background:${window._ccMessageTypeLabels[currentContext].color}22;color:${window._ccMessageTypeLabels[currentContext].color};border:1px solid ${window._ccMessageTypeLabels[currentContext].color}66;padding:.2rem .5rem;border-radius:6px;font-weight:600">⚡ Contexte : ${window._ccMessageTypeLabels[currentContext].label}</span></div>` : ''}
                 </div>
                 <div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-end">
                     ${conv && conv.client_phone ? `<a href="https://wa.me/${conv.client_phone.replace(/\\D/g,'')}" target="_blank" style="background:#25d366;color:#fff;padding:.4rem .7rem;border-radius:6px;font-size:.74rem;text-decoration:none;font-weight:600">📱 WhatsApp</a>` : ''}

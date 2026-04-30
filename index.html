@@ -17796,6 +17796,30 @@ function _chatShowQuickActions(){
 
 /* ─── Dispatch des actions rapides ──────────────────────────────── */
 window._chatHandleAction = function(action){
+  // Sauvegarder le clic sur l'action en BDD pour le BO admin
+  // (avec un type spécifique pour adapter les templates de réponse)
+  var actionLabels = {
+    'find': '🔍 Cherche un produit',
+    'voicewa': '📲 Veut envoyer message vocal WhatsApp',
+    'order': '📦 Veut suivre une commande',
+    'troc': '🔄 Veut faire un troc',
+    'faq': '❓ Consulte la FAQ',
+    'wa': '💬 Veut chat WhatsApp'
+  };
+  var actionTypes = {
+    'find': 'action_find',
+    'voicewa': 'action_voicewa',
+    'order': 'action_order',
+    'troc': 'action_troc',
+    'faq': 'action_faq',
+    'wa': 'action_wa'
+  };
+  try {
+    if(window._lidaConv && actionLabels[action]){
+      _lidaConv.saveMessage(actionLabels[action], 'client', actionTypes[action] || 'action');
+    }
+  } catch(e){}
+
   if(action === 'find'){
     addMsg('🔍 Cherche', 'user');
     var html = 'Quel produit cherchez-vous ?<br><br>'
@@ -18289,8 +18313,31 @@ function _chatGetBusinessStatus(){
 }
 
 window._chatOpenWA = function(msg){
+  msg = msg || 'Bonjour 👋';
+
+  // Sauvegarder en BDD pour que le BO admin voie ce contexte (avec type classifié)
+  try {
+    if(window._lidaConv){
+      // Détecter le type de redirection WhatsApp pour adapter les templates de réponse
+      var redirectType = 'whatsapp_chat'; // par défaut
+      var lower = msg.toLowerCase();
+      if(/message vocal|envoyer.*vocal|message.*vocal/i.test(lower)){
+        redirectType = 'whatsapp_voice'; // 🎙️ envoi message vocal
+      } else if(/cherche|trouv|produit|conseill/i.test(lower)){
+        redirectType = 'whatsapp_advisor'; // 💬 demander à un conseiller
+      } else if(/commande|suivre|colis|achat/i.test(lower)){
+        redirectType = 'whatsapp_order'; // commande
+      } else if(/troc|echang/i.test(lower)){
+        redirectType = 'whatsapp_troc'; // troc
+      } else if(/parrain|filleul|commission/i.test(lower)){
+        redirectType = 'whatsapp_parrain'; // parrainage
+      }
+      // Save en arrière-plan (ne pas bloquer le clic vers WhatsApp)
+      _lidaConv.saveMessage(msg, 'client', redirectType);
+    }
+  } catch(e){}
+
   // Afficher d'abord un mini-message dans le chat avec l'état de disponibilité
-  // (pour que le client sache quand il aura une réponse).
   try {
     var status = _chatGetBusinessStatus();
     var statusBg = status.open ? 'rgba(16,185,129,.15)' : 'rgba(245,158,11,.15)';
@@ -18305,7 +18352,7 @@ window._chatOpenWA = function(msg){
 
   // Petit délai pour que le client voie l'avertissement avant l'ouverture
   setTimeout(function(){
-    var url = 'https://wa.me/2250596275555?text=' + encodeURIComponent(msg||'Bonjour 👋');
+    var url = 'https://wa.me/2250596275555?text=' + encodeURIComponent(msg);
     window.open(url, '_blank');
   }, _chatDelay(800));
 };
