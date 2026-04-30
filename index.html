@@ -944,6 +944,52 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .btn-p::after{content:'';position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.25) 50%,transparent 70%);transform:translateX(-100%);animation:shimmer 4s infinite 2s}
 @keyframes shimmer{to{transform:translateX(200%)}}
 
+/* ─── Skeleton loader pour images produits sur connexion lente ─── */
+.featured-card-img-skeleton,
+.card-img-skeleton {
+  position:relative;
+  background:linear-gradient(90deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 100%);
+  background-size:200% 100%;
+  animation:skeletonPulse 1.5s ease-in-out infinite;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:rgba(255,255,255,.25);
+  font-size:.6rem;
+  font-weight:600;
+  letter-spacing:.5px;
+}
+.featured-card-img-skeleton::after,
+.card-img-skeleton::after {
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(90deg, transparent 0%, rgba(82,183,136,.15) 50%, transparent 100%);
+  animation:skeletonSweep 1.8s ease-in-out infinite;
+}
+.featured-card-img-skeleton .skeleton-label,
+.card-img-skeleton .skeleton-label {
+  position:relative;
+  z-index:1;
+  text-transform:uppercase;
+  font-size:.55rem;
+  color:rgba(82,183,136,.6);
+  font-weight:700;
+  letter-spacing:1px;
+  display:flex;
+  align-items:center;
+  gap:.25rem;
+}
+@keyframes skeletonPulse{0%,100%{background-position:200% 0}50%{background-position:0 0}}
+@keyframes skeletonSweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
+/* Image qui apparaît en fade quand chargée */
+.featured-card-img.img-loaded,
+.card-img.img-loaded {
+  animation:imgFadeIn .4s ease both;
+}
+@keyframes imgFadeIn{from{opacity:0}to{opacity:1}}
+
 /* Bouton troquer — glow rose + bounce */
 .btn-s{animation:heroBtnIn .6s cubic-bezier(.34,1.56,.64,1) .4s both,trocPulse 3s ease-in-out 2s infinite!important}
 @keyframes trocPulse{0%,100%{box-shadow:0 0 0 0 rgba(236,72,153,0)}50%{box-shadow:0 0 0 8px rgba(236,72,153,.18)}}
@@ -22314,6 +22360,63 @@ function _boostLabelHtml(item) {
     return `<span class="plabel plabel-${item.boost.label || 'vedette'}">${lbl.icon} ${lbl.text}</span>`;
 }
 
+/** Helpers pour gestion robuste des images sur connexion lente */
+window._featImgLoaded = function(img){
+    if(!img) return;
+    img.style.opacity = '1';
+    img.classList.add('img-loaded');
+    // Retirer le skeleton parent
+    var skeleton = img.parentElement;
+    if(skeleton && skeleton.classList.contains('featured-card-img-skeleton')){
+        skeleton.classList.remove('featured-card-img-skeleton');
+        skeleton.style.background = 'transparent';
+        skeleton.style.animation = 'none';
+        var label = skeleton.querySelector('.skeleton-label');
+        if(label) label.remove();
+    }
+};
+
+window._featImgError = function(img, originalSrc){
+    if(!img) return;
+    var retries = parseInt(img.getAttribute('data-retry') || '0');
+    var maxRetries = 3;
+    if(retries < maxRetries){
+        // Réessayer avec un délai progressif (retry après 2s, 4s, 8s)
+        var delay = 2000 * Math.pow(2, retries);
+        img.setAttribute('data-retry', String(retries + 1));
+        setTimeout(function(){
+            // Cache buster pour forcer un nouveau fetch
+            var sep = originalSrc.indexOf('?') > -1 ? '&' : '?';
+            img.src = originalSrc + sep + '_r=' + (retries + 1);
+        }, delay);
+    } else {
+        // Après 3 retries échoués, afficher l'emoji fallback
+        var skeleton = img.parentElement;
+        if(skeleton){
+            // Récupérer la catégorie du produit depuis la card parente
+            var card = skeleton.closest('.featured-card');
+            var emoji = '📦';
+            // Essayer de retrouver la catégorie en parsant le contexte
+            if(card){
+                var brand = card.querySelector('.card-brand');
+                var name = card.querySelector('.featured-card-name');
+                var txt = ((brand?brand.textContent:'') + ' ' + (name?name.textContent:'')).toLowerCase();
+                if(txt.match(/iphone|samsung|xiaomi|huawei|tecno|infinix|pixel/i)) emoji = '📱';
+                else if(txt.match(/tv|téléviseur|smart tv/i)) emoji = '📺';
+                else if(txt.match(/airpods|écout|casque|audio|enceinte/i)) emoji = '🎧';
+                else if(txt.match(/montre|watch/i)) emoji = '⌚';
+                else if(txt.match(/tablette|tablet|ipad/i)) emoji = '📟';
+                else if(txt.match(/ordinateur|laptop|macbook|pc/i)) emoji = '💻';
+                else if(txt.match(/jeu|console|playstation|xbox|nintendo/i)) emoji = '🎮';
+            }
+            skeleton.innerHTML = '<div style="font-size:2rem;opacity:.4">' + emoji + '</div>';
+            skeleton.classList.remove('featured-card-img-skeleton');
+            skeleton.style.background = 'rgba(255,255,255,.03)';
+            skeleton.style.animation = 'none';
+        }
+    }
+};
+
 /** Affiche/masque et remplit la section "Produits mis en avant" */
 function renderFeatured() {
     const section = document.getElementById('featured-section');
@@ -22421,6 +22524,25 @@ function renderFeatured() {
         if (titleEl) titleEl.textContent = 'Produits mis en avant';
     }
 
+    // ── Limiter le nombre de produits sur connexion très lente ──────
+    // Sur 2G/slow-2g/SaveData, on n'affiche que 4 produits pour éviter
+    // de saturer le réseau et permettre un affichage rapide
+    var _isVerySlow = false;
+    try {
+        var _conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if(_conn){
+            var _et = _conn.effectiveType || '';
+            if(_et === 'slow-2g' || _et === '2g' || _conn.saveData) _isVerySlow = true;
+            else if(_conn.downlink !== undefined && _conn.downlink < 0.5) _isVerySlow = true;
+        }
+        // Détection complémentaire via low-end flag
+        if(window._noCardAnim) _isVerySlow = true;
+    } catch(e){}
+
+    if(_isVerySlow && featured.length > 4){
+        featured = featured.slice(0, 4);
+    }
+
     grid.innerHTML = featured.map(function(entry) {
         const item = entry.item;
         const type = entry.type;
@@ -22483,7 +22605,7 @@ function renderFeatured() {
              onclick="showPage('catalogue');setTimeout(function(){openModal('${item.id}');},300)">
             ${ribbonHtml}
             ${imgSrc
-                ? `<img src="${imgSrc}" class="featured-card-img" loading="lazy" alt="${nom}" loading="lazy">`
+                ? `<div class="featured-card-img-skeleton" data-img-skeleton="1"><span class="skeleton-label">⏳ Chargement</span><img src="${imgSrc}" class="featured-card-img" loading="lazy" alt="${nom}" data-retry="0" onload="window._featImgLoaded(this)" onerror="window._featImgError(this, '${imgSrc.replace(/'/g, '&#39;')}')" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0"></div>`
                 : `<div class="featured-card-img-placeholder">${CE[item.cat]||'📦'}</div>`}
             <div class="featured-card-body">
                 ${ (item.brand||item.marque) ? '<div style="margin-bottom:.15rem"><span class="card-brand">'+(item.brand||item.marque)+'</span></div>' : '' }
