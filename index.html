@@ -945,50 +945,57 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 @keyframes shimmer{to{transform:translateX(200%)}}
 
 /* ─── Skeleton loader pour images produits sur connexion lente ─── */
-.featured-card-img-skeleton,
-.card-img-skeleton {
+.featured-card-img-wrapper {
   position:relative;
+  overflow:hidden;
   background:linear-gradient(90deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 100%);
   background-size:200% 100%;
   animation:skeletonPulse 1.5s ease-in-out infinite;
   display:flex;
   align-items:center;
   justify-content:center;
-  color:rgba(255,255,255,.25);
-  font-size:.6rem;
-  font-weight:600;
-  letter-spacing:.5px;
 }
-.featured-card-img-skeleton::after,
-.card-img-skeleton::after {
+.featured-card-img-wrapper.img-ready {
+  background:transparent;
+  animation:none;
+}
+.featured-card-img-wrapper::before {
   content:'';
   position:absolute;
   inset:0;
-  background:linear-gradient(90deg, transparent 0%, rgba(82,183,136,.15) 50%, transparent 100%);
+  background:linear-gradient(90deg, transparent 0%, rgba(82,183,136,.12) 50%, transparent 100%);
   animation:skeletonSweep 1.8s ease-in-out infinite;
+  pointer-events:none;
 }
-.featured-card-img-skeleton .skeleton-label,
-.card-img-skeleton .skeleton-label {
+.featured-card-img-wrapper.img-ready::before {
+  display:none;
+}
+.featured-card-img-wrapper .skeleton-label {
   position:relative;
   z-index:1;
   text-transform:uppercase;
   font-size:.55rem;
-  color:rgba(82,183,136,.6);
+  color:rgba(82,183,136,.55);
   font-weight:700;
   letter-spacing:1px;
-  display:flex;
-  align-items:center;
-  gap:.25rem;
+}
+.featured-card-img-wrapper.img-ready .skeleton-label {
+  display:none;
+}
+.featured-card-img-wrapper .featured-card-img {
+  position:absolute !important;
+  inset:0 !important;
+  width:100% !important;
+  height:100% !important;
+  object-fit:cover;
+  opacity:0;
+  transition:opacity .4s ease;
+}
+.featured-card-img-wrapper .featured-card-img.img-loaded {
+  opacity:1;
 }
 @keyframes skeletonPulse{0%,100%{background-position:200% 0}50%{background-position:0 0}}
 @keyframes skeletonSweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-
-/* Image qui apparaît en fade quand chargée */
-.featured-card-img.img-loaded,
-.card-img.img-loaded {
-  animation:imgFadeIn .4s ease both;
-}
-@keyframes imgFadeIn{from{opacity:0}to{opacity:1}}
 
 /* Bouton troquer — glow rose + bounce */
 .btn-s{animation:heroBtnIn .6s cubic-bezier(.34,1.56,.64,1) .4s both,trocPulse 3s ease-in-out 2s infinite!important}
@@ -1110,7 +1117,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
   .flash-cd-text { font-size: .28rem !important; }
 
   /* ── Images featured ── */
-  .featured-card-img, .featured-card-img-placeholder { height: 75px !important; font-size: 1.4rem !important; }
+  .featured-card-img-wrapper, .featured-card-img, .featured-card-img-placeholder { height: 75px !important; font-size: 1.4rem !important; }
   .featured-card-body { padding: .22rem .28rem !important; }
   .featured-card-badge, .flash-badge { font-size: .36rem !important; padding: .06rem .2rem !important; margin-bottom: .1rem !important; }
   .featured-card-name { font-size: .55rem !important; }
@@ -1161,7 +1168,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
   .carousel-indicators { bottom: .3rem; gap: .2rem; }
 
   /* ── Featured ── */
-  .featured-card-img, .featured-card-img-placeholder { height: 90px !important; font-size: 1.4rem !important; }
+  .featured-card-img-wrapper, .featured-card-img, .featured-card-img-placeholder { height: 90px !important; font-size: 1.4rem !important; }
   .featured-card-body { padding: .28rem .35rem !important; }
   .featured-card-badge, .flash-badge { font-size: .4rem !important; padding: .08rem .25rem !important; }
   .featured-card-name { font-size: .6rem !important; }
@@ -1443,7 +1450,7 @@ button, .btn, .btn-primary, .btn-secondary {
         grid-template-columns: repeat(3, 1fr);
         gap: .7rem;
     }
-    .featured-card-img, .featured-card-img-placeholder { height: 120px; font-size: 2rem; }
+    .featured-card-img-wrapper, .featured-card-img, .featured-card-img-placeholder { height: 120px; font-size: 2rem; }
     .featured-card-body { padding: .4rem .45rem; }
     .featured-card-badge { font-size: .52rem; padding: .12rem .38rem; }
     .featured-card-name { font-size: .82rem; }
@@ -1497,7 +1504,7 @@ button, .btn, .btn-primary, .btn-secondary {
         grid-template-columns: repeat(4, 1fr);
         gap: .9rem;
     }
-    .featured-card-img, .featured-card-img-placeholder { height: 130px; font-size: 2.2rem; }
+    .featured-card-img-wrapper, .featured-card-img, .featured-card-img-placeholder { height: 130px; font-size: 2.2rem; }
     .featured-card-body { padding: .45rem .5rem; }
     .featured-card-badge { font-size: .55rem; padding: .15rem .45rem; }
     .featured-card-name { font-size: .88rem; white-space: normal; overflow: visible; }
@@ -1559,7 +1566,7 @@ button, .btn, .btn-primary, .btn-secondary {
         grid-template-columns: repeat(5, 1fr);
         gap: 1rem;
     }
-    .featured-card-img, .featured-card-img-placeholder { height: 140px; font-size: 2.5rem; }
+    .featured-card-img-wrapper, .featured-card-img, .featured-card-img-placeholder { height: 140px; font-size: 2.5rem; }
     .featured-card-body { padding: .5rem .55rem; }
     .featured-card-badge { font-size: .58rem; padding: .16rem .45rem; margin-bottom: .3rem; }
     .featured-card-name { font-size: .92rem; }
@@ -22363,16 +22370,10 @@ function _boostLabelHtml(item) {
 /** Helpers pour gestion robuste des images sur connexion lente */
 window._featImgLoaded = function(img){
     if(!img) return;
-    img.style.opacity = '1';
     img.classList.add('img-loaded');
-    // Retirer le skeleton parent
-    var skeleton = img.parentElement;
-    if(skeleton && skeleton.classList.contains('featured-card-img-skeleton')){
-        skeleton.classList.remove('featured-card-img-skeleton');
-        skeleton.style.background = 'transparent';
-        skeleton.style.animation = 'none';
-        var label = skeleton.querySelector('.skeleton-label');
-        if(label) label.remove();
+    var wrapper = img.parentElement;
+    if(wrapper && wrapper.classList.contains('featured-card-img-wrapper')){
+        wrapper.classList.add('img-ready');
     }
 };
 
@@ -22390,13 +22391,11 @@ window._featImgError = function(img, originalSrc){
             img.src = originalSrc + sep + '_r=' + (retries + 1);
         }, delay);
     } else {
-        // Après 3 retries échoués, afficher l'emoji fallback
-        var skeleton = img.parentElement;
-        if(skeleton){
-            // Récupérer la catégorie du produit depuis la card parente
-            var card = skeleton.closest('.featured-card');
+        // Après 3 retries échoués, remplacer par un emoji intelligent
+        var wrapper = img.parentElement;
+        if(wrapper){
+            var card = wrapper.closest('.featured-card');
             var emoji = '📦';
-            // Essayer de retrouver la catégorie en parsant le contexte
             if(card){
                 var brand = card.querySelector('.card-brand');
                 var name = card.querySelector('.featured-card-name');
@@ -22405,14 +22404,14 @@ window._featImgError = function(img, originalSrc){
                 else if(txt.match(/tv|téléviseur|smart tv/i)) emoji = '📺';
                 else if(txt.match(/airpods|écout|casque|audio|enceinte/i)) emoji = '🎧';
                 else if(txt.match(/montre|watch/i)) emoji = '⌚';
-                else if(txt.match(/tablette|tablet|ipad/i)) emoji = '📟';
-                else if(txt.match(/ordinateur|laptop|macbook|pc/i)) emoji = '💻';
-                else if(txt.match(/jeu|console|playstation|xbox|nintendo/i)) emoji = '🎮';
+                else if(txt.match(/tablette|tablet|ipad|pad/i)) emoji = '📟';
+                else if(txt.match(/ordinateur|laptop|macbook|pc|book/i)) emoji = '💻';
+                else if(txt.match(/jeu|console|playstation|xbox|nintendo|switch/i)) emoji = '🎮';
+                else if(txt.match(/drone|dji|neo/i)) emoji = '🛸';
             }
-            skeleton.innerHTML = '<div style="font-size:2rem;opacity:.4">' + emoji + '</div>';
-            skeleton.classList.remove('featured-card-img-skeleton');
-            skeleton.style.background = 'rgba(255,255,255,.03)';
-            skeleton.style.animation = 'none';
+            wrapper.innerHTML = '<div style="font-size:2rem;opacity:.5;display:flex;align-items:center;justify-content:center;width:100%;height:100%">' + emoji + '</div>';
+            wrapper.classList.add('img-ready');
+            wrapper.style.background = 'rgba(255,255,255,.03)';
         }
     }
 };
@@ -22605,7 +22604,7 @@ function renderFeatured() {
              onclick="showPage('catalogue');setTimeout(function(){openModal('${item.id}');},300)">
             ${ribbonHtml}
             ${imgSrc
-                ? `<div class="featured-card-img-skeleton" data-img-skeleton="1"><span class="skeleton-label">⏳ Chargement</span><img src="${imgSrc}" class="featured-card-img" loading="lazy" alt="${nom}" data-retry="0" onload="window._featImgLoaded(this)" onerror="window._featImgError(this, '${imgSrc.replace(/'/g, '&#39;')}')" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0"></div>`
+                ? `<div class="featured-card-img-wrapper"><span class="skeleton-label">⏳ Chargement</span><img src="${imgSrc}" class="featured-card-img" loading="lazy" alt="${nom}" data-retry="0" onload="window._featImgLoaded(this)" onerror="window._featImgError(this, '${imgSrc.replace(/'/g, '&#39;')}')"></div>`
                 : `<div class="featured-card-img-placeholder">${CE[item.cat]||'📦'}</div>`}
             <div class="featured-card-body">
                 ${ (item.brand||item.marque) ? '<div style="margin-bottom:.15rem"><span class="card-brand">'+(item.brand||item.marque)+'</span></div>' : '' }
