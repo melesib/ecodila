@@ -4025,6 +4025,206 @@ var _sb = window.supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ0dm93bG1yc2djYWllbnZob2pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0Mjk5NTYsImV4cCI6MjA5MDAwNTk1Nn0.1owVKN-R6-Edc3Rl7I0YyGxes8HFaTvOuff6dwZ2mX4"
 );
 
+/* ═══════════════════════════════════════════════════════════════════════
+   📡 MODULE CAPTURE IP — OPTIMISÉ POUR CONNEXIONS LENTES (2G/3G)
+   ─────────────────────────────────────────────────────────────────────
+   Problème : sur 2G/3G ou réseau ultra lent, fetch IP peut timeout
+   silencieusement → compte créé sans IP → BO admin bloque à tort.
+
+   Solution :
+   - Capture commence DÈS le chargement de la page (pas à l'inscription)
+   - 4 providers en cascade avec timeouts adaptatifs (8s par tentative)
+   - Persistance en localStorage (survit aux sessions, contrairement à sessionStorage seul)
+   - Retry automatique en arrière-plan toutes les 30s tant qu'on n'a pas l'IP
+   - Détection connexion lente → timeouts plus longs (15s sur 2G)
+   - Fonction publique window._ecoEnsureIPCaptured() pour bloquer l'inscription
+     si pas d'IP, et afficher un loader visuel
+   ═══════════════════════════════════════════════════════════════════════ */
+(function(){
+  var IP_LS_KEY = 'ecodila_visit_ip_v2';
+  var IP_LS_TS_KEY = 'ecodila_visit_ip_ts_v2';
+  var IP_TTL_MS = 24 * 3600 * 1000; // 24h, l'IP peut changer
+
+  // Détecter qualité de connexion
+  function _ecoConnSpeed(){
+    try {
+      var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if(!c) return 'unknown';
+      var et = c.effectiveType || '';
+      if(et === 'slow-2g' || et === '2g') return 'very-slow';
+      if(et === '3g') return 'slow';
+      if(c.saveData) return 'slow';
+      if(c.downlink !== undefined && c.downlink < 0.5) return 'very-slow';
+      if(c.downlink !== undefined && c.downlink < 1.5) return 'slow';
+      return 'normal';
+    } catch(e){ return 'unknown'; }
+  }
+  window._ecoConnSpeed = _ecoConnSpeed;
+
+  // Timeout adaptatif selon la connexion
+  function _ecoIPTimeout(){
+    var s = _ecoConnSpeed();
+    if(s === 'very-slow') return 15000; // 15s sur 2G
+    if(s === 'slow') return 10000;      // 10s sur 3G
+    return 7000;                         // 7s sur 4G+
+  }
+
+  // Hydrate sessionStorage depuis localStorage (si IP encore valide)
+  function _ecoHydrateIPFromCache(){
+    try {
+      var cachedIP = localStorage.getItem(IP_LS_KEY);
+      var cachedTs = parseInt(localStorage.getItem(IP_LS_TS_KEY) || '0');
+      var fresh = cachedIP && cachedTs && (Date.now() - cachedTs < IP_TTL_MS);
+      if(fresh){
+        sessionStorage.setItem('ecodila_visit_ip', cachedIP);
+        return cachedIP;
+      }
+    } catch(e){}
+    return null;
+  }
+
+  // Sauvegarde IP capturée
+  function _ecoSaveIP(ip){
+    if(!ip || ip === 'unknown' || ip === 'pending') return false;
+    try { sessionStorage.setItem('ecodila_visit_ip', ip); } catch(e){}
+    try {
+      localStorage.setItem(IP_LS_KEY, ip);
+      localStorage.setItem(IP_LS_TS_KEY, String(Date.now()));
+    } catch(e){}
+    return true;
+  }
+
+  // Fetch avec timeout
+  function _ecoFetchWithTimeout(url, ms){
+    return new Promise(function(resolve, reject){
+      var to = setTimeout(function(){ reject(new Error('timeout-'+url)); }, ms);
+      fetch(url, { cache: 'no-store' })
+        .then(function(r){ return r.json(); })
+        .then(function(d){ clearTimeout(to); resolve(d); })
+        .catch(function(e){ clearTimeout(to); reject(e); });
+    });
+  }
+
+  // Cascade de providers IP (chacun retourne {ip: '...'})
+  // CSP-compliant : tous ces domaines sont autorisés dans _headers
+  var IP_PROVIDERS = [
+    { url: '/.netlify/functions/get-ip', extract: function(d){ return d && d.ip; } },
+    { url: 'https://api.ipify.org?format=json', extract: function(d){ return d && d.ip; } },
+    { url: 'https://api64.ipify.org?format=json', extract: function(d){ return d && d.ip; } },
+    { url: 'https://ipapi.co/json/', extract: function(d){ return d && d.ip; } },
+    { url: 'https://freeipapi.com/api/json', extract: function(d){ return d && d.ipAddress; } },
+    { url: 'https://api.my-ip.io/v2/ip.json', extract: function(d){ return d && d.ip; } }
+  ];
+
+  // Tentative séquentielle de tous les providers
+  // Retourne une promise résolue avec l'IP, ou rejetée si tous échouent
+  function _ecoFetchIPCascade(){
+    var timeout = _ecoIPTimeout();
+    function tryNext(idx){
+      if(idx >= IP_PROVIDERS.length) return Promise.reject(new Error('all-providers-failed'));
+      var p = IP_PROVIDERS[idx];
+      return _ecoFetchWithTimeout(p.url, timeout)
+        .then(function(d){
+          var ip = p.extract(d);
+          if(ip && ip.length >= 7) return ip;
+          throw new Error('no-ip-from-' + p.url);
+        })
+        .catch(function(e){
+          // Provider suivant
+          return tryNext(idx + 1);
+        });
+    }
+    return tryNext(0);
+  }
+
+  // Tentative complète : fetch + persist + retry en arrière-plan si échec
+  var _ecoIPCaptureInProgress = false;
+  var _ecoIPCaptureRetries = 0;
+  var MAX_RETRIES = 6; // 6 retries × 30s = 3 min de retry max
+
+  function _ecoCaptureIPNow(){
+    if(_ecoIPCaptureInProgress) return Promise.resolve(sessionStorage.getItem('ecodila_visit_ip') || '');
+    var alreadyCached = _ecoHydrateIPFromCache();
+    if(alreadyCached){
+      // Re-vérifier en arrière-plan (au cas où l'IP a changé)
+      setTimeout(_ecoCaptureIPSilently, 500);
+      return Promise.resolve(alreadyCached);
+    }
+
+    _ecoIPCaptureInProgress = true;
+    return _ecoFetchIPCascade()
+      .then(function(ip){
+        _ecoIPCaptureInProgress = false;
+        _ecoSaveIP(ip);
+        _ecoIPCaptureRetries = 0;
+        console.log('[EcoDila] ✓ IP capturée:', ip, '(connexion:', _ecoConnSpeed() + ')');
+        return ip;
+      })
+      .catch(function(err){
+        _ecoIPCaptureInProgress = false;
+        console.warn('[EcoDila] ⚠ IP non capturée:', err.message);
+        // Schedule retry en arrière-plan
+        if(_ecoIPCaptureRetries < MAX_RETRIES){
+          _ecoIPCaptureRetries++;
+          var retryDelay = Math.min(30000 * _ecoIPCaptureRetries, 120000); // 30s, 60s, 90s...
+          setTimeout(_ecoCaptureIPSilently, retryDelay);
+        }
+        return '';
+      });
+  }
+
+  function _ecoCaptureIPSilently(){
+    if(sessionStorage.getItem('ecodila_visit_ip')) return; // Déjà capturée
+    _ecoCaptureIPNow();
+  }
+
+  // ─── API publique ───────────────────────────────────────────────
+  // Garantit qu'on a une IP avant l'inscription (avec UI loader si lent)
+  // Retourne Promise<{ip, fingerprint, fromCache}> — résolue même si IP vide après timeout total
+  window._ecoEnsureIPCaptured = function(opts){
+    opts = opts || {};
+    var maxWaitMs = opts.maxWaitMs || (_ecoConnSpeed() === 'very-slow' ? 30000 : 15000);
+    var existing = sessionStorage.getItem('ecodila_visit_ip') || _ecoHydrateIPFromCache() || '';
+    var fp = sessionStorage.getItem('ecodila_visit_fp') || '';
+
+    if(existing && fp){
+      return Promise.resolve({ ip: existing, fingerprint: fp, fromCache: true });
+    }
+
+    // Afficher un loader si la capture prend du temps
+    var loaderTimer = setTimeout(function(){
+      if(typeof opts.onSlow === 'function') opts.onSlow();
+    }, 2500);
+
+    // Lancer capture si pas en cours
+    var ipPromise = _ecoCaptureIPNow();
+
+    // Attendre soit l'IP, soit le timeout global
+    return Promise.race([
+      ipPromise,
+      new Promise(function(resolve){ setTimeout(function(){ resolve(''); }, maxWaitMs); })
+    ]).then(function(ip){
+      clearTimeout(loaderTimer);
+      var finalIp = ip || sessionStorage.getItem('ecodila_visit_ip') || _ecoHydrateIPFromCache() || '';
+      var finalFp = sessionStorage.getItem('ecodila_visit_fp') || '';
+      return { ip: finalIp, fingerprint: finalFp, fromCache: false };
+    });
+  };
+
+  // Lancer la capture dès le chargement (en arrière-plan, ne bloque rien)
+  if(document.readyState === 'complete' || document.readyState === 'interactive'){
+    setTimeout(_ecoCaptureIPSilently, 100);
+  } else {
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(_ecoCaptureIPSilently, 100);
+    });
+  }
+
+  // Hydrater immédiatement depuis le cache localStorage (synchrone)
+  _ecoHydrateIPFromCache();
+})();
+
+
 /* ═══ Module LIDA Conversation ═══════════════════════════════════════════
    Persiste les messages chat en Supabase et permet à l'admin de répondre depuis le BO.
    Logique d'identification :
@@ -8214,28 +8414,26 @@ function inscription(e){
     }
 
     // ═══ CRÉATION DU COMPTE ═══
-    // S'assurer que l'IP est capturée avant de créer le compte
-    // Timeout court (4s) — si l'IP ne peut pas être obtenue, on proceed sans
+    // Garantir qu'on a IP+fingerprint AVANT de créer le compte.
+    // Sur 2G/3G, ça peut prendre 10-30s. On affiche un loader explicite.
     var _ipPromise;
     if(!_regIp || _regIp === 'unknown'){
-        var _ipFetch = function(url) {
-            return new Promise(function(resolve, reject){
-                var _to = setTimeout(function(){ reject(new Error('ip-timeout')); }, 4000);
-                fetch(url).then(function(r){ return r.json(); }).then(function(d){
-                    clearTimeout(_to);
-                    resolve(d);
-                }).catch(function(e){
-                    clearTimeout(_to);
-                    reject(e);
-                });
-            });
-        };
-        _ipPromise = _ipFetch('/.netlify/functions/get-ip').then(function(d){
-            _regIp = d.ip||'';try{sessionStorage.setItem('ecodila_visit_ip',_regIp);}catch(e){}
-        }).catch(function(){
-            return _ipFetch('https://api.ipify.org?format=json').then(function(d){
-                _regIp = d.ip||'';try{sessionStorage.setItem('ecodila_visit_ip',_regIp);}catch(e){}
-            }).catch(function(){_regIp='';});
+        // Utiliser le module robuste qui gère 2G/3G + retries + cache localStorage
+        _ipPromise = window._ecoEnsureIPCaptured({
+            onSlow: function(){
+                // Connexion lente détectée → afficher message à l'utilisateur
+                _btnLoading('🌐 Connexion lente — vérification en cours...');
+            }
+        }).then(function(captured){
+            _regIp = captured.ip || '';
+            if(captured.fingerprint && (!_fp || _fp === 'fp_unknown')){
+                _fp = captured.fingerprint;
+            }
+            // Si toujours pas d'IP après tous les retries, on continue mais le BO
+            // aura un flag "ipPending" et ne bloquera pas le compte
+            if(!_regIp){
+                console.warn('[Inscription] IP non capturée après tous les fallbacks — connexion très lente');
+            }
         });
     } else {
         _ipPromise = Promise.resolve();
@@ -8274,7 +8472,15 @@ function inscription(e){
             parrainId: _regParrain ? _regParrain.id : null,
             parrainNom: _regParrain ? (_regParrain.nom || 'Parrain ' + _regRefCode) : null,
             fingerprint: _fp || null,
-            registrationIp: _regIp || null
+            registrationIp: _regIp || null,
+            // Flags critiques pour le BO admin :
+            // - ipPending: true → l'IP n'a pas pu être capturée à temps (connexion très lente)
+            //   → le BO ne doit PAS bloquer ce compte sur l'absence d'IP
+            // - connectionSpeed: indique la qualité de connexion au moment de l'inscription
+            //   → utile pour comprendre les patterns dans les KPIs / fraude
+            ipPending: !_regIp,
+            fingerprintPending: !_fp || _fp === 'fp_unknown',
+            connectionSpeed: (typeof window._ecoConnSpeed === 'function' ? window._ecoConnSpeed() : 'unknown')
         };
 
         // ═══ RGPD : preuve horodatée du consentement politique de confidentialité ═══
@@ -8433,6 +8639,58 @@ function inscription(e){
             if (_offline) {
                 nouvelUtilisateur._pendingSync = true;
                 nouvelUtilisateur._pendingSyncAt = Date.now();
+            }
+
+            // ─── BACKGROUND RECOVERY pour IP/FP manquants ───
+            // Si l'inscription s'est faite sans IP (connexion 2G très lente),
+            // on continue à essayer en arrière-plan et on met à jour le compte
+            // dès qu'on obtient l'IP réelle.
+            if(nouvelUtilisateur.ipPending || nouvelUtilisateur.fingerprintPending){
+                (function _bgRecover(){
+                    var attempts = 0;
+                    var maxAttempts = 10; // 10 tentatives × 30s = 5 min max
+                    var tryRecover = function(){
+                        attempts++;
+                        // Capturer (le module gère ses propres retries internes)
+                        if(typeof window._ecoEnsureIPCaptured === 'function'){
+                            window._ecoEnsureIPCaptured({ maxWaitMs: 20000 }).then(function(captured){
+                                var newIp = captured.ip || '';
+                                var newFp = captured.fingerprint || '';
+                                var updates = {};
+                                if(newIp && nouvelUtilisateur.ipPending){
+                                    updates.registrationIp = newIp;
+                                    updates.ipPending = false;
+                                }
+                                if(newFp && nouvelUtilisateur.fingerprintPending && newFp !== 'fp_unknown'){
+                                    updates.fingerprint = newFp;
+                                    updates.fingerprintPending = false;
+                                }
+                                if(Object.keys(updates).length > 0){
+                                    // Update local + Supabase
+                                    Object.assign(nouvelUtilisateur, updates);
+                                    try { window._sbWrite('ecodila_current_user', nouvelUtilisateur); } catch(e){}
+                                    try {
+                                        _sb.from('users').update(updates).eq('id', nouvelUtilisateur.id).then(function(r){
+                                            if(r && !r.error){
+                                                console.log('[EcoDila] ✓ IP/FP récupérés en arrière-plan:', updates);
+                                            }
+                                        });
+                                    } catch(e){}
+                                    return; // Succès, stop le retry
+                                }
+                                // Si toujours pas, continuer
+                                if(attempts < maxAttempts){
+                                    setTimeout(tryRecover, 30000);
+                                }
+                            }).catch(function(){
+                                if(attempts < maxAttempts){
+                                    setTimeout(tryRecover, 30000);
+                                }
+                            });
+                        }
+                    };
+                    setTimeout(tryRecover, 5000); // Premier essai après 5s
+                })();
             }
 
             // Nettoyer le tableau local

@@ -9181,6 +9181,48 @@ function analyzeRealUsers() {
   if(noEmail>0) out+='⚠️ **'+noEmail+' sans contact**\n';
   if(dupE>0) out+='✕ **'+dupE+' email(s) en doublon**\n';
   if(!noEmail&&!dupE) out+='✅ Tous les profils sont complets.\n';
+
+  /* ── Analyse IP + Fingerprint (CGNAT-aware) ── */
+  try {
+    var ipGroups = {}, withFp = 0;
+    users.forEach(function(u){
+      if(u.fingerprint) withFp++;
+      var ip = u.registrationIp || u.ip || u.lastIp;
+      if(!ip || ip === 'unknown' || ip === 'admin') return;
+      if(!ipGroups[ip]) ipGroups[ip] = [];
+      ipGroups[ip].push(u);
+    });
+    var realDups = [], cgnatGroups = [], unknownGroups = [];
+    Object.keys(ipGroups).forEach(function(ip){
+      var grp = ipGroups[ip];
+      if(grp.length < 2) return;
+      var fps = grp.map(function(u){ return u.fingerprint; }).filter(Boolean);
+      var uniqueFps = fps.filter(function(v,i,a){ return a.indexOf(v) === i; });
+      if(fps.length >= 2 && uniqueFps.length < fps.length) {
+        realDups.push({ip:ip, count:grp.length});
+      } else if(fps.length >= 2 && uniqueFps.length === fps.length) {
+        cgnatGroups.push({ip:ip, count:grp.length});
+      } else {
+        unknownGroups.push({ip:ip, count:grp.length});
+      }
+    });
+    out += '\n**🔍 Analyse anti-fraude IP + Fingerprint :**\n';
+    out += '- Couverture fingerprint : **' + withFp + '/' + users.length + '** utilisateurs\n';
+    if(realDups.length > 0) {
+      out += '- 🚨 **' + realDups.length + ' vrais doublons** détectés (même IP + même appareil)\n';
+      realDups.slice(0,3).forEach(function(g){ out += '  - IP `' + g.ip + '` : ' + g.count + ' comptes même appareil\n'; });
+    }
+    if(cgnatGroups.length > 0) {
+      out += '- ✓ **' + cgnatGroups.length + ' IP partagées légitimes** (CGNAT/wifi public, appareils différents)\n';
+    }
+    if(unknownGroups.length > 0) {
+      out += '- ⚠️ **' + unknownGroups.length + ' IP partagées sans fingerprint** (à vérifier manuellement)\n';
+    }
+    if(realDups.length === 0 && cgnatGroups.length === 0 && unknownGroups.length === 0) {
+      out += '- ✅ Aucune IP partagée détectée\n';
+    }
+  } catch(e){}
+
   out+='\n**Aperçu (5 premiers):**\n';
   users.slice(0,5).forEach(function(u,i){
     out+=(i+1)+'. **'+(u.nom||u.name||u.prenom||'?')+'** — '+(u.email||u.telephone||'—')+' — '+(u.role||u.type||'?')+'\n';
@@ -9602,6 +9644,50 @@ function computeRealScore(d) {
     if (dup > 0) { score -= 10; issues.push({sev:'err', msg: dup + ' email(s) en doublon dans les utilisateurs', fixKey: 'duplicate-emails'}); }
     var noRole = d.users.filter(function(u){ return !u.role && !u.type && !u.statut; });
     if (noRole.length > 0) { score -= 5; issues.push({sev:'warn', msg: noRole.length + ' utilisateur(s) sans rôle défini', fixKey: null}); }
+
+    /* ── Analyse IP + Fingerprint (CGNAT-aware) ──
+       En Côte d'Ivoire, le CGNAT mobile fait partager les mêmes IP publiques
+       entre des milliers d'utilisateurs. On distingue donc :
+       - IPs avec MÊME fingerprint = vrai doublon (suspect, dégrade le score)
+       - IPs avec fingerprints DIFFÉRENTS = CGNAT légitime (info seulement)
+       - IPs sans fingerprint enregistré = à vérifier (info)
+    */
+    try {
+      var ipGroups = {};
+      d.users.forEach(function(u){
+        var ip = u.registrationIp || u.ip || u.lastIp;
+        if(!ip || ip === 'unknown' || ip === 'admin') return;
+        if(!ipGroups[ip]) ipGroups[ip] = [];
+        ipGroups[ip].push(u);
+      });
+      var realDups = 0, cgnatGroups = 0, unknownGroups = 0;
+      Object.keys(ipGroups).forEach(function(ip){
+        var grp = ipGroups[ip];
+        if(grp.length < 2) return;
+        var fps = grp.map(function(u){ return u.fingerprint; }).filter(Boolean);
+        var uniqueFps = fps.filter(function(v,i,a){ return a.indexOf(v) === i; });
+        if(fps.length >= 2 && uniqueFps.length < fps.length) {
+          realDups++;
+        } else if(fps.length >= 2 && uniqueFps.length === fps.length) {
+          cgnatGroups++;
+        } else {
+          unknownGroups++;
+        }
+      });
+      if(realDups > 0) {
+        score -= Math.min(15, realDups * 3);
+        issues.push({sev:'err', msg: realDups + ' groupe(s) IP avec MÊME appareil (vrais doublons)', fixKey: null});
+      }
+      if(cgnatGroups > 0) {
+        // CGNAT légitime → info seulement, pas de pénalité
+        issues.push({sev:'info', msg: cgnatGroups + ' IP partagée(s) avec appareils différents (CGNAT/wifi public légitime)', fixKey: null});
+      }
+      if(unknownGroups > 0) {
+        // Pénalité légère car on ne peut pas vérifier
+        score -= Math.min(5, unknownGroups);
+        issues.push({sev:'warn', msg: unknownGroups + ' IP partagée(s) sans fingerprint — à vérifier', fixKey: null});
+      }
+    } catch(eIP){}
   }
   if (d.has.commissions) {
     var neg = d.commissions.filter(function(c){ return parseFloat(c.montant || c.amount || c.commission || 0) < 0; });

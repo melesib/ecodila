@@ -7439,6 +7439,7 @@ window._sbReload = async function() {
                             Les vrais doublons (même IP + même appareil) restent bloqués.
                         </div>
                         <button onclick="ipUnblockFalsePositives()" style="background:#52b788;color:#fff;border:none;padding:.45rem .9rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:.78rem;font-family:inherit">🔓 Réhabiliter les comptes</button>
+                        <button onclick="ipShowPendingAccounts()" style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.4);padding:.45rem .9rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:.78rem;font-family:inherit;margin-left:.5rem" title="Voir les comptes dont l'IP/FP n'a pas pu être capturé (connexion 2G/3G lente)">⏳ Comptes en attente</button>
                     </div>
                 </div>
             </div>
@@ -24412,6 +24413,31 @@ async function ipRecordCreation(customer) {
     }
 }
 
+// ── Lister les comptes "ipPending" (capture IP/FP en cours pour 2G/3G) ──
+// Permet de comprendre rapidement quels comptes sont en attente.
+window.ipShowPendingAccounts = function(){
+    const customers = adminData.customers || [];
+    const pending = customers.filter(function(c){
+        return c.ipPending || c.fingerprintPending || (!c.registrationIp && !c.fingerprint);
+    });
+    if(!pending.length){
+        showNotification('✅ Aucun compte en attente de capture IP/FP', 'success');
+        return;
+    }
+    var report = pending.map(function(c){
+        return '• ' + (c.nom || c.id) + ' — IP:' + (c.registrationIp || 'pending')
+            + ' / FP:' + (c.fingerprint || 'pending')
+            + ' / connexion:' + (c.connectionSpeed || 'unknown')
+            + ' (créé: ' + (c.dateCreation || c.registrationDate || '?') + ')';
+    }).join('\n');
+    var msg = '⏳ ' + pending.length + ' compte(s) en attente de capture IP/FP :\n\n' + report
+        + '\n\n💡 Ces comptes se sont inscrits sur une connexion lente (2G/3G).'
+        + '\nLeur IP/FP sera capturé automatiquement à leur prochaine connexion.'
+        + '\nLe BO ne les bloquera PAS pour absence d\'IP.';
+    alert(msg);
+    console.log('[IP] Comptes en attente :\n' + report);
+};
+
 // ── Réhabilitation : débloquer les comptes bloqués à tort sur IP partagée ──
 // Cas typique : CGNAT mobile en CI où plusieurs utilisateurs ont la même IP.
 // Cette fonction parcourt tous les comptes bloqués pour fraude IP et les
@@ -24736,26 +24762,38 @@ function ipWhitelistFromPanel(ip) {
 // IMPORTANT : on ne bloque AUTOMATIQUEMENT que les vrais doublons
 // (même IP + même fingerprint). Les IP partagées sans fingerprint match
 // (CGNAT, cybercafés, wifi) sont signalées mais PAS bloquées.
+// On EXCLUT aussi les comptes avec ipPending=true (capture IP en cours
+// car l'utilisateur s'est inscrit sur connexion très lente 2G/3G).
 function _ipPostLoadScan() {
     const groups = _ipGroupByIp();
     let suspCount = 0;
     let autoBlockedCount = 0;
+    let pendingCount = 0;
+
+    // Compter les comptes avec IP pending (à informer l'admin)
+    (adminData.customers || []).forEach(function(c){
+        if(c.ipPending) pendingCount++;
+    });
 
     Object.entries(groups).forEach(([ip, clients]) => {
-        if (ip === 'non-capturee') return; // Ignorer les IPs non capturées
+        if (ip === 'non-capturee') return;
         if (clients.length < 2 || _ipIsWhitelisted(ip)) return;
 
-        // Compter les fingerprints pour détecter vrais doublons vs CGNAT
-        const fps = clients.map(c => c.fingerprint).filter(Boolean);
+        // Filtrer les comptes "ipPending" : leur IP n'est pas encore vérifiée
+        const validClients = clients.filter(function(c){ return !c.ipPending; });
+        if(validClients.length < 2) return; // Pas assez de comptes vérifiés pour suspecter
+
+        // Compter les fingerprints
+        const fps = validClients.map(c => c.fingerprint).filter(function(fp){
+            return fp && fp !== 'fp_unknown';
+        });
         const uniqueFps = fps.filter((v,i,a) => a.indexOf(v) === i);
-        const hasFingerprintData = fps.length > 0;
-        const allSameDevice = hasFingerprintData && uniqueFps.length === 1 && fps.length === clients.length;
+        const allSameDevice = fps.length === validClients.length && uniqueFps.length === 1;
 
         if (allSameDevice) {
             // VRAI DOUBLON : tous les comptes partagent IP + fingerprint
-            // → blocage automatique justifié
             suspCount++;
-            clients.forEach(c => {
+            validClients.forEach(c => {
                 if (!c.bloque) {
                     c.bloque = true;
                     c.suspiciousIp = true;
@@ -24763,11 +24801,9 @@ function _ipPostLoadScan() {
                 }
             });
         } else {
-            // IP partagée mais appareils différents (ou fingerprint manquant)
-            // → SIGNALER seulement, NE PAS bloquer
+            // IP partagée mais appareils différents → SIGNALER seulement
             suspCount++;
-            clients.forEach(c => {
-                // Marquer comme "à surveiller" mais ne pas bloquer
+            validClients.forEach(c => {
                 if (!c.suspiciousIpFlag) c.suspiciousIpFlag = true;
             });
         }
@@ -24776,6 +24812,9 @@ function _ipPostLoadScan() {
     if (autoBlockedCount > 0 || suspCount > 0) _saveCustomers();
     if (autoBlockedCount > 0) {
         console.log('[IP] ' + autoBlockedCount + ' compte(s) auto-bloqués (vrais doublons : même IP + même appareil)');
+    }
+    if (pendingCount > 0) {
+        console.log('[IP] ' + pendingCount + ' compte(s) en attente de capture IP/FP (connexion lente à l\'inscription)');
     }
     const el = document.getElementById('cust-stat-suspicious');
     if (el) el.textContent = suspCount;
@@ -39267,6 +39306,22 @@ function saveRegles(r) { lss(K.REGLES, r); }
    Nouvelles dimensions : vélocité des demandes, similarité des noms,
    pattern de numéro WA, cohérence géographique. ─────────────────── */
 
+/* ── Helper : déterminer si une valeur est une vraie adresse IP ──
+   Filtre les valeurs sentinelles utilisées comme placeholder quand la
+   capture d'IP a échoué : 'site', 'unknown', 'pending', 'non-capturee',
+   'admin' (parrains créés depuis le BO admin). Ces valeurs ne doivent
+   JAMAIS déclencher d'alerte fraude par doublon — elles indiquent
+   simplement l'absence de donnée IP réelle. */
+function _isRealIp(ip){
+  if(!ip || typeof ip !== 'string') return false;
+  var sentinels = ['admin', 'site', 'unknown', 'pending', 'non-capturee', 'non-capturée', 'na', 'n/a'];
+  if(sentinels.indexOf(ip.toLowerCase()) !== -1) return false;
+  if(ip.length < 7) return false;
+  // Doit contenir un point (IPv4) ou deux-points (IPv6)
+  return ip.indexOf('.') !== -1 || ip.indexOf(':') !== -1;
+}
+window._isRealIp = _isRealIp;
+
 function _getDefaultFraudRules() {
   return {
     sameIpParrain:     50,  /* IP déjà utilisée par un parrain actif */
@@ -39298,14 +39353,16 @@ function fraudScore(dem) {
      fait que des milliers d'utilisateurs partagent la même IP publique.
      Donc on ne pénalise QUE si l'IP **et** le fingerprint sont identiques
      (vrai cas de duplicata depuis le même appareil), ou si le fingerprint
-     n'est pas disponible (ancien compte). */
-  var sameIPPar = parrains.filter(function(p){
-    if(!p.ip || p.ip === 'admin' || p.ip !== dem.ip) return false;
+     n'est pas disponible (ancien compte).
+     De plus, on ignore les IP sentinelles ('site', 'unknown', etc.) qui ne
+     sont pas de vraies IP — partager 'site' ne signifie rien. */
+  var sameIPPar = (_isRealIp(dem.ip)) ? parrains.filter(function(p){
+    if(!p.ip || !_isRealIp(p.ip) || p.ip !== dem.ip) return false;
     if(p.statut !== 'Actif') return false;
     /* Si les deux ont un fingerprint, ils doivent matcher pour suspecter */
     if(p.fingerprint && dem.fingerprint && p.fingerprint !== dem.fingerprint) return false;
     return true;
-  });
+  }) : [];
   if(sameIPPar.length > 0) {
     /* Pénalité réduite si pas de fingerprint (incertain) */
     var penaltyMult = (sameIPPar[0].fingerprint && dem.fingerprint && sameIPPar[0].fingerprint === dem.fingerprint) ? 1 : 0.4;
@@ -39328,13 +39385,14 @@ function fraudScore(dem) {
   })) { score -= rules.sameEmailParrain; flags.push('Email déjà parrain'); }
 
   /* ── Règle 4 : ≥2 demandes en attente sur même IP ET même fingerprint ──
-     Si fingerprint disponible, on n'alerte que pour vrai duplicata d'appareil. */
-  var sameIPDem = dems.filter(function(d){
-    if(d.id === dem.id || d.ip !== dem.ip) return false;
+     Si fingerprint disponible, on n'alerte que pour vrai duplicata d'appareil.
+     On ignore aussi les IP sentinelles ('site', etc.). */
+  var sameIPDem = (_isRealIp(dem.ip)) ? dems.filter(function(d){
+    if(d.id === dem.id || !_isRealIp(d.ip) || d.ip !== dem.ip) return false;
     /* Si les deux ont un fingerprint, ils doivent matcher */
     if(d.fingerprint && dem.fingerprint && d.fingerprint !== dem.fingerprint) return false;
     return true;
-  });
+  }) : [];
   if(sameIPDem.length >= 2) {
     var sameDevice = sameIPDem.some(function(d){ return d.fingerprint && dem.fingerprint && d.fingerprint === dem.fingerprint; });
     if(sameDevice) {
@@ -41830,10 +41888,22 @@ function renderFraude() {
      deux niveaux d'alerte :
      - "IP + appareil identiques" → alerte ÉLEVÉ (vrai doublon)
      - "IP partagée appareils différents" → alerte info MOYEN (à vérifier mais pas
-       forcément frauduleux : CGNAT, cybercafé, wifi familial, bureau partagé) */
+       forcément frauduleux : CGNAT, cybercafé, wifi familial, bureau partagé)
+
+     Note : on ignore les valeurs sentinelles ('site', 'unknown', 'pending',
+     'non-capturee', 'admin') qui ne sont PAS de vraies IP — elles indiquent
+     juste que la capture a échoué, pas un partage réel. */
+  var _SENTINEL_IPS = ['admin', 'site', 'unknown', 'pending', 'non-capturee', '', null, undefined];
+  function _isRealIp(ip){
+    if(_SENTINEL_IPS.indexOf(ip) !== -1) return false;
+    // Vérifier que ça ressemble à une vraie IP (au moins un point ou deux-points)
+    if(typeof ip !== 'string' || ip.length < 7) return false;
+    return ip.indexOf('.') !== -1 || ip.indexOf(':') !== -1;
+  }
+
   var ipMap = {};
   parrains.forEach(function(p){
-    if(p.ip && p.ip !== 'admin' && p.statut === 'Actif'){
+    if(p.ip && _isRealIp(p.ip) && p.statut === 'Actif'){
       if(!ipMap[p.ip]) ipMap[p.ip] = [];
       ipMap[p.ip].push(p);
     }
@@ -41935,10 +42005,10 @@ function renderFraude() {
     }
   }
 
-  // Linked accounts by IP
+  // Linked accounts by IP — réutilise le filtre _isRealIp défini plus haut
   var ipMap = {};
   parrains.forEach(function(p){
-    if(p.ip && p.ip !== 'admin') { ipMap[p.ip] = ipMap[p.ip]||[]; ipMap[p.ip].push(p); }
+    if(p.ip && _isRealIp(p.ip)) { ipMap[p.ip] = ipMap[p.ip]||[]; ipMap[p.ip].push(p); }
   });
   var linked = Object.keys(ipMap).filter(function(ip){ return ipMap[ip].length > 1; }).map(function(ip){
     var group = ipMap[ip];
