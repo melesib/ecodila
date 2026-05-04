@@ -1,0 +1,277 @@
+# ════════════════════════════════════════════════════════════════════════════
+# robots.txt — EcoDila marketplace (https://ecodila.com)
+#
+# POLITIQUE OFFICIELLE :
+#   • Indexation moteurs de recherche classiques : AUTORISÉE pour /index.html
+#   • Back-offices (admin, parrain, auditaz) : INTERDITS à TOUS les bots
+#   • Entraînement IA / LLM / scraping de contenu : STRICTEMENT INTERDIT
+#   • Toute reproduction, copie, extraction de données est interdite
+#     sans autorisation écrite préalable de l'éditeur.
+#
+# Voir aussi : /ai.txt, /LICENSE.txt, balises <meta name="robots"> sur chaque page,
+# et headers HTTP X-Robots-Tag (configurés via _headers Netlify).
+#
+# © 2026 EcoDila. Tous droits réservés.
+# ════════════════════════════════════════════════════════════════════════════
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. BOTS IA / LLM TRAINING — BLOCAGE TOTAL DU SITE
+# ─────────────────────────────────────────────────────────────────────────────
+
+# OpenAI / ChatGPT
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: OAI-SearchBot
+Disallow: /
+
+# Anthropic / Claude
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-SearchBot
+Disallow: /
+
+User-agent: Claude-User
+Disallow: /
+
+# Google AI training (Gemini / Bard)
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: GoogleOther
+Disallow: /
+
+User-agent: GoogleOther-Image
+Disallow: /
+
+User-agent: GoogleOther-Video
+Disallow: /
+
+# Perplexity AI
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Perplexity-User
+Disallow: /
+
+# Common Crawl (utilisé par presque tous les LLM)
+User-agent: CCBot
+Disallow: /
+
+# ByteDance / TikTok / Doubao
+User-agent: Bytespider
+Disallow: /
+
+# Apple Intelligence
+User-agent: Applebot-Extended
+Disallow: /
+
+# Meta / Facebook AI
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: Meta-ExternalFetcher
+Disallow: /
+
+# Cohere
+User-agent: cohere-ai
+Disallow: /
+
+User-agent: cohere-training-data-crawler
+Disallow: /
+
+# Allen Institute for AI
+User-agent: AI2Bot
+Disallow: /
+
+User-agent: AI2Bot-Dolma
+Disallow: /
+
+# Diffbot
+User-agent: Diffbot
+Disallow: /
+
+# Amazon Bedrock / Alexa AI
+User-agent: Amazonbot
+Disallow: /
+
+# DuckDuckGo AI Assist
+User-agent: DuckAssistBot
+Disallow: /
+
+# Autres bots IA / scraping / data mining
+User-agent: Omgilibot
+Disallow: /
+
+User-agent: Omgili
+Disallow: /
+
+User-agent: Timpibot
+Disallow: /
+
+User-agent: Webzio-Extended
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
+
+User-agent: PanguBot
+Disallow: /
+
+User-agent: ICC-Crawler
+Disallow: /
+
+User-agent: AwarioRssBot
+Disallow: /
+
+User-agent: AwarioSmartBot
+Disallow: /
+
+User-agent: DataForSeoBot
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
+
+User-agent: Scrapy
+Disallow: /
+
+User-agent: magpie-crawler
+Disallow: /
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. BOTS SEO / DATA-MINING COMMERCIAUX — BLOCAGE TOTAL
+# ─────────────────────────────────────────────────────────────────────────────
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: SemrushBot-SA
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
+User-agent: SeekportBot
+Disallow: /
+
+User-agent: serpstatbot
+Disallow: /
+
+User-agent: SiteAuditBot
+Disallow: /
+
+User-agent: BacklinkCrawler
+Disallow: /
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. RÈGLES PAR DÉFAUT (tous les autres User-Agents)
+# ─────────────────────────────────────────────────────────────────────────────
+
+User-agent: *
+Allow: /
+Allow: /?p=
+Allow: /?page=
+Allow: /?ref=
+Allow: /og-image/
+# Back-offices : interdiction stricte
+Disallow: /admin.html
+Disallow: /admin
+Disallow: /admin/
+Disallow: /parrain.html
+Disallow: /parrain
+Disallow: /parrain/
+Disallow: /auditaz.html
+Disallow: /auditaz
+Disallow: /auditaz/
+# Fichiers techniques
+Disallow: /netlify/
+Disallow: /sql/
+Disallow: /*.sql$
+Disallow: /_headers
+Disallow: /netlify.toml
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. BOTS DE RÉSEAUX SOCIAUX (autorisés pour preview de partage)
+# ─────────────────────────────────────────────────────────────────────────────
+
+User-agent: WhatsApp
+Allow: /
+Disallow: /admin.html
+Disallow: /parrain.html
+Disallow: /auditaz.html
+
+User-agent: facebookexternalhit
+Allow: /
+Disallow: /admin.html
+Disallow: /parrain.html
+Disallow: /auditaz.html
+
+User-agent: Twitterbot
+Allow: /
+Disallow: /admin.html
+Disallow: /parrain.html
+Disallow: /auditaz.html
+
+User-agent: LinkedInBot
+Allow: /
+Disallow: /admin.html
+Disallow: /parrain.html
+Disallow: /auditaz.html
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. MOTEURS DE RECHERCHE PRINCIPAUX (autorisés pour SEO)
+# ─────────────────────────────────────────────────────────────────────────────
+
+User-agent: Googlebot
+Allow: /
+Allow: /?p=
+Allow: /?page=
+Disallow: /admin.html
+Disallow: /parrain.html
+Disallow: /auditaz.html
+Disallow: /netlify/
+Disallow: /sql/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin.html
+Disallow: /parrain.html
+Disallow: /auditaz.html
+Disallow: /netlify/
+Disallow: /sql/
+
+
+# ─── Sitemap & Host ──────────────────────────────────────────────────────────
+Sitemap: https://ecodila.com/sitemap.xml
+Host: ecodila.com

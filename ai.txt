@@ -1,0 +1,112 @@
+# ai.txt — EcoDila AI Usage Policy
+# Standard: https://site.spawning.ai/ai-txt/
+# Last updated: 2026-05-04
+# Contact: contact@ecodila.com
+#
+# ─────────────────────────────────────────────────────────────────────
+# POLICY — ENGLISH
+# ─────────────────────────────────────────────────────────────────────
+# All content on https://ecodila.com (HTML, CSS, JavaScript, images,
+# text, data, design, brand assets, source code) is the exclusive
+# property of EcoDila and is protected by copyright law.
+#
+# The use of this content for any of the following purposes is
+# STRICTLY PROHIBITED without a prior written license from EcoDila:
+#
+#   1. Training, fine-tuning or evaluation of any AI / ML / LLM model
+#   2. Generative AI input (RAG, embeddings, vector databases)
+#   3. Automated scraping, crawling or content extraction
+#   4. Reproduction, copying or republication (full or partial)
+#   5. Reverse engineering of the design, UX or code structure
+#   6. Indexing in any commercial dataset (CommonCrawl, LAION, etc.)
+#
+# Disregarding this policy may result in legal action under
+# applicable copyright, database rights and unfair competition laws.
+#
+# ─────────────────────────────────────────────────────────────────────
+# POLITIQUE — FRANÇAIS
+# ─────────────────────────────────────────────────────────────────────
+# L'ensemble du contenu de https://ecodila.com (HTML, CSS, JavaScript,
+# images, textes, données, design, marque, code source) est la propriété
+# exclusive d'EcoDila et est protégé par le droit d'auteur.
+#
+# L'utilisation de ce contenu aux fins suivantes est STRICTEMENT INTERDITE
+# sans licence écrite préalable d'EcoDila :
+#
+#   1. Entraînement, fine-tuning ou évaluation de tout modèle IA / LLM
+#   2. Alimentation d'IA générative (RAG, embeddings, bases vectorielles)
+#   3. Scraping automatisé, crawling, extraction de contenu
+#   4. Reproduction, copie, republication (totale ou partielle)
+#   5. Rétro-ingénierie du design, de l'UX ou de la structure du code
+#   6. Indexation dans tout dataset commercial (CommonCrawl, LAION, etc.)
+#
+# Le non-respect de cette politique pourra donner lieu à des poursuites
+# judiciaires sur les fondements du droit d'auteur, du droit sui generis
+# des bases de données et de la concurrence déloyale.
+#
+# ─────────────────────────────────────────────────────────────────────
+# MACHINE-READABLE OPT-OUT (Spawning AI format)
+# ─────────────────────────────────────────────────────────────────────
+
+User-Agent: *
+Disallow: /
+
+# Per-vendor explicit opt-out
+User-Agent: GPTBot
+Disallow: /
+
+User-Agent: ChatGPT-User
+Disallow: /
+
+User-Agent: OAI-SearchBot
+Disallow: /
+
+User-Agent: ClaudeBot
+Disallow: /
+
+User-Agent: anthropic-ai
+Disallow: /
+
+User-Agent: Claude-Web
+Disallow: /
+
+User-Agent: Google-Extended
+Disallow: /
+
+User-Agent: PerplexityBot
+Disallow: /
+
+User-Agent: CCBot
+Disallow: /
+
+User-Agent: Bytespider
+Disallow: /
+
+User-Agent: Applebot-Extended
+Disallow: /
+
+User-Agent: FacebookBot
+Disallow: /
+
+User-Agent: Meta-ExternalAgent
+Disallow: /
+
+User-Agent: cohere-ai
+Disallow: /
+
+User-Agent: AI2Bot
+Disallow: /
+
+User-Agent: Diffbot
+Disallow: /
+
+User-Agent: Amazonbot
+Disallow: /
+
+User-Agent: Omgilibot
+Disallow: /
+
+User-Agent: ImagesiftBot
+Disallow: /
+
+# © 2026 EcoDila. All rights reserved. Tous droits réservés.

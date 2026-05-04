@@ -1,0 +1,87 @@
+/*
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=(self), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  X-DNS-Prefetch-Control: off
+  X-Permitted-Cross-Domain-Policies: none
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-site
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.anthropic.com https://get.geojs.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https://*.supabase.co https://api.anthropic.com https://wa.me https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.ipify.org https://api64.ipify.org https://api.my-ip.io https://ipapi.co https://freeipapi.com https://get.geojs.io https://*.netlify.app; frame-ancestors 'self' https://*.netlify.app; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests
+  X-Robots-Tag: noai, noimageai
+  X-Copyright: (c) 2026 EcoDila. Tous droits reserves. AI training and scraping prohibited. See /LICENSE.txt and /ai.txt
+  Link: </ai.txt>; rel="ai-policy", </LICENSE.txt>; rel="license"
+
+# ════════════════════════════════════════════════════════════════════
+# BACK-OFFICES — BLOCAGE TOTAL : noindex + nofollow + noai + noarchive
+# ════════════════════════════════════════════════════════════════════
+
+/admin.html
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate, nocache, noai, noimageai
+  Cache-Control: no-store, no-cache, must-revalidate, private
+  Pragma: no-cache
+
+/admin
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate, nocache, noai, noimageai
+  Cache-Control: no-store, no-cache, must-revalidate, private
+
+/parrain.html
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate, nocache, noai, noimageai
+  Cache-Control: no-store, no-cache, must-revalidate, private
+
+/parrain
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate, nocache, noai, noimageai
+  Cache-Control: no-store, no-cache, must-revalidate, private
+
+/auditaz.html
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate, nocache, noai, noimageai
+  Cache-Control: no-store, no-cache, must-revalidate, private
+
+/auditaz
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate, nocache, noai, noimageai
+  Cache-Control: no-store, no-cache, must-revalidate, private
+
+# ════════════════════════════════════════════════════════════════════
+# FICHIERS TECHNIQUES — accès interdit aux bots
+# ════════════════════════════════════════════════════════════════════
+
+/sql/*
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noai, noimageai
+  Cache-Control: no-store, no-cache, must-revalidate, private
+
+/*.sql
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noai, noimageai
+  Cache-Control: no-store, no-cache, must-revalidate, private
+
+/netlify/*
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noai, noimageai
+
+# ════════════════════════════════════════════════════════════════════
+# FICHIERS DE POLITIQUE (lisibles, mais pas indexés comme contenu)
+# ════════════════════════════════════════════════════════════════════
+
+/ai.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=3600
+  X-Robots-Tag: noindex
+
+/LICENSE.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=3600
+  X-Robots-Tag: noindex
+
+/robots.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=3600
+
+# ════════════════════════════════════════════════════════════════════
+# Force UTF-8 sur tous les fichiers HTML
+# ════════════════════════════════════════════════════════════════════
+
+/*.html
+  Content-Type: text/html; charset=utf-8
+
+/
+  Content-Type: text/html; charset=utf-8
