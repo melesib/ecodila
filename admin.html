@@ -27822,8 +27822,13 @@ function loadErrors() {
     let hasChanges = false;
     
     // ── Migration unique v74 : résoudre + purger toutes les erreurs existantes ──
+    // ═══ FIX 2026-05 : DÉSACTIVÉ — cette migration purge les erreurs à chaque
+    // login en navigation privée (localStorage vide), ce qui empêche de voir
+    // les erreurs remontées par les clients via settings.ecodila_error_log_recent.
+    // La migration historique a déjà été exécutée par tous les admins en
+    // navigation normale en 2025. Plus aucune utilité.
     var migKey = '_eco_err_migrated_v75';
-    if (!localStorage.getItem(migKey) && allErrors.length > 0) {
+    if (false && !localStorage.getItem(migKey) && allErrors.length > 0) {
         console.log('🔄 Migration v74 : purge de ' + allErrors.length + ' erreurs existantes');
         // Purger aussi en base Supabase (batch)
         allErrors.forEach(function(e){ 
