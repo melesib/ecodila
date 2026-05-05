@@ -14748,6 +14748,32 @@ async function loadData() {
             if(typeof _mergeBoFields === 'function') _mergeBoFields(boStgs);
         } catch(me){ console.warn('[BO] ⚠️ Merge error:', me); }
 
+        // ═══ FIX 2026-05 #A-admin (loadData) : charger les erreurs depuis settings ═══
+        // loadData() est la fonction réellement appelée au login admin (via _sbReload).
+        // Sans ça, window._sbErrorLogs reste vide même si les erreurs sont en Supabase.
+        try {
+            var errResp = await _sb.from('settings')
+                .select('value')
+                .eq('key', 'ecodila_error_log_recent')
+                .limit(1);
+            var fallbackErrs = (errResp.data && errResp.data[0] && errResp.data[0].value) || [];
+            if (Array.isArray(fallbackErrs) && fallbackErrs.length > 0) {
+                window._sbErrorLogs = fallbackErrs.sort(function(a,b){
+                    var ta = a.created_at || a.timestamp || 0;
+                    var tb = b.created_at || b.timestamp || 0;
+                    return new Date(tb).getTime() - new Date(ta).getTime();
+                }).slice(0, 500);
+                console.log('[Admin loadData] ✅ Erreurs chargées depuis settings: ' + window._sbErrorLogs.length);
+            } else {
+                window._sbErrorLogs = window._sbErrorLogs || [];
+                console.log('[Admin loadData] Settings.error_log_recent vide ou absent');
+            }
+        } catch(errLoad) {
+            console.warn('[Admin loadData] Erreur chargement error_log_recent:', errLoad && errLoad.message);
+            window._sbErrorLogs = window._sbErrorLogs || [];
+        }
+        // ═══ FIN FIX A-admin (loadData) ═══
+
     } catch(err) {
         console.error('[EcoDila] ❌ Erreur chargement Supabase:', err);
         // Données vides en cas d'erreur
