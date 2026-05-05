@@ -25595,6 +25595,25 @@ function _cmRenderActivity(c, orders, trocs, negs) {
     let siteEvents = [];
     try { siteEvents = (window._sbRead(key) || []); } catch(_e) {}
 
+    // ═══ FIX 2026-05 #D : compléter avec les évènements Supabase (settings) ═══
+    // Avant : on ne lisait que le localStorage admin, qui ne contient PAS l'activité
+    // du client (lui écrit son propre localStorage chez lui). Maintenant le client
+    // pousse aussi vers settings.ecodila_user_activity_<id> → on les fusionne ici.
+    try {
+        if (window._sbAllSettings && typeof window._sbAllSettings === 'object') {
+            var _supaEvents = window._sbAllSettings[key];
+            if (Array.isArray(_supaEvents) && _supaEvents.length > 0) {
+                // Fusion sans doublons (par ts) — supabase prioritaire (plus récent)
+                var _seen = {};
+                _supaEvents.forEach(function(e){ if(e && e.ts) _seen[e.ts] = true; });
+                var _localOnly = (siteEvents || []).filter(function(e){ return !(e && e.ts && _seen[e.ts]); });
+                siteEvents = _supaEvents.concat(_localOnly).sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+                if (siteEvents.length > 500) siteEvents.length = 500;
+            }
+        }
+    } catch(_e) {}
+    // ═══ FIN FIX D-admin ═══
+
     const clicks = siteEvents.map(e => {
         const cfg = _activityConfig[e.type] || { icon:'🖱️', color:'#8892a6', label: e.type, cat:'autre' };
         let detail = '';
@@ -32120,9 +32139,177 @@ async function _auditPhaseRecentFixes(report) {
         _auditLog('! Erreur audit dual account: '+e.message,'warn');
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // FIX 2026-05 #C : 4 nouveaux contrôles fonctionnels (gap qui a manqué les bugs)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // --- 8.X-1 : Queues offline non vidées (commandes/offers/propositions en attente) ---
+    _auditLog('Verification queues offline (commandes/offers en attente de retry)...','check');
+    await _auditSleep(150);
+    try {
+        var queueOrders = (window._sbRead && window._sbRead('ecodila_pending_orders')) || [];
+        var queueOffers = (window._sbRead && window._sbRead('ecodila_pending_offers')) || [];
+        var queueProps  = (window._sbRead && window._sbRead('ecodila_pending_propositions')) || [];
+        var totalQueue = (Array.isArray(queueOrders)?queueOrders.length:0)
+                       + (Array.isArray(queueOffers)?queueOffers.length:0)
+                       + (Array.isArray(queueProps)?queueProps.length:0);
+        _auditLog('Queues offline : ' + totalQueue + ' (' + queueOrders.length + ' cmd / ' + queueOffers.length + ' off / ' + queueProps.length + ' prop)',
+            totalQueue > 5 ? 'error' : totalQueue > 0 ? 'warn' : 'success');
+        if (totalQueue > 0) {
+            report.bugs.push({
+                category: 'Resilience',
+                severity: totalQueue > 5 ? 'high' : 'medium',
+                title: totalQueue + ' transaction(s) non synchronisee(s) avec Supabase',
+                detail: 'Commandes/offers/propositions en attente : '
+                    + queueOrders.length + ' commandes, '
+                    + queueOffers.length + ' offers, '
+                    + queueProps.length + ' propositions. '
+                    + 'Indique des problemes reseau client (2G/3G CI) ou des erreurs Postgrest.',
+                page: 'site',
+                fix: 'Inspecter localStorage cles ecodila_pending_orders / _offers / _propositions. Ajouter un job de re-sync au load qui purge ces queues.',
+                confirmed: true
+            });
+        }
+        report.actions.push({
+            action: 'Queues offline',
+            result: totalQueue > 5 ? 'fail' : totalQueue > 0 ? 'warn' : 'ok',
+            detail: totalQueue + ' element(s) en attente'
+        });
+    } catch(e){ _auditLog('! Erreur audit queues: '+e.message,'warn'); }
+
+    // --- 8.X-2 : Erreurs recentes en base (24h glissantes) ---
+    _auditLog('Verification erreurs recentes (error_logs + settings)...','check');
+    await _auditSleep(150);
+    try {
+        var nowMs = Date.now();
+        var dayMs = 24*60*60*1000;
+        var recentErrors = [];
+        // Source 1 : error_logs (table Supabase)
+        var sbErrs = (window._sbErrorLogs || []);
+        (Array.isArray(sbErrs)?sbErrs:[]).forEach(function(e){
+            var ts = e.created_at ? new Date(e.created_at).getTime() : 0;
+            if (ts && nowMs - ts < dayMs) recentErrors.push(e);
+        });
+        // Source 2 : settings.ecodila_error_log_recent (fallback v82)
+        try {
+            var settingsErrs = (window._sbAllSettings && window._sbAllSettings['ecodila_error_log_recent']) || [];
+            (Array.isArray(settingsErrs)?settingsErrs:[]).forEach(function(e){
+                var ts = e.timestamp ? new Date(e.timestamp).getTime() : 0;
+                if (ts && nowMs - ts < dayMs) recentErrors.push(e);
+            });
+        } catch(_e){}
+
+        var critical = recentErrors.filter(function(e){ return e.severity==='critical'||e.severity==='high'; }).length;
+        _auditLog('Erreurs derniere 24h : ' + recentErrors.length + ' (' + critical + ' high/critical)',
+            critical > 5 ? 'error' : recentErrors.length > 20 ? 'warn' : 'success');
+        if (critical > 5) {
+            report.bugs.push({
+                category: 'Stabilite',
+                severity: 'high',
+                title: critical + ' erreur(s) high/critical en 24h',
+                detail: 'Pic d\'erreurs dans error_logs/settings. Voir module Erreurs & Bugs pour details.',
+                page: 'site',
+                fix: 'Aller sur Errors & Bugs (BO admin) et investiguer les types d\'erreurs les plus frequents.',
+                confirmed: true
+            });
+        }
+        report.actions.push({
+            action: 'Erreurs 24h',
+            result: critical > 5 ? 'fail' : recentErrors.length > 20 ? 'warn' : 'ok',
+            detail: recentErrors.length + ' erreur(s) (' + critical + ' high/crit)'
+        });
+    } catch(e){ _auditLog('! Erreur audit error_logs: '+e.message,'warn'); }
+
+    // --- 8.X-3 : Coherence ecodila_commandes localStorage vs orders Supabase ---
+    _auditLog('Verification coherence commandes locales vs Supabase...','check');
+    await _auditSleep(150);
+    try {
+        var localCmds = (window._sbRead && window._sbRead('ecodila_commandes')) || [];
+        var sbOrders = (adminData && adminData.orders) || [];
+        var nLocal = Array.isArray(localCmds) ? localCmds.length : 0;
+        var nSb    = Array.isArray(sbOrders) ? sbOrders.length : 0;
+        // On regarde uniquement les commandes < 30 jours pour eviter le bruit historique
+        var thirty = 30*24*60*60*1000;
+        var nowT = Date.now();
+        var localRecent = (Array.isArray(localCmds)?localCmds:[]).filter(function(c){
+            var ts = c.timestamp || (c.dateCreation ? new Date(c.dateCreation).getTime() : 0);
+            return ts && (nowT - ts) < thirty;
+        });
+        var sbIds = {};
+        (Array.isArray(sbOrders)?sbOrders:[]).forEach(function(o){ if(o && o.id) sbIds[o.id] = true; });
+        var missingInSb = localRecent.filter(function(c){ return c && c.id && !sbIds[c.id]; });
+        _auditLog('Commandes : ' + nLocal + ' local / ' + nSb + ' Supabase | manquantes en DB (30j) : ' + missingInSb.length,
+            missingInSb.length > 0 ? 'error' : 'success');
+        if (missingInSb.length > 0) {
+            report.bugs.push({
+                category: 'Resilience',
+                severity: missingInSb.length >= 3 ? 'critical' : 'high',
+                title: missingInSb.length + ' commande(s) locale(s) absente(s) de Supabase',
+                detail: 'Commandes presentes dans ecodila_commandes (localStorage) mais pas dans la table orders. '
+                    + 'Sur 30 derniers jours. IDs : '
+                    + missingInSb.slice(0,5).map(function(c){return c.id;}).join(', ')
+                    + (missingInSb.length>5 ? ' (+' + (missingInSb.length-5) + ')' : ''),
+                page: 'site',
+                fix: 'Verifier que la fonction _orderInsertSb (fix 2026-05) est bien deployee. Inspecter ecodila_pending_orders pour retry.',
+                confirmed: true
+            });
+        }
+        report.actions.push({
+            action: 'Coherence commandes local/DB',
+            result: missingInSb.length > 0 ? 'fail' : 'ok',
+            detail: nLocal + ' local, ' + nSb + ' DB, ' + missingInSb.length + ' manquantes'
+        });
+    } catch(e){ _auditLog('! Erreur audit coherence orders: '+e.message,'warn'); }
+
+    // --- 8.X-4 : Schema DB - colonnes critiques existent (visitors.visitorIp, conversations.clientTel) ---
+    _auditLog('Verification schema DB (colonnes critiques)...','check');
+    await _auditSleep(150);
+    try {
+        // Test silencieux : SELECT 1 ligne avec la colonne. Si la colonne n'existe pas,
+        // Postgrest renvoie une erreur 400 avec message "column ... does not exist".
+        var schemaTests = [
+            { table: 'visitors',      column: 'visitorIp', criticalFor: 'Module Purge client' },
+            { table: 'conversations', column: 'clientTel', criticalFor: 'Module Purge client' }
+        ];
+        var schemaErrors = [];
+        for (var s = 0; s < schemaTests.length; s++) {
+            var test = schemaTests[s];
+            try {
+                var resTest = await window._sb.from(test.table).select(test.column).limit(1);
+                if (resTest && resTest.error) {
+                    schemaErrors.push({ test: test, msg: resTest.error.message });
+                }
+            } catch(_e){
+                schemaErrors.push({ test: test, msg: String(_e && _e.message || _e) });
+            }
+        }
+        _auditLog('Schema DB : ' + schemaTests.length + ' tests | ' + schemaErrors.length + ' erreur(s)',
+            schemaErrors.length > 0 ? 'error' : 'success');
+        schemaErrors.forEach(function(se){
+            report.bugs.push({
+                category: 'Schema DB',
+                severity: 'high',
+                title: 'Colonne ' + se.test.table + '.' + se.test.column + ' inexistante ou inaccessible',
+                detail: 'Erreur : ' + se.msg + '. Critique pour : ' + se.test.criticalFor,
+                page: 'BO admin',
+                fix: 'Verifier dans Supabase : la colonne existe-t-elle ? Ajuster le code (admin.html safeDel/safeDelLike).',
+                confirmed: true
+            });
+        });
+        report.actions.push({
+            action: 'Schema DB (colonnes critiques)',
+            result: schemaErrors.length > 0 ? 'fail' : 'ok',
+            detail: schemaTests.length + ' tests, ' + schemaErrors.length + ' erreur(s)'
+        });
+    } catch(e){ _auditLog('! Erreur audit schema DB: '+e.message,'warn'); }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // FIN FIX C
+    // ═══════════════════════════════════════════════════════════════════════
+
     // --- Resume Phase 8 ---
     var phase8Bugs = report.bugs.filter(function(b){
-        return ['Securite','Parrainage','Negociation','Confidentialite','Marges','Support'].indexOf(b.category) > -1;
+        return ['Securite','Parrainage','Negociation','Confidentialite','Marges','Support','Resilience','Stabilite','Schema DB'].indexOf(b.category) > -1;
     }).length;
     _auditLog('Phase 8 terminee : '+phase8Bugs+' anomalies detectees',
         phase8Bugs===0?'success':phase8Bugs<3?'warn':'error');

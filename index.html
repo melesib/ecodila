@@ -8965,6 +8965,17 @@ function sendResetLink(event) {
     }).catch(function(err){
         _resetBtn();
         console.error('[Reset] erreur:', err && err.message);
+        // ═══ FIX 2026-05 #B : remonter à error_logs ═══
+        try {
+          if (typeof window.logUserError === 'function') {
+            var _isTimeout = err && err.message && err.message.indexOf('timeout') === 0;
+            window.logUserError('reset_password_failed',
+              _isTimeout ? 'Reset password : timeout' : 'Reset password : erreur réseau',
+              { telLast8: phoneTel8, error: String(err && err.message || err).substring(0, 200) },
+              'medium'
+            );
+          }
+        } catch(_){}
         var msg = err && err.message && err.message.indexOf('timeout') === 0
             ? '⚠️ Connexion trop lente. Vérifiez votre réseau et réessayez.'
             : '❌ Erreur réseau. Réessayez dans un instant.';
@@ -9929,6 +9940,38 @@ function _trackAction(type, data) {
         });
         if (events.length > 500) events.length = 500;
         window._sbWrite(key, events);
+
+        // ═══ FIX 2026-05 #D : pousser l'activité vers Supabase (BO admin visibility) ═══
+        // Avant : l'activité était stockée UNIQUEMENT dans le localStorage du client.
+        // Le BO admin ne voyait jamais l'activité réelle.
+        // Maintenant : on pousse aussi vers settings.ecodila_user_activity_<userId>
+        // pour que le BO admin puisse les lire.
+        //
+        // Throttling : on ne flush qu'au max 1 fois toutes les 20s par userId
+        // pour éviter de spammer Supabase à chaque clic.
+        // Exception : actions IMPORTANTES (order, troc, offer, login_success, signup) → flush immédiat.
+        try {
+            var _IMPORTANT = ['order','troc','offer','login_success','signup','logout','consent_update'];
+            var _isImportant = _IMPORTANT.indexOf(type) >= 0;
+            window._actFlushTs = window._actFlushTs || {};
+            var _now = Date.now();
+            var _lastFlush = window._actFlushTs[userId] || 0;
+            var _shouldFlush = _isImportant || (_now - _lastFlush > 20000);
+            if (_shouldFlush && window._sb && typeof window._sb.from === 'function') {
+                window._actFlushTs[userId] = _now;
+                // On flush les 100 derniers évènements (assez pour activité récente)
+                var _toFlush = events.slice(0, 100);
+                var _wrap = (typeof window._withTimeout === 'function')
+                    ? function(p){ return window._withTimeout(p, 8000, 'activity-flush'); }
+                    : function(p){ return Promise.resolve(p); };
+                _wrap(window._sb.from('settings').upsert({
+                    key: 'ecodila_user_activity_' + userId,
+                    value: _toFlush,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' })).then(function(){}, function(){});
+            }
+        } catch(_e) {}
+        // ═══ FIN FIX D ═══
     } catch(_e) {}
 }
 
@@ -10495,6 +10538,17 @@ function connexion(e) {
         }).catch(function(err){
             // Timeout / erreur réseau sur le SELECT login → feedback clair
             console.error('[Login] Select users error:', err && err.message);
+            // ═══ FIX 2026-05 #B : remonter à error_logs (vrai signal client) ═══
+            try {
+              if (typeof window.logUserError === 'function') {
+                var _isTimeout = err && err.message && err.message.indexOf('timeout') === 0;
+                window.logUserError('login_select_failed',
+                  _isTimeout ? 'Login : timeout sur SELECT users' : 'Login : erreur réseau SELECT users',
+                  { telLast8: _loginTel8, error: String(err && err.message || err).substring(0, 200) },
+                  _isTimeout ? 'medium' : 'high'
+                );
+              }
+            } catch(_){}
             var msg = err && err.message && err.message.indexOf('timeout') === 0
                 ? '⚠️ Connexion trop lente. Vérifiez votre réseau et réessayez.'
                 : '❌ Erreur réseau. Réessayez dans un instant.';
@@ -24491,6 +24545,16 @@ function _submitOfferContinue(prix, nom, tel){
       console.log('💾 Offer créé dans Supabase:', offer.id);
     }).catch(function(err){
       console.warn('[Offer] échec INSERT → queue offline:', err && err.message);
+      // ═══ FIX 2026-05 #B : remonter à error_logs ═══
+      try {
+        if (typeof window.logUserError === 'function') {
+          window.logUserError('offer_insert_failed',
+            'Offre non insérée en DB (réseau/timeout)',
+            { offerId: offerForDB.id, error: String(err && err.message || err).substring(0, 200), queued: true },
+            'high'
+          );
+        }
+      } catch(_){}
       try {
         var _q = window._sbRead('ecodila_pending_offers') || [];
         if(!Array.isArray(_q)) _q = [];
@@ -24516,6 +24580,16 @@ function _submitOfferContinue(prix, nom, tel){
       console.log('💾 Proposition créée dans Supabase:', offer.id);
     }).catch(function(err){
       console.warn('[Proposition] échec INSERT → queue offline:', err && err.message);
+      // ═══ FIX 2026-05 #B : remonter à error_logs ═══
+      try {
+        if (typeof window.logUserError === 'function') {
+          window.logUserError('proposition_insert_failed',
+            'Proposition non insérée en DB (réseau/timeout)',
+            { propId: offerForDB.id, error: String(err && err.message || err).substring(0, 200), queued: true },
+            'high'
+          );
+        }
+      } catch(_){}
       try {
         var _q = window._sbRead('ecodila_pending_propositions') || [];
         if(!Array.isArray(_q)) _q = [];
@@ -27691,6 +27765,16 @@ function submitBuy(){
       }).catch(function(err){
         // Échec réseau ou DB → queue locale pour retry plus tard
         console.warn('[Order] échec INSERT → queue offline:', err && err.message);
+        // ═══ FIX 2026-05 #B : remonter aussi cet échec dans error_logs (BO admin visibility) ═══
+        try {
+          if (typeof window.logUserError === 'function') {
+            window.logUserError('order_insert_failed',
+              'Commande non insérée en DB (réseau/timeout)',
+              { orderId: orderForDB.id, error: String(err && err.message || err).substring(0, 200), queued: true },
+              'high'
+            );
+          }
+        } catch(_){}
         try {
           var _q = window._sbRead('ecodila_pending_orders') || [];
           if(!Array.isArray(_q)) _q = [];
@@ -33951,6 +34035,56 @@ window._promoBarClick=function(){
 
         window._sbWrite('ecodila_error_log', errorLog);
         console.debug('[EcoDila] Erreur enregistrée:', error.type, '|', error.message);
+
+        // ═══ FIX 2026-05 #A : pousser l'erreur vers Supabase (visibilité BO admin) ═══
+        // Sans ça, le BO admin lit error_logs (Supabase) mais cette table reste vide
+        // car le client ne logue qu'en localStorage chez lui.
+        // Stratégie : best-effort sur error_logs ; fallback settings si schéma incompatible.
+        try {
+            if (window._sb && typeof window._sb.from === 'function') {
+                // Construire un payload minimal et compatible avec n'importe quel schéma.
+                // On stringify les champs complexes pour éviter les erreurs de typage.
+                var _logRow = {
+                    id: error.id,
+                    type: error.type || 'unknown',
+                    severity: error.severity || 'medium',
+                    message: String(error.message || '').substring(0, 500),
+                    source: error.source || error.action || '',
+                    page: error.page || '',
+                    user_id: error.userId || null,
+                    user_name: error.userName || null,
+                    user_agent: (error.userAgent || '').substring(0, 200),
+                    stack: String(error.stack || '').substring(0, 2000),
+                    details: typeof error.details === 'string' ? error.details : JSON.stringify(error.details || {}),
+                    created_at: error.timestamp,
+                    resolved: false
+                };
+                // 1. Tenter INSERT direct dans error_logs (fire-and-forget, ne bloque rien)
+                var _wrap = (typeof window._withTimeout === 'function')
+                    ? function(p){ return window._withTimeout(p, 8000, 'errlog-insert'); }
+                    : function(p){ return Promise.resolve(p); };
+                _wrap(window._sb.from('error_logs').insert(_logRow)).then(function(r){
+                    if (r && r.error) {
+                        // Schéma incompatible → fallback dans settings (clé ecodila_error_log_recent)
+                        // On garde uniquement les 50 dernières erreurs pour ne pas exploser settings
+                        try {
+                            var _recent = errorLog.slice(0, 50);
+                            window._sb.from('settings').upsert({
+                                key: 'ecodila_error_log_recent',
+                                value: _recent,
+                                updated_at: new Date().toISOString()
+                            }, { onConflict: 'key' }).then(function(){}, function(){});
+                        } catch (e) {}
+                    }
+                }).catch(function(){
+                    // Réseau coupé : on a déjà la copie en localStorage côté client.
+                    // Pas de queue pour les erreurs (volume potentiellement gros).
+                });
+            }
+        } catch (e) {
+            console.debug('[EcoDila] logError → Supabase non envoyé:', e && e.message);
+        }
+        // ═══ FIN FIX A ═══
 
         // Incrémenter le compteur d'erreurs non résolues
         updateErrorCount();
