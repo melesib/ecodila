@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <!-- ════════════════════════════════════════════════════════════════════
      ANTI-IA / ANTI-COPIE — Back-office privé
      Bloque indexation, scraping, entraînement IA
@@ -45,6 +43,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <meta name="theme-color" content="#000000">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Djassa EcoDila — Espace Parrain</title>
 <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -7052,12 +7052,18 @@ async function doLogin(){
 
   /* ── Recharger les parrains depuis Supabase (données fraîches pour le login)
      Avec timeout 12s : si la 3G coupe, on continue avec le cache local. ── */
+  var _refreshOk = false;
   try {
     var _freshR = await window._withTimeout(
       _sb.from('parrains').select('*'),
       12000, 'parrain-login-select'
     );
-    if(_freshR && _freshR.data && _freshR.data.length > 0) window._d.parrains = _freshR.data;
+    if(_freshR && _freshR.data && _freshR.data.length > 0) {
+      window._d.parrains = _freshR.data;
+      _refreshOk = true;
+      // 🆕 FIX 2026-05 : MAJ aussi le cache localStorage pour cohérence avec _lsGet plus bas
+      try { _lsSet(_SK.PARS, _freshR.data); } catch(e){}
+    }
   } catch(e){
     console.warn('[Djassa] ⚠️ Refresh parrains (on continue avec cache):', e.message);
     // Si timeout ET cache vide → vraiment pas de chance, on refuse proprement
@@ -7069,7 +7075,12 @@ async function doLogin(){
     // Sinon : continuer avec le cache local (meilleur que rien)
   }
 
-  const pars = _lsGet(_SK.PARS) || [];
+  // 🆕 FIX 2026-05 : utiliser les données fraîches Supabase plutôt que le cache _lsGet
+  // (le cache pouvait être périmé même après refresh : utilisateur sur autre appareil
+  // ou compte tout juste créé/débloqué côté admin)
+  const pars = (_refreshOk && window._d.parrains && window._d.parrains.length > 0)
+    ? window._d.parrains
+    : (_lsGet(_SK.PARS) || []);
 
   /* ── Vérifier si le parrain est bloqué (sauf comptes admin/test) ── */
   const blocked = pars.find(p =>

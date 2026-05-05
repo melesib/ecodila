@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- ════════════════════════════════════════════════════════════════════
      ANTI-IA / ANTI-COPIE — Page publique
      SEO Google/Bing autorisé, IA training & scraping interdits
@@ -45,6 +43,7 @@
 <meta name="msapplication-TileColor" content="#000000">
 <meta name="msapplication-TileImage" content="/mstile-150x150.png">
 <meta name="theme-color" content="#000000">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="LiHSfl7YCc3fDweA2e9EkXf_uN3uyjQi0RBLXQgMEmk" />
 <title>EcoDila — Achetez, Troquez & Négociez vos appareils en Côte d'Ivoire</title>
 <meta name="description" content="EcoDila, la marketplace #1 d'appareils reconditionnés en Côte d'Ivoire. Smartphones, TV, ordinateurs, drones. Achat, troc et négociation. Garantie 3 mois, livraison Abidjan, paiement à la livraison. Devenez parrain et gagnez 5 à 10% de commissions.">
@@ -8888,33 +8887,93 @@ function sendResetLink(event) {
     if (!phone) { showToast('❌ Veuillez saisir votre numéro de téléphone'); return; }
 
     const phoneNormalized = normaliserTelephone(phone);
+    const phoneTel8 = (phoneNormalized || '').replace(/[^0-9]/g, '').slice(-8);
 
-    // Vérifier si l'utilisateur existe (compte client)
-    const users = (window._sbRead('ecodila_users') || []);
-    const user = users.find(u => u.telephone === phoneNormalized);
-
-    if (!user) {
-        showToast('❌ Aucun compte trouvé avec ce numéro');
-        return;
-    }
-
-    // 🆕 Détecter si l'utilisateur est aussi un parrain
-    var isParrain = false;
-    var parrainInfo = null;
+    // Désactiver le bouton pendant la recherche
+    var _btn = null;
     try {
-      var pars = (window._sbRead('ecodila_parrains_v1') || []);
-      var phoneTel8 = (phoneNormalized || '').replace(/[^0-9]/g, '').slice(-8);
-      parrainInfo = pars.find(function(p){
-        if(!p) return false;
-        var pTel = (p.tel || p.telephone || '').replace(/[^0-9]/g, '').slice(-8);
-        return pTel && pTel === phoneTel8;
-      });
-      isParrain = !!parrainInfo;
-    } catch(e){ console.warn('[reset] détection parrain erreur:', e); }
+        _btn = (event && event.target && event.target.querySelector)
+            ? event.target.querySelector('button[type="submit"]') : null;
+        if(!_btn) _btn = document.querySelector('#forgot-password-form button[type="submit"]');
+    } catch(e){}
+    var _origLabel = _btn ? _btn.textContent : '';
+    if(_btn){ _btn.disabled = true; _btn.textContent = '⏳ Recherche du compte...'; }
+    var _resetBtn = function(){
+        if(_btn){ _btn.disabled = false; _btn.textContent = _origLabel; }
+    };
 
-    // 🆕 Type de compte clair
-    var compteType = isParrain ? 'CLIENT + PARRAIN' : 'CLIENT';
-    var typeIcon = isParrain ? '👤+🤝' : '👤';
+    // Helper: requête avec timeout, avec 1 retry si résultats vides
+    var _userQuery = function(){
+        return window._withTimeout(
+            _sb.from('users').select('*').like('telephone', '%'+phoneTel8+'%'),
+            20000, 'reset-select-users'
+        );
+    };
+    var _parrainQuery = function(){
+        return window._withTimeout(
+            _sb.from('parrains').select('*').like('telephone', '%'+phoneTel8+'%'),
+            20000, 'reset-select-parrains'
+        ).catch(function(){ return { data: [] }; }); // table parrains optionnelle
+    };
+
+    // Chercher le user dans Supabase + retry si vide
+    _userQuery().then(function(uRes){
+        var users = (uRes && uRes.data) ? uRes.data : [];
+        if (users.length === 0 && !(uRes && uRes.error)) {
+            console.warn('[Reset] Résultats vides, retry dans 800ms (réseau instable ?)');
+            if(_btn) _btn.textContent = '⏳ Connexion lente, réessai...';
+            return new Promise(function(r){ setTimeout(r, 800); }).then(_userQuery);
+        }
+        return uRes;
+    }).then(function(uRes){
+        var users = (uRes && uRes.data) ? uRes.data : [];
+        var user = users.find(function(u){
+            return u && (u.telephone === phoneNormalized
+                || ((u.telephone||'').replace(/[^0-9]/g,'').slice(-8) === phoneTel8));
+        });
+
+        if (!user) {
+            _resetBtn();
+            showToast('❌ Aucun compte trouvé avec ce numéro');
+            return;
+        }
+
+        // Aussi détecter si c'est aussi un parrain
+        return _parrainQuery().then(function(pRes){
+            var parrains = (pRes && pRes.data) ? pRes.data : [];
+            var parrainInfo = parrains.find(function(p){
+                if(!p) return false;
+                var pTel = (p.tel || p.telephone || '').replace(/[^0-9]/g, '').slice(-8);
+                return pTel && pTel === phoneTel8;
+            });
+            return { user: user, parrainInfo: parrainInfo || null };
+        });
+    }).then(function(found){
+        if (!found) return; // déjà géré (pas de compte)
+        var user = found.user;
+        var parrainInfo = found.parrainInfo;
+        var isParrain = !!parrainInfo;
+
+        // 🆕 Type de compte clair
+        var compteType = isParrain ? 'CLIENT + PARRAIN' : 'CLIENT';
+        var typeIcon = isParrain ? '👤+🤝' : '👤';
+
+        _resetBtn();
+        // ⚠️ Le code suivant attend `user`, `parrainInfo`, `isParrain`, `compteType`,
+        // `typeIcon`, `phone`, `phoneNormalized` — tous définis ici. On ouvre WhatsApp.
+        _sendResetWhatsApp(user, parrainInfo, isParrain, compteType, typeIcon, phone, phoneNormalized);
+    }).catch(function(err){
+        _resetBtn();
+        console.error('[Reset] erreur:', err && err.message);
+        var msg = err && err.message && err.message.indexOf('timeout') === 0
+            ? '⚠️ Connexion trop lente. Vérifiez votre réseau et réessayez.'
+            : '❌ Erreur réseau. Réessayez dans un instant.';
+        showToast(msg);
+    });
+}
+
+// Helper : ouvre WhatsApp avec le message de reset prérempli (extrait pour clarté)
+function _sendResetWhatsApp(user, parrainInfo, isParrain, compteType, typeIcon, phone, phoneNormalized) {
 
     // Message prérempli pour le support EcoDila — clair sur le type de compte
     var waMsg = 'Bonjour EcoDila,\n\n'
@@ -10287,10 +10346,26 @@ function connexion(e) {
         // Interroger DIRECTEMENT Supabase (pas le cache mémoire qui peut être périmé)
         var _loginTel8 = telNormalise.replace(/[^0-9]/g,'').slice(-8);
         _btn.loading('⏳ Connexion...');
-        window._withTimeout(
-            _sb.from('users').select('*').like('telephone', '%'+_loginTel8+'%'),
-            12000, 'login-select'
-        ).then(function(_loginRes){
+
+        // Helper: requête login avec retry automatique sur résultats vides
+        // (sur 2G/3G CI, la requête peut retourner vide à cause d'interruptions
+        // silencieuses — un retry corrige ça avant de conclure "compte introuvable").
+        var _loginQuery = function(){
+            return window._withTimeout(
+                _sb.from('users').select('*').like('telephone', '%'+_loginTel8+'%'),
+                20000, 'login-select'
+            );
+        };
+        _loginQuery().then(function(_loginRes){
+            // Si résultats vides → 1 retry après 800ms (cas connexion instable)
+            var _data = (_loginRes && _loginRes.data) ? _loginRes.data : [];
+            if (_data.length === 0 && !(_loginRes && _loginRes.error)) {
+                console.warn('[Login] Résultats vides, retry dans 800ms (réseau instable ?)');
+                _btn.loading('⏳ Connexion lente, réessai...');
+                return new Promise(function(resolve){ setTimeout(resolve, 800); }).then(_loginQuery);
+            }
+            return _loginRes;
+        }).then(function(_loginRes){
         var utilisateurs = (_loginRes && _loginRes.data) ? _loginRes.data : [];
 
         // Chercher l'utilisateur — PRÉFÉRER le compte actif
@@ -24384,6 +24459,72 @@ function _submitOfferContinue(prix, nom, tel){
   // Backup complet dans settings (préserve etat et tous les champs)
   try { _sb.from('settings').upsert({key:'ecodila_offers_full',value:offers,updated_at:new Date().toISOString()},{onConflict:'key'}); } catch(e){}
 
+  // ═══ FIX 2026-05 : INSERT direct dans offers + propositions (tables source du BO) ═══
+  // Avant : offer/proposition n'existaient que dans settings.ecodila_offers_full.
+  // Maintenant : INSERT dans les vraies tables avec timeout + retry + queue offline.
+  (function _offerInsertSb(){
+    var FIELDS_NOT_IN_DB = ['utilisateur','navigateur','plateforme','langue','url'];
+    var offerForDB = {};
+    Object.keys(offer).forEach(function(k){
+      if(FIELDS_NOT_IN_DB.indexOf(k) >= 0) return;
+      if(k.charAt(0) === '_') return;
+      offerForDB[k] = offer[k];
+    });
+    var _wrap = (typeof window._withTimeout === 'function')
+      ? function(p, lbl){ return window._withTimeout(p, 15000, lbl||'offer-insert'); }
+      : function(p){ return Promise.resolve(p); };
+
+    // 1. Tenter INSERT/upsert dans offers
+    _wrap(_sb.from('offers').upsert(offerForDB, {onConflict:'id'}), 'offers-upsert').then(function(r){
+      if(r && r.error){
+        console.warn('[Offer] upsert error → retry minimal:', r.error.message);
+        var SAFE_FIELDS = ['id','clientNom','clientTel','clientEmail','produit','appareil','marque','modele',
+          'prix','prixPropose','prixOfficiel','total','statut','date','origine','userId','refCode',
+          'couponCode','couponRemise','message','msg','etat','cat','needsAdvisor'];
+        var minimal = {};
+        SAFE_FIELDS.forEach(function(f){ if(offerForDB[f] !== undefined) minimal[f] = offerForDB[f]; });
+        return _wrap(_sb.from('offers').upsert(minimal, {onConflict:'id'}), 'offers-upsert-min').then(function(r2){
+          if(r2 && r2.error) throw new Error('offers upsert failed: ' + r2.error.message);
+          console.log('💾 Offer créé dans Supabase (retry minimal):', offer.id);
+        });
+      }
+      console.log('💾 Offer créé dans Supabase:', offer.id);
+    }).catch(function(err){
+      console.warn('[Offer] échec INSERT → queue offline:', err && err.message);
+      try {
+        var _q = window._sbRead('ecodila_pending_offers') || [];
+        if(!Array.isArray(_q)) _q = [];
+        _q.push({type:'offer', data: offerForDB, queuedAt: Date.now()});
+        window._sbWrite('ecodila_pending_offers', _q);
+      } catch(e){}
+    });
+
+    // 2. Idem pour propositions (clé BO admin)
+    _wrap(_sb.from('propositions').upsert(offerForDB, {onConflict:'id'}), 'propositions-upsert').then(function(r){
+      if(r && r.error){
+        console.warn('[Proposition] upsert error → retry minimal:', r.error.message);
+        var SAFE_FIELDS_P = ['id','clientNom','clientTel','clientEmail','produit','appareil','marque','modele',
+          'prix','prixPropose','prixOfficiel','total','statut','date','origine','userId','refCode',
+          'couponCode','couponRemise','message','msg','etat','cat'];
+        var minimalP = {};
+        SAFE_FIELDS_P.forEach(function(f){ if(offerForDB[f] !== undefined) minimalP[f] = offerForDB[f]; });
+        return _wrap(_sb.from('propositions').upsert(minimalP, {onConflict:'id'}), 'propositions-upsert-min').then(function(r2){
+          if(r2 && r2.error) throw new Error('propositions upsert failed: ' + r2.error.message);
+          console.log('💾 Proposition créée dans Supabase (retry minimal):', offer.id);
+        });
+      }
+      console.log('💾 Proposition créée dans Supabase:', offer.id);
+    }).catch(function(err){
+      console.warn('[Proposition] échec INSERT → queue offline:', err && err.message);
+      try {
+        var _q = window._sbRead('ecodila_pending_propositions') || [];
+        if(!Array.isArray(_q)) _q = [];
+        _q.push({type:'proposition', data: offerForDB, queuedAt: Date.now()});
+        window._sbWrite('ecodila_pending_propositions', _q);
+      } catch(e){}
+    });
+  })();
+
   // Sauvegarde dans ecodila_propositions (clé lue par le back-office)
   const propStock = (window._sbRead('ecodila_propositions') || []);
   // Évite les doublons si rechargement
@@ -27512,6 +27653,52 @@ function submitBuy(){
     window._sbWrite('ecodila_commandes', cmds);
     // Backup complet dans settings (préserve etat)
     try { _sb.from('settings').upsert({key:'ecodila_orders_full',value:cmds.slice(-50),updated_at:new Date().toISOString()},{onConflict:'key'}); } catch(e){}
+
+    // ═══ FIX 2026-05 : INSERT dans la table orders (la source de vérité du BO) ═══
+    // Avant : la commande n'allait que dans settings.ecodila_orders_full (limité 50).
+    // Maintenant : INSERT direct dans orders + timeout + retry + queue offline-first.
+    // Si l'INSERT échoue (réseau lent/coupé), on queue pour retry plus tard mais on
+    // ne bloque pas le client (le toast de succès est gardé).
+    (function _orderInsertSb(){
+      // Filtrer les champs custom non-DB qui peuvent faire planter Postgrest 400
+      var FIELDS_NOT_IN_DB = ['utilisateur', 'navigateur', 'plateforme', 'langue', 'url'];
+      var orderForDB = {};
+      Object.keys(commandeComplete).forEach(function(k){
+        if(FIELDS_NOT_IN_DB.indexOf(k) >= 0) return;
+        if(k.charAt(0) === '_') return;
+        orderForDB[k] = commandeComplete[k];
+      });
+      var _wrap = (typeof window._withTimeout === 'function')
+        ? function(p){ return window._withTimeout(p, 15000, 'order-insert'); }
+        : function(p){ return Promise.resolve(p); };
+      _wrap(_sb.from('orders').upsert(orderForDB, {onConflict:'id'})).then(function(r){
+        if(r && r.error){
+          console.warn('[Order] upsert error → fallback fields min:', r.error.message);
+          var SAFE_FIELDS = ['id','clientNom','clientTel','clientEmail','produit','prix','total',
+            'statut','date','origine','userId','refCode','couponCode','couponRemise',
+            'commune','quartier','villeId','villeNom','adresse','fraisLivraison','delaiLivraison',
+            'message','msg','remarques','etat','cat','appareil','prixPropose','paiement','methode_paiement'];
+          var minimal = {};
+          SAFE_FIELDS.forEach(function(f){ if(orderForDB[f] !== undefined) minimal[f] = orderForDB[f]; });
+          return _wrap(_sb.from('orders').upsert(minimal, {onConflict:'id'})).then(function(r2){
+            if(r2 && r2.error){
+              throw new Error('order upsert minimal failed: ' + r2.error.message);
+            }
+            console.log('💾 Commande créée dans Supabase (retry minimal):', commandeComplete.id);
+          });
+        }
+        console.log('💾 Commande créée dans Supabase:', commandeComplete.id);
+      }).catch(function(err){
+        // Échec réseau ou DB → queue locale pour retry plus tard
+        console.warn('[Order] échec INSERT → queue offline:', err && err.message);
+        try {
+          var _q = window._sbRead('ecodila_pending_orders') || [];
+          if(!Array.isArray(_q)) _q = [];
+          _q.push({type:'order', data: orderForDB, queuedAt: Date.now()});
+          window._sbWrite('ecodila_pending_orders', _q);
+        } catch(e){}
+      });
+    })();
 
     // Décrémenter stock
     if(typeof _decrementStock === 'function') _decrementStock(p.id);
