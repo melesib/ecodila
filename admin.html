@@ -4929,6 +4929,27 @@ window._sbReload = async function() {
     window._sbCommissions = r[13].data || [];
     var stgs = {}; (r[14].data || []).forEach(function(s){ stgs[s.key] = s.value; });
     window._sbAllSettings = stgs;
+    // ═══ FIX 2026-05 #A-admin : fusionner les erreurs du fallback settings ═══
+    // Les erreurs client (logError) écrivent dans settings.ecodila_error_log_recent
+    // car la table error_logs a un schéma incompatible. Sans cette fusion, le BO admin
+    // ne voit JAMAIS les erreurs runtime des clients.
+    try {
+        var fallbackErrs = stgs['ecodila_error_log_recent'] || [];
+        if (Array.isArray(fallbackErrs) && fallbackErrs.length > 0) {
+            var seenIds = {};
+            (window._sbErrorLogs || []).forEach(function(e){ if(e && e.id) seenIds[e.id] = true; });
+            var newErrs = fallbackErrs.filter(function(e){ return e && e.id && !seenIds[e.id]; });
+            window._sbErrorLogs = (window._sbErrorLogs || []).concat(newErrs)
+                .sort(function(a,b){
+                    var ta = a.created_at || a.timestamp || 0;
+                    var tb = b.created_at || b.timestamp || 0;
+                    return new Date(tb).getTime() - new Date(ta).getTime();
+                });
+            if (window._sbErrorLogs.length > 500) window._sbErrorLogs.length = 500;
+            console.log('[Admin] Fusion erreurs : table='+(r[10].data||[]).length+' + settings='+fallbackErrs.length+' = total '+window._sbErrorLogs.length);
+        }
+    } catch(_e){}
+    // ═══ FIN FIX A-admin ═══
     window._sbFournisseurs = stgs.ecodila_fournisseurs || [];
     // ── Merger les champs back-office depuis settings ──
     _mergeBoFields(stgs);
@@ -5197,6 +5218,23 @@ window._sbReload = async function() {
       var stgs = {};
       (r[15].data || []).forEach(function(s){ stgs[s.key] = s.value; });
       window._sbAllSettings = stgs;
+      // ═══ FIX 2026-05 #A-admin (refresh) : fusion erreurs settings ═══
+      try {
+        var fallbackErrs2 = stgs['ecodila_error_log_recent'] || [];
+        if (Array.isArray(fallbackErrs2) && fallbackErrs2.length > 0) {
+          var seenIds2 = {};
+          (window._sbErrorLogs || []).forEach(function(e){ if(e && e.id) seenIds2[e.id] = true; });
+          var newErrs2 = fallbackErrs2.filter(function(e){ return e && e.id && !seenIds2[e.id]; });
+          window._sbErrorLogs = (window._sbErrorLogs || []).concat(newErrs2)
+              .sort(function(a,b){
+                  var ta = a.created_at || a.timestamp || 0;
+                  var tb = b.created_at || b.timestamp || 0;
+                  return new Date(tb).getTime() - new Date(ta).getTime();
+              });
+          if (window._sbErrorLogs.length > 500) window._sbErrorLogs.length = 500;
+        }
+      } catch(_e){}
+      // ═══ FIN FIX A-admin (refresh) ═══
       window._sbFournisseurs = stgs.ecodila_fournisseurs || [];
       _mergeBoFields(stgs);
       try{var _offFull2=(stgs['ecodila_offers_full']||[]);if(_offFull2.length){adminData.negotiations.forEach(function(n){if(!n.etat){var m=_offFull2.find(function(o){return o.id===n.id;});if(m&&m.etat)n.etat=m.etat;}});}}catch(e){}
@@ -5465,6 +5503,23 @@ window._sbReload = async function() {
       window._sbErrorLogs = extra[4].data || [];
       // Migration v74
       /* error_logs migration v75 supprimée */
+      // ═══ FIX 2026-05 #A-admin (extra reload) : fusion erreurs settings ═══
+      try {
+        var fallbackErrs3 = (window._sbAllSettings && window._sbAllSettings['ecodila_error_log_recent']) || [];
+        if (Array.isArray(fallbackErrs3) && fallbackErrs3.length > 0) {
+          var seenIds3 = {};
+          (window._sbErrorLogs || []).forEach(function(e){ if(e && e.id) seenIds3[e.id] = true; });
+          var newErrs3 = fallbackErrs3.filter(function(e){ return e && e.id && !seenIds3[e.id]; });
+          window._sbErrorLogs = (window._sbErrorLogs || []).concat(newErrs3)
+              .sort(function(a,b){
+                  var ta = a.created_at || a.timestamp || 0;
+                  var tb = b.created_at || b.timestamp || 0;
+                  return new Date(tb).getTime() - new Date(ta).getTime();
+              });
+          if (window._sbErrorLogs.length > 500) window._sbErrorLogs.length = 500;
+        }
+      } catch(_e){}
+      // ═══ FIN FIX A-admin (extra reload) ═══
       
     // Charger données parrainage
     try {

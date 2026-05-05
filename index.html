@@ -34036,55 +34036,26 @@ window._promoBarClick=function(){
         window._sbWrite('ecodila_error_log', errorLog);
         console.debug('[EcoDila] Erreur enregistrée:', error.type, '|', error.message);
 
-        // ═══ FIX 2026-05 #A : pousser l'erreur vers Supabase (visibilité BO admin) ═══
-        // Sans ça, le BO admin lit error_logs (Supabase) mais cette table reste vide
-        // car le client ne logue qu'en localStorage chez lui.
-        // Stratégie : best-effort sur error_logs ; fallback settings si schéma incompatible.
+        // ═══ FIX 2026-05 #A-clean : pousser vers settings.ecodila_error_log_recent ═══
+        // (On a abandonné error_logs car son schéma rejette nos colonnes — 400 dans la console.
+        // Settings est le pattern éprouvé du projet et fonctionne sans souci.)
         try {
             if (window._sb && typeof window._sb.from === 'function') {
-                // Construire un payload minimal et compatible avec n'importe quel schéma.
-                // On stringify les champs complexes pour éviter les erreurs de typage.
-                var _logRow = {
-                    id: error.id,
-                    type: error.type || 'unknown',
-                    severity: error.severity || 'medium',
-                    message: String(error.message || '').substring(0, 500),
-                    source: error.source || error.action || '',
-                    page: error.page || '',
-                    user_id: error.userId || null,
-                    user_name: error.userName || null,
-                    user_agent: (error.userAgent || '').substring(0, 200),
-                    stack: String(error.stack || '').substring(0, 2000),
-                    details: typeof error.details === 'string' ? error.details : JSON.stringify(error.details || {}),
-                    created_at: error.timestamp,
-                    resolved: false
-                };
-                // 1. Tenter INSERT direct dans error_logs (fire-and-forget, ne bloque rien)
                 var _wrap = (typeof window._withTimeout === 'function')
-                    ? function(p){ return window._withTimeout(p, 8000, 'errlog-insert'); }
+                    ? function(p){ return window._withTimeout(p, 8000, 'errlog-settings'); }
                     : function(p){ return Promise.resolve(p); };
-                _wrap(window._sb.from('error_logs').insert(_logRow)).then(function(r){
-                    if (r && r.error) {
-                        // Schéma incompatible → fallback dans settings (clé ecodila_error_log_recent)
-                        // On garde uniquement les 50 dernières erreurs pour ne pas exploser settings
-                        try {
-                            var _recent = errorLog.slice(0, 50);
-                            window._sb.from('settings').upsert({
-                                key: 'ecodila_error_log_recent',
-                                value: _recent,
-                                updated_at: new Date().toISOString()
-                            }, { onConflict: 'key' }).then(function(){}, function(){});
-                        } catch (e) {}
-                    }
-                }).catch(function(){
-                    // Réseau coupé : on a déjà la copie en localStorage côté client.
-                    // Pas de queue pour les erreurs (volume potentiellement gros).
-                });
+                // On garde uniquement les 50 dernières erreurs en settings (assez large)
+                var _recent = errorLog.slice(0, 50);
+                _wrap(window._sb.from('settings').upsert({
+                    key: 'ecodila_error_log_recent',
+                    value: _recent,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' })).then(function(){}, function(){});
             }
         } catch (e) {
             console.debug('[EcoDila] logError → Supabase non envoyé:', e && e.message);
         }
-        // ═══ FIN FIX A ═══
+        // ═══ FIN FIX A-clean ═══
 
         // Incrémenter le compteur d'erreurs non résolues
         updateErrorCount();
