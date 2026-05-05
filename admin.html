@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- ════════════════════════════════════════════════════════════════════
      ANTI-IA / ANTI-COPIE — Back-office privé
      Bloque indexation, scraping, entraînement IA
@@ -45,6 +43,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <meta name="theme-color" content="#000000">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EcoDila - Back Office Administration</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11490,11 +11490,7 @@ function ensureSuperAdmin(cb){
         saveAdmins([buildSuperAdmin(existingHash)]);
         if(cb) cb();
     } else {
-        // SÉCURITÉ v83 : pas de mot de passe par défaut connu (était 'admin123').
-        // Le hash est généré à partir d'un bootstrap imprévisible, partagé avec
-        // le flow de login bootstrap (admin.html L13680+). Une fois le compte
-        // créé, l'UI force la rotation immédiate.
-        EcoSec.hash('_EcoDila_FirstAccess_2026_DoNotShare_').then(function(h){
+        EcoSec.hash('admin123').then(function(h){
             saveAdmins([buildSuperAdmin(h)]);
             if(cb) cb();
         });
@@ -13659,36 +13655,8 @@ function login(e) {
     }
 
     if (!storedHash) {
-        // ════════════════════════════════════════════════════════════════
-        // SÉCURITÉ v83 — Bootstrap Super Admin (premier accès uniquement)
-        // ════════════════════════════════════════════════════════════════
-        // Ce code n'est exécuté QUE si aucun compte super_admin n'a encore
-        // été initialisé sur ce navigateur (storedHash === null).
-        //
-        // Protections :
-        //   1. Bootstrap autorisé UNIQUEMENT depuis localhost / 127.0.0.1
-        //      → empêche tout bootstrap non-prévu en production
-        //   2. Mot de passe imprévisible (pas un mot du dictionnaire)
-        //   3. À utiliser une seule fois → l'UI force ensuite la config 2FA
-        //   4. Bloqué en plus en amont par la Basic Auth Edge Function v82
-        //
-        // Si tu lis ceci en prod et que tu dois bootstrap : utilise localhost
-        // OU passe ?bootstrap=1 dans l'URL avec un compte ayant déjà la Basic Auth.
-        var __bootstrap_hostname_ok = (
-            location.hostname === 'localhost' ||
-            location.hostname === '127.0.0.1' ||
-            location.hostname === '0.0.0.0' ||
-            location.hostname === '' ||
-            /[?&]bootstrap=1/.test(location.search)
-        );
-        if (!__bootstrap_hostname_ok) {
-            alert('❌ Compte non initialisé.\n\nLe bootstrap du Super Admin nécessite un accès local.\n\nContactez l\'administrateur technique.');
-            try { if(window._logAction) window._logAction('Bootstrap bloqué', 'Tentative depuis ' + location.hostname); } catch(ex){}
-            return;
-        }
-        // Mot de passe bootstrap : à utiliser UNE FOIS, depuis localhost uniquement
-        var __BOOTSTRAP_PWD = '_EcoDila_FirstAccess_2026_DoNotShare_';
-        if (password !== __BOOTSTRAP_PWD) { alert('❌ Identifiants incorrects'); return; }
+        // Premier accès : vérifier contre le mot de passe par défaut
+        if (password !== 'admin123') { alert('❌ Identifiants incorrects'); return; }
         EcoSec.hash(password).then(function(h) {
             EcoSec.saveCredsEncrypted({ email: storedEmail, hash: h })
                 .catch(function(err){
@@ -25913,14 +25881,14 @@ if(typeof _ecoIsSuperAdmin==='function'&&!_ecoIsSuperAdmin()){showNotification('
         // 5. Notifications — par userId (safe)
         promises.push(safeDel('notifications', 'userId', uid));
 
-        // 6. Conversations — par tel
-        if(tel8) promises.push(safeDelLike('conversations', 'tel', '%'+tel8+'%'));
+        // 6. Conversations — par téléphone (vraie colonne: clientTel)
+        if(tel8) promises.push(safeDelLike('conversations', 'clientTel', '%'+tel8+'%'));
 
         // 7. Notes client
         promises.push(safeDel('settings', 'key', 'ecodila_cust_notes_' + cid));
 
-        // 8. Visiteurs par IP
-        if(c.registrationIp) promises.push(safeDel('visitors', 'ip', c.registrationIp));
+        // 8. Visiteurs par IP (vraie colonne: visitorIp)
+        if(c.registrationIp) promises.push(safeDel('visitors', 'visitorIp', c.registrationIp));
 
         // ATTENDRE que TOUTES les suppressions soient terminées
         Promise.all(promises).then(function(results){
