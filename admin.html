@@ -25503,6 +25503,10 @@ const _activityConfig = {
     troc:          { icon:'🔄', color:'#8b5cf6',  label:'Troc soumis',               cat:'transaction' },
     offer:         { icon:'💬', color:'#06b6d4',  label:'Offre soumise',              cat:'transaction' },
     profil_tab:    { icon:'👤', color:'#8892a6',  label:'Onglet profil',              cat:'navigation' },
+    // ═══ FIX 2026-05 : tentatives de connexion ═══
+    login_attempt: { icon:'🔐', color:'#06b6d4',  label:'Tentative de connexion',     cat:'session' },
+    login_success: { icon:'✅', color:'#00ff88',  label:'Connexion réussie',          cat:'session' },
+    login_failed:  { icon:'❌', color:'#ef4444',  label:'Échec de connexion',         cat:'session' },
 };
 
 function _actUserKey(c) {
@@ -25695,6 +25699,44 @@ function _cmRenderActivity(c, orders, trocs, negs) {
     } catch(_e) {}
     // ═══ FIN FIX D-admin ═══
 
+    // ═══ FIX 2026-05 #login-attempts-admin : afficher les tentatives de login ═══
+    // Charger les tentatives de connexion (par numéro de téléphone) et les ajouter
+    // comme évènements visuels dans l'activité du client.
+    try {
+        var _telLast8 = ((c.telephone || c.tel || '')+'').replace(/[^0-9]/g, '').slice(-8);
+        if (_telLast8 && window._sbAllSettings) {
+            var _attemptKey = 'ecodila_login_attempts_' + _telLast8;
+            var _attempts = window._sbAllSettings[_attemptKey];
+            if (Array.isArray(_attempts) && _attempts.length > 0) {
+                var _attemptEvents = _attempts.map(function(a){
+                    var statusMap = {
+                        'started':            { type: 'login_attempt',  label: 'Tentative de connexion', icon: '🔐' },
+                        'success':            { type: 'login_success',  label: 'Connexion réussie',     icon: '✅' },
+                        'failed_no_account':  { type: 'login_failed',   label: 'Aucun compte trouvé (faux négatif possible)', icon: '❓' },
+                        'failed_timeout':     { type: 'login_failed',   label: 'Timeout - réseau lent', icon: '⏱️' },
+                        'failed_network':     { type: 'login_failed',   label: 'Erreur réseau (Failed to fetch)', icon: '📵' },
+                        'failed_db_error':    { type: 'login_failed',   label: 'Erreur Supabase',       icon: '⚠️' }
+                    };
+                    var info = statusMap[a.status] || { type: 'login_attempt', label: a.status || 'Tentative', icon: '🔐' };
+                    return {
+                        ts: a.ts || 0,
+                        type: info.type,
+                        label: info.label,
+                        detail: a.detail || '',
+                        date: a.date || (a.ts ? new Date(a.ts).toLocaleString('fr-FR') : '—')
+                    };
+                });
+                // Concat à siteEvents (avec dedup par ts)
+                var _seenT = {};
+                siteEvents.forEach(function(e){ if(e && e.ts) _seenT[e.ts] = true; });
+                var _newAttempts = _attemptEvents.filter(function(e){ return e.ts && !_seenT[e.ts]; });
+                siteEvents = (_newAttempts.concat(siteEvents)).sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+                if (siteEvents.length > 500) siteEvents.length = 500;
+            }
+        }
+    } catch(_e) {}
+    // ═══ FIN FIX login-attempts-admin ═══
+
     const clicks = siteEvents.map(e => {
         const cfg = _activityConfig[e.type] || { icon:'🖱️', color:'#8892a6', label: e.type, cat:'autre' };
         let detail = '';
@@ -25707,6 +25749,11 @@ function _cmRenderActivity(c, orders, trocs, negs) {
         else if (e.type === 'troc')     detail = e.action||'';
         else if (e.type === 'offer')    detail = (e.produit||'') + (e.montant ? ' · ' + e.montant.toLocaleString('fr-FR') + ' FCFA' : '');
         else if (e.type === 'profil_tab') detail = e.tab||'';
+        // ═══ FIX 2026-05 : afficher le détail des tentatives de login ═══
+        else if (e.type === 'login_attempt' || e.type === 'login_success' || e.type === 'login_failed') {
+            detail = e.label || e.detail || '';
+            if (e.detail && e.label && e.label !== e.detail) detail = e.label + ' — ' + e.detail;
+        }
         return {
             ts: e.ts || 0,
             icon: cfg.icon, color: cfg.color, cat: cfg.cat,

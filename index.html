@@ -10390,6 +10390,44 @@ function connexion(e) {
         var _loginTel8 = telNormalise.replace(/[^0-9]/g,'').slice(-8);
         _btn.loading('⏳ Connexion...');
 
+        // ═══ FIX 2026-05 #login-attempt : logger la tentative AVANT la requête ═══
+        // Comme ça même si elle échoue (réseau coupé), on a la trace dans Supabase.
+        // Le BO admin pourra la voir dans l'onglet Activité du client.
+        try {
+            var _attemptKey = 'ecodila_login_attempts_' + _loginTel8;
+            (function _logLoginAttempt(status, detail){
+                try {
+                    var attempt = {
+                        ts: Date.now(),
+                        date: new Date().toLocaleString('fr-FR'),
+                        telLast8: _loginTel8,
+                        telFull: telNormalise,
+                        status: status,
+                        detail: detail || '',
+                        userAgent: (navigator.userAgent||'').substring(0, 100)
+                    };
+                    // 1. localStorage (immédiat, marche même hors ligne)
+                    var local = window._sbRead(_attemptKey) || [];
+                    if(!Array.isArray(local)) local = [];
+                    local.unshift(attempt);
+                    if (local.length > 20) local.length = 20;
+                    window._sbWrite(_attemptKey, local);
+                    // 2. Supabase settings (best-effort, fire-and-forget, ignore les erreurs)
+                    if (window._sb && typeof window._sb.from === 'function') {
+                        window._sb.from('settings').upsert({
+                            key: _attemptKey,
+                            value: local,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'key' }).then(function(){}, function(){});
+                    }
+                } catch(_){}
+            });
+            window._logLoginAttempt = _logLoginAttempt;
+            // Logger la tentative MAINTENANT (status: started)
+            _logLoginAttempt('started');
+        } catch(_){}
+        // ═══ FIN FIX login-attempt ═══
+
         // Helper: requête login avec retry automatique sur résultats vides
         // (sur 2G/3G CI, la requête peut retourner vide à cause d'interruptions
         // silencieuses — un retry corrige ça avant de conclure "compte introuvable").
@@ -10400,22 +10438,55 @@ function connexion(e) {
             );
         };
         _loginQuery().then(function(_loginRes){
+            // ═══ FIX 2026-05 #login-error-detect : détecter une erreur Supabase explicite ═══
+            // Avant : erreur Supabase (RLS, schéma, etc.) → utilisateurs = [] → "Aucun compte"
+            // Maintenant : erreur explicite → message clair + log + sortie propre
+            if (_loginRes && _loginRes.error) {
+                var _errMsg = _loginRes.error.message || 'erreur DB';
+                console.warn('[Login] Erreur Supabase explicite:', _errMsg);
+                try {
+                    if (typeof window.logUserError === 'function') {
+                        window.logUserError('login_select_failed',
+                            'Login : erreur Supabase (' + _errMsg + ')',
+                            { telLast8: _loginTel8, error: _errMsg },
+                            'high'
+                        );
+                    }
+                    if (typeof window._logLoginAttempt === 'function') {
+                        window._logLoginAttempt('failed_db_error', _errMsg);
+                    }
+                } catch(_){}
+                _finishError('⚠️ Erreur de connexion. Vérifiez votre réseau et réessayez.');
+                return null; // signal d'arrêt pour le .then suivant
+            }
             // Si résultats vides → 1 retry après 800ms (cas connexion instable)
             var _data = (_loginRes && _loginRes.data) ? _loginRes.data : [];
-            if (_data.length === 0 && !(_loginRes && _loginRes.error)) {
+            if (_data.length === 0) {
                 console.warn('[Login] Résultats vides, retry dans 800ms (réseau instable ?)');
                 _btn.loading('⏳ Connexion lente, réessai...');
                 return new Promise(function(resolve){ setTimeout(resolve, 800); }).then(_loginQuery);
             }
             return _loginRes;
         }).then(function(_loginRes){
+        if (_loginRes === null) return; // déjà géré (erreur Supabase explicite)
         var utilisateurs = (_loginRes && _loginRes.data) ? _loginRes.data : [];
+
+        // ═══ FIX 2026-05 #login-empty-handling : si après retry toujours vide ═══
+        // Avant : "Aucun compte trouvé" (faux négatif possible)
+        // Maintenant : on continue normalement (le find() ci-dessous donnera la même conclusion
+        // si vraiment pas de compte, mais on a fait un retry juste avant donc c'est plus fiable)
 
         // Chercher l'utilisateur — PRÉFÉRER le compte actif
         var user = utilisateurs.find(function(u){ return u.telephone === telNormalise && !u.bloque && !u.supprime && !u.deleted; });
         if(!user) user = utilisateurs.find(function(u){ return u.telephone === telNormalise; });
 
         if(!user) {
+            // ═══ FIX 2026-05 : logger "tentative compte inexistant" ═══
+            try {
+                if (typeof window._logLoginAttempt === 'function') {
+                    window._logLoginAttempt('failed_no_account', 'Aucun compte avec ce numéro après retry');
+                }
+            } catch(_){}
             _finishError('❌ Aucun compte trouvé pour ce numéro');
             return;
         }
@@ -10452,6 +10523,12 @@ function connexion(e) {
             } catch(_e) {}
             window._sbWrite('ecodila_current_user', user);
             _trackAction('login', { methode: 'telephone' });
+            // ═══ FIX 2026-05 : logger le succès dans login_attempts ═══
+            try {
+                if (typeof window._logLoginAttempt === 'function') {
+                    window._logLoginAttempt('success', 'Connexion réussie pour ' + (user.nom || ''));
+                }
+            } catch(_){}
 
             // ═══ RGPD : migrer le journal de consentement anonyme vers ce user ═══
             try {
@@ -10548,10 +10625,16 @@ function connexion(e) {
                   _isTimeout ? 'medium' : 'high'
                 );
               }
+              // ═══ FIX 2026-05 : logger aussi dans login_attempts ═══
+              if (typeof window._logLoginAttempt === 'function') {
+                var _status = err && err.message && err.message.indexOf('timeout') === 0
+                    ? 'failed_timeout' : 'failed_network';
+                window._logLoginAttempt(_status, String(err && err.message || err).substring(0, 200));
+              }
             } catch(_){}
             var msg = err && err.message && err.message.indexOf('timeout') === 0
                 ? '⚠️ Connexion trop lente. Vérifiez votre réseau et réessayez.'
-                : '❌ Erreur réseau. Réessayez dans un instant.';
+                : '❌ Erreur réseau. Vérifiez votre réseau et réessayez.';
             _finishError(msg);
         }); // _sb.from('users') query .then
 
