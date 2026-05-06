@@ -10459,12 +10459,43 @@ function connexion(e) {
                 _finishError('⚠️ Erreur de connexion. Vérifiez votre réseau et réessayez.');
                 return null; // signal d'arrêt pour le .then suivant
             }
-            // Si résultats vides → 1 retry après 800ms (cas connexion instable)
+            // ═══ FIX 2026-05 #login-retry-aggressive (Option C) : 3 retries avec backoff exponentiel ═══
+            // Avant : 1 seul retry après 800ms → souvent insuffisant sur 2G/EDGE CI
+            // Maintenant : jusqu'à 3 retries (800ms, 1600ms, 3200ms = total ~6s d'attente max)
+            // Ça augmente énormément la chance d'attraper un slot fonctionnel sur réseau qui hoquette.
             var _data = (_loginRes && _loginRes.data) ? _loginRes.data : [];
             if (_data.length === 0) {
-                console.warn('[Login] Résultats vides, retry dans 800ms (réseau instable ?)');
-                _btn.loading('⏳ Connexion lente, réessai...');
-                return new Promise(function(resolve){ setTimeout(resolve, 800); }).then(_loginQuery);
+                console.warn('[Login] Résultats vides — démarrage retry agressif (3 tentatives max)');
+                var _retryWithBackoff = function(attemptNum){
+                    if (attemptNum > 3) {
+                        // Tous les retries épuisés → on retourne le dernier résultat vide
+                        console.warn('[Login] Tous les retries épuisés (3 tentatives), résultats vides');
+                        return Promise.resolve(_loginRes);
+                    }
+                    var delay = 800 * Math.pow(2, attemptNum - 1); // 800, 1600, 3200ms
+                    var msgs = ['⏳ Connexion lente, réessai...', '⏳ Réseau instable, encore un essai...', '⏳ Dernière tentative...'];
+                    _btn.loading(msgs[attemptNum - 1] || '⏳ Réessai...');
+                    return new Promise(function(resolve){ setTimeout(resolve, delay); })
+                        .then(_loginQuery)
+                        .then(function(retryRes){
+                            // Si ce retry a une erreur ou des résultats, on retourne
+                            if (retryRes && retryRes.error) return retryRes;
+                            var retryData = (retryRes && retryRes.data) ? retryRes.data : [];
+                            if (retryData.length > 0) {
+                                console.log('[Login] ✅ Retry #' + attemptNum + ' a réussi (' + retryData.length + ' résultats)');
+                                return retryRes;
+                            }
+                            // Toujours vide → essayer le retry suivant
+                            console.warn('[Login] Retry #' + attemptNum + ' toujours vide, on continue...');
+                            return _retryWithBackoff(attemptNum + 1);
+                        })
+                        .catch(function(retryErr){
+                            // Erreur réseau pendant un retry → on continue avec le retry suivant
+                            console.warn('[Login] Retry #' + attemptNum + ' a échoué (' + (retryErr && retryErr.message) + '), on continue...');
+                            return _retryWithBackoff(attemptNum + 1);
+                        });
+                };
+                return _retryWithBackoff(1);
             }
             return _loginRes;
         }).then(function(_loginRes){
