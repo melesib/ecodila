@@ -698,47 +698,60 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
   pointer-events:none;
   z-index:2;
 }
-/* Bouton "Proposer mon prix" — compact, layout horizontal, responsive */
-.nego-btn{
-  background:linear-gradient(135deg,#f97316,#ea580c) !important;
-  color:#fff !important;
-  width:100% !important;
-  margin-top:.35rem;
-  padding:.42rem .5rem !important;
-  border-radius:8px !important;
-  display:flex !important;
-  flex-direction:row !important;
-  align-items:center !important;
-  justify-content:center !important;
-  gap:.3rem !important;
-  font-weight:700 !important;
-  font-size:clamp(.66rem, 1.7vw, .8rem) !important;
-  white-space:nowrap !important;
-  line-height:1 !important;
-  border:none !important;
-  cursor:pointer !important;
-  transition:transform .15s, box-shadow .15s !important;
-  box-shadow:0 2px 8px rgba(249,115,22,.25) !important;
+/* ═══ FIX 2026-05 #nego-btn-mini : bouton compact + specs visibles ═══ */
+.nego-btn-mini{
+  background:linear-gradient(135deg,#f97316,#ea580c);
+  color:#fff;
+  width:100%;
+  margin-top:.3rem;
+  padding:.32rem .5rem;
+  border-radius:7px;
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:center;
+  gap:.25rem;
+  font-weight:700;
+  font-size:.68rem;
+  white-space:nowrap;
+  line-height:1;
+  border:none;
+  cursor:pointer;
+  transition:transform .15s, box-shadow .15s;
+  box-shadow:0 1px 4px rgba(249,115,22,.2);
+  font-family:inherit;
 }
-.nego-btn span:first-child{
-  font-size:1em !important;
-  display:inline-block !important;
-}
-.nego-btn .nego-btn-lbl{
-  font-size:inherit !important;
-  display:inline-block !important;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.nego-btn:active{transform:scale(.97);}
-.nego-btn:hover{box-shadow:0 4px 14px rgba(249,115,22,.4) !important;}
+.nego-btn-mini:active{transform:scale(.96);}
+.nego-btn-mini:hover{box-shadow:0 2px 8px rgba(249,115,22,.35);}
 
-/* Sur mobile (≤480px) : raccourcir le texte du bouton */
-@media (max-width:480px) {
-  .nego-btn .nego-btn-lbl{font-size:.72rem !important;}
-  .nego-badge{padding:.15rem .35rem; font-size:.55rem;}
+/* Caractéristiques produit : affichées entre le titre et le prix */
+.nego-card .nego-specs{
+  font-size:.62rem;
+  color:#64748b;
+  margin:.15rem 0 .25rem;
+  line-height:1.3;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  font-weight:500;
 }
-/* ═══ FIN FIX negocier-responsive ═══ */
+
+/* Sur très petit mobile (≤360px) : ajustements */
+@media (max-width:360px) {
+  .nego-btn-mini{font-size:.62rem; padding:.28rem .4rem;}
+  .nego-card .nego-specs{font-size:.56rem;}
+}
+
+/* Mobile (≤480px) : badge compact */
+@media (max-width:480px) {
+  .nego-badge{padding:.15rem .35rem; font-size:.55rem;}
+  .nego-card .nego-specs{font-size:.58rem;}
+}
+
+/* Ancienne classe .nego-btn — gardée pour compat mais désactivée sur cards */
+.nego-btn{display:none}
+/* ═══ FIN FIX nego-btn-mini ═══ */
 
 /* ── État selector buttons ── */
 .etat-row{display:flex;gap:clamp(.12rem,.6vw,.2rem)}
@@ -17676,11 +17689,21 @@ function _renderNegocier(){
             '<div class="card-content">' +
                 (marque ? '<div class="card-brand">' + marque + '</div>' : '') +
                 '<div class="card-title">' + modele + '</div>' +
+                // ═══ FIX 2026-05 #nego-specs : afficher RAM/ROM/écran ═══
+                (function(){
+                    var specs = [];
+                    if(item.screen) specs.push('📱 ' + item.screen);
+                    if(item.memory) specs.push('💾 ' + item.memory);
+                    if(item.ram) specs.push('🧠 ' + item.ram);
+                    if(!specs.length && item.spec) specs.push(item.spec);
+                    if(!specs.length) return '';
+                    return '<div class="nego-specs">' + specs.join(' • ') + '</div>';
+                })() +
                 '<div class="card-price-row">' +
                     '<div class="card-price">' + prixFmt + '</div>' +
                 '</div>' +
-                '<button class="cab nego-btn" onclick="' + clickAction + '">' +
-                    '<span>💰</span><span class="nego-btn-lbl">Négocier</span>' +
+                '<button class="nego-btn-mini" onclick="' + clickAction + '">' +
+                    '<span style="font-size:.85rem;line-height:1">💰</span><span>Négocier</span>' +
                 '</button>' +
             '</div>' +
         '</div>';
