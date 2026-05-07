@@ -682,6 +682,76 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .card-actions{display:flex;gap:.2rem;justify-content:center}
 .cab{font-weight:700;padding:.18rem 0;border-radius:7px;border:1.5px solid transparent;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.04rem;width:32%;text-align:center}
 .cab span:first-child{font-size:.65rem;display:block;transition:transform .2s}
+
+/* ═══ FIX 2026-05 #negocier-responsive : carte négocier optimisée mobile ═══ */
+/* Badge "💰 NÉGO" sur les cartes — taille adaptée à l'écran */
+.nego-badge{
+  position:absolute;top:.35rem;right:.35rem;
+  background:linear-gradient(135deg,#f97316,#ea580c);
+  color:#fff;
+  padding:.18rem .42rem;
+  border-radius:5px;
+  font-size:clamp(.55rem, 1.6vw, .65rem);
+  font-weight:800;
+  letter-spacing:.3px;
+  box-shadow:0 2px 6px rgba(249,115,22,.4);
+  pointer-events:none;
+  z-index:2;
+}
+/* Bouton "Proposer mon prix" — compact, layout horizontal, responsive */
+.nego-btn{
+  background:linear-gradient(135deg,#f97316,#ea580c) !important;
+  color:#fff !important;
+  width:100% !important;
+  margin-top:.35rem;
+  padding:.42rem .5rem !important;
+  border-radius:8px !important;
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:.3rem !important;
+  font-weight:700 !important;
+  font-size:clamp(.66rem, 1.7vw, .8rem) !important;
+  white-space:nowrap !important;
+  line-height:1 !important;
+  border:none !important;
+  cursor:pointer !important;
+  transition:transform .15s, box-shadow .15s !important;
+  box-shadow:0 2px 8px rgba(249,115,22,.25) !important;
+}
+.nego-btn span:first-child{
+  font-size:1em !important;
+  display:inline-block !important;
+}
+.nego-btn .nego-btn-lbl{
+  font-size:inherit !important;
+  display:inline-block !important;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.nego-btn:active{transform:scale(.97);}
+.nego-btn:hover{box-shadow:0 4px 14px rgba(249,115,22,.4) !important;}
+
+/* Sur mobile (≤480px) : raccourcir le texte du bouton */
+@media (max-width:480px) {
+  .nego-btn .nego-btn-lbl{font-size:.7rem !important;}
+  .nego-badge{padding:.15rem .35rem; font-size:.55rem;}
+}
+/* Sur très petit mobile (≤360px) : remplacer par "Négocier" tout court */
+@media (max-width:360px) {
+  .nego-btn .nego-btn-lbl::before{
+    content:"Négocier";
+  }
+  .nego-btn .nego-btn-lbl{
+    font-size:0; /* cache le texte original */
+  }
+  .nego-btn .nego-btn-lbl::before{
+    font-size:.72rem;
+  }
+}
+/* ═══ FIN FIX negocier-responsive ═══ */
+
 /* ── État selector buttons ── */
 .etat-row{display:flex;gap:clamp(.12rem,.6vw,.2rem)}
 .etat-b{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:.35rem .65rem;border-radius:10px;font-weight:600;font-size:.68rem;font-family:inherit;transition:all .18s ease;white-space:nowrap;line-height:1;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;box-shadow:0 1px 2px rgba(0,0,0,.04);min-width:0}
@@ -3058,12 +3128,40 @@ nav {
     }
     .nav-main::-webkit-scrollbar { display: none; }
     .nav-main .nb {
-        font-size: 0.65rem;
-        padding: 0.32rem 0.45rem;
+        font-size: 0.62rem;
+        padding: 0.3rem 0.4rem;
         white-space: nowrap;
         flex-shrink: 0;
     }
 }
+
+/* ═══ FIX 2026-05 #nav-tablette : 481-700px sur tablette portrait
+   On a 5 boutons (Catalogue, Acheter, Négocier, Troquer, Parrainer)
+   qui ne tiennent pas en plus de la search bar. Solution : réduire
+   la search bar ET les boutons pour tout faire tenir sans scroll.
+   ═══════════════════════════════════════════════════════════════ */
+@media (min-width: 481px) and (max-width: 700px) {
+    .search-bar-container {
+        max-width: 130px;
+        min-width: 50px;
+        flex: 0 1 130px;
+    }
+    .global-search-input {
+        font-size: 0.72rem;
+        padding: 0.35rem 0.4rem 0.35rem 1.6rem;
+    }
+    .global-search-input::placeholder {
+        font-size: 0;  /* masquer le placeholder pour gagner en place */
+    }
+    .nav-main {
+        gap: 0.15rem;
+    }
+    .nav-main .nb {
+        font-size: 0.58rem;
+        padding: 0.28rem 0.32rem;
+    }
+}
+/* ═══ FIN FIX nav-tablette ═══ */
 
 /* ────────────────────────────────────────────────────────────
    ≤ 480px — Mobile / Fold replié (374px)
@@ -17093,10 +17191,10 @@ function _renderNegocier(){
             "}" +
             "openOfferModal('" + item.id + "')";
 
-        return '<div class="card" onclick="' + clickAction + '" style="cursor:pointer">' +
+        return '<div class="card nego-card" onclick="' + clickAction + '" style="cursor:pointer">' +
             '<div class="card-img">' +
                 (imgSrc ? '<img src="' + imgSrc + '" alt="' + modele + '" loading="lazy" style="width:100%;height:100%;object-fit:contain">' : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:2.5rem;color:#cbd5e1">📦</div>') +
-                '<div style="position:absolute;top:.4rem;right:.4rem;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;padding:.25rem .5rem;border-radius:6px;font-size:.65rem;font-weight:800;box-shadow:0 2px 6px rgba(249,115,22,.4)">💰 NÉGO</div>' +
+                '<div class="nego-badge">💰</div>' +
             '</div>' +
             '<div class="card-content">' +
                 (marque ? '<div class="card-brand">' + marque + '</div>' : '') +
@@ -17104,8 +17202,8 @@ function _renderNegocier(){
                 '<div class="card-price-row">' +
                     '<div class="card-price">' + prixFmt + '</div>' +
                 '</div>' +
-                '<button class="cab" onclick="' + clickAction + '" style="background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;width:100%;margin-top:.4rem">' +
-                    '<span>💰</span><span>Proposer mon prix</span>' +
+                '<button class="cab nego-btn" onclick="' + clickAction + '">' +
+                    '<span>💰</span><span class="nego-btn-lbl">Proposer mon prix</span>' +
                 '</button>' +
             '</div>' +
         '</div>';
