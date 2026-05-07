@@ -735,20 +735,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 
 /* Sur mobile (≤480px) : raccourcir le texte du bouton */
 @media (max-width:480px) {
-  .nego-btn .nego-btn-lbl{font-size:.7rem !important;}
+  .nego-btn .nego-btn-lbl{font-size:.72rem !important;}
   .nego-badge{padding:.15rem .35rem; font-size:.55rem;}
-}
-/* Sur très petit mobile (≤360px) : remplacer par "Négocier" tout court */
-@media (max-width:360px) {
-  .nego-btn .nego-btn-lbl::before{
-    content:"Négocier";
-  }
-  .nego-btn .nego-btn-lbl{
-    font-size:0; /* cache le texte original */
-  }
-  .nego-btn .nego-btn-lbl::before{
-    font-size:.72rem;
-  }
 }
 /* ═══ FIN FIX negocier-responsive ═══ */
 
@@ -3137,8 +3125,9 @@ nav {
 
 /* ═══ FIX 2026-05 #nav-tablette : 481-700px sur tablette portrait
    On a 5 boutons (Catalogue, Acheter, Négocier, Troquer, Parrainer)
-   qui ne tiennent pas en plus de la search bar. Solution : réduire
-   la search bar ET les boutons pour tout faire tenir sans scroll.
+   qui ne tiennent pas en plus de la search bar.
+   Solution : sur tablette serrée, on n'affiche QUE les icônes des boutons
+   (le label est caché). Tout le monde tient confortablement.
    ═══════════════════════════════════════════════════════════════ */
 @media (min-width: 481px) and (max-width: 700px) {
     .search-bar-container {
@@ -3154,11 +3143,27 @@ nav {
         font-size: 0;  /* masquer le placeholder pour gagner en place */
     }
     .nav-main {
-        gap: 0.15rem;
+        gap: 0.2rem;
     }
+    /* Sur tablette : afficher uniquement les icônes (cacher les labels) */
     .nav-main .nb {
-        font-size: 0.58rem;
-        padding: 0.28rem 0.32rem;
+        font-size: 0.72rem;
+        padding: 0.4rem 0.5rem;
+        gap: 0;
+    }
+    .nav-main .nb .nb-ico {
+        font-size: 1.05rem;
+        line-height: 1;
+    }
+    .nav-main .nb .nb-lbl {
+        display: none;  /* masquer le texte */
+    }
+}
+
+/* Sur écrans plus larges (≥ 701px), montrer icône + label */
+@media (min-width: 701px) {
+    .nav-main .nb .nb-ico {
+        margin-right: 0.3rem;
     }
 }
 /* ═══ FIN FIX nav-tablette ═══ */
@@ -7550,11 +7555,11 @@ setTimeout(_pStart,3000);
   </div>
 
   <div class="nav-main">
-    <button class="nb act" data-page="catalogue" onclick="showPage('catalogue')">🛒 Catalogue</button>
-    <button class="nb" data-page="acheter" onclick="selectedProductForBuy=null;window._currentBuyProduct=null;showPage('acheter')">💳 Acheter</button>
-    <button class="nb" data-page="negocier" onclick="showPage('negocier')">💰 Négocier</button>
-    <button class="nb" data-page="troquer" onclick="showPage('troquer')">🔄 Troquer</button>
-    <button class="nb par-nav-btn" data-page="parrainage" onclick="showPage('parrainage')"><span class="money-fly">💸</span> Parrainer</button>
+    <button class="nb act" data-page="catalogue" onclick="showPage('catalogue')"><span class="nb-ico">🛒</span><span class="nb-lbl">Catalogue</span></button>
+    <button class="nb" data-page="acheter" onclick="selectedProductForBuy=null;window._currentBuyProduct=null;showPage('acheter')"><span class="nb-ico">💳</span><span class="nb-lbl">Acheter</span></button>
+    <button class="nb" data-page="negocier" onclick="showPage('negocier')"><span class="nb-ico">💰</span><span class="nb-lbl">Négocier</span></button>
+    <button class="nb" data-page="troquer" onclick="showPage('troquer')"><span class="nb-ico">🔄</span><span class="nb-lbl">Troquer</span></button>
+    <button class="nb par-nav-btn" data-page="parrainage" onclick="showPage('parrainage')"><span class="nb-ico"><span class="money-fly">💸</span></span><span class="nb-lbl">Parrainer</span></button>
   </div>
 </nav>
 <div id="search-results" class="search-results"></div>
@@ -17203,7 +17208,7 @@ function _renderNegocier(){
                     '<div class="card-price">' + prixFmt + '</div>' +
                 '</div>' +
                 '<button class="cab nego-btn" onclick="' + clickAction + '">' +
-                    '<span>💰</span><span class="nego-btn-lbl">Proposer mon prix</span>' +
+                    '<span>💰</span><span class="nego-btn-lbl">Négocier</span>' +
                 '</button>' +
             '</div>' +
         '</div>';
