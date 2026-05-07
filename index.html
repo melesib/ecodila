@@ -3059,11 +3059,11 @@ nav {
 }
 
 /* ────────────────────────────────────────────────────────────
-   ≥ 1025px — Desktop / Tablette paysage / Laptops
+   ≥ 1281px — Très grands écrans / Desktop ≥ 13" en plein écran
    Nav-main pleinement visible en mode horizontal.
-   (Avant: ≥769px — modifié pour laisser 769-1024px en vertical)
+   (Avant: ≥769px / ≥1025px — modifié pour étendre vertical jusqu'à 1280px)
    ──────────────────────────────────────────────────────────── */
-@media (min-width: 1025px) {
+@media (min-width: 1281px) {
     .nav-main {
         display: flex;
         gap: clamp(0.4rem, 1.5vw, 0.9rem);
@@ -3077,7 +3077,6 @@ nav {
         max-width: 340px;
         flex: 1 1 180px;
     }
-    /* Burger reste pour profil/avis/CGU/cookies */
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -3098,7 +3097,7 @@ nav {
     /* search-bar-container et .nb : voir #nav-tablette plus bas */
 }
 
-/* ═══ FIX 2026-05 #nav-tablette : 481-1024px tablette/fold ouvert
+/* ═══ FIX 2026-05 #nav-tablette : 481-1280px tablette/fold/laptop standard
    STRATÉGIE : layout vertical (icône en haut, label en bas) sur tous écrans
    intermédiaires. Garantit que TOUS les boutons sont visibles, jamais coupés.
    
@@ -3110,8 +3109,10 @@ nav {
    - Surface portrait (820px)
    - iPad Pro 11" portrait (834px)
    - iPad Pro 12.9" portrait (1024px)
+   - Laptop 13" (1280px)
+   - Petits desktops avec badge user "Orion" (jusqu'à 1280px)
    ═══════════════════════════════════════════════════════════════ */
-@media (min-width: 481px) and (max-width: 1024px) {
+@media (min-width: 481px) and (max-width: 1280px) {
     nav {
         flex-wrap: nowrap !important;
         gap: 0.4rem !important;
@@ -3125,8 +3126,18 @@ nav {
     .logo {
         font-size: 1rem !important;
         flex-shrink: 0 !important;
-        max-width: 100px !important;
+        max-width: 120px !important;
         overflow: hidden !important;
+    }
+    /* User badge : limité strictement, prioritaire à compresser */
+    #user-badge, .user-badge-nav {
+        max-width: 110px !important;
+        min-width: 0 !important;
+        flex-shrink: 1 !important;
+        padding: 0.4rem 0.7rem !important;
+        font-size: 0.8rem !important;
+        margin-right: 0.3rem !important;
+        gap: 0.3rem !important;
     }
     .search-bar-container {
         max-width: 170px !important;
@@ -3161,7 +3172,7 @@ nav {
         font-weight: 600 !important;
         line-height: 1.1 !important;
         min-width: 36px !important;
-        max-width: 60px !important;
+        max-width: 65px !important;
         white-space: nowrap !important;
         flex-shrink: 0 !important;
     }
@@ -3200,12 +3211,17 @@ nav {
         font-size: 0.92rem !important;
         max-width: 80px !important;
     }
+    #user-badge, .user-badge-nav {
+        max-width: 90px !important;
+        padding: 0.35rem 0.5rem !important;
+        font-size: 0.72rem !important;
+    }
     .search-bar-container {
         max-width: 110px !important;
         min-width: 55px !important;
     }
     .global-search-input::placeholder {
-        font-size: 0 !important; /* masquer pour gagner de la place */
+        font-size: 0 !important;
     }
     .nav-main {
         gap: 0.1rem !important;
@@ -3228,7 +3244,7 @@ nav {
     }
 }
 
-/* Sur écrans intermédiaires (601-768px) : un peu plus respirable */
+/* Sur écrans intermédiaires (601-768px) */
 @media (min-width: 601px) and (max-width: 768px) {
     .search-bar-container {
         max-width: 150px !important;
@@ -3242,7 +3258,7 @@ nav {
     }
 }
 
-/* Sur tablettes larges (769-1024px) : plus respirable encore */
+/* Sur tablettes larges (769-1024px) */
 @media (min-width: 769px) and (max-width: 1024px) {
     nav {
         padding: 0.6rem 1rem !important;
@@ -3251,6 +3267,11 @@ nav {
     .logo {
         font-size: 1.1rem !important;
         max-width: 130px !important;
+    }
+    #user-badge, .user-badge-nav {
+        max-width: 130px !important;
+        padding: 0.45rem 0.85rem !important;
+        font-size: 0.85rem !important;
     }
     .search-bar-container {
         max-width: 220px !important;
@@ -3267,10 +3288,41 @@ nav {
     }
 }
 
-/* Sur écrans très larges (≥ 1025px) : layout horizontal classique */
-@media (min-width: 1025px) {
+/* Sur laptops 13"-15" (1025-1280px) : version élargie avec user-badge limité */
+@media (min-width: 1025px) and (max-width: 1280px) {
+    nav {
+        padding: 0.65rem 1.2rem !important;
+        gap: 0.7rem !important;
+    }
+    .logo {
+        font-size: 1.15rem !important;
+        max-width: 140px !important;
+    }
+    #user-badge, .user-badge-nav {
+        max-width: 140px !important;
+    }
+    .search-bar-container {
+        max-width: 240px !important;
+    }
+    .nav-main .nb {
+        padding: 0.4rem 0.6rem !important;
+        min-width: 56px !important;
+    }
+    .nav-main .nb .nb-lbl {
+        font-size: 0.65rem !important;
+    }
+    .nav-main .nb .nb-ico {
+        font-size: 1.15rem !important;
+    }
+}
+
+/* Sur très grands écrans (≥ 1281px) : layout horizontal classique */
+@media (min-width: 1281px) {
     .nav-main .nb .nb-ico {
         margin-right: 0.3rem;
+    }
+    #user-badge, .user-badge-nav {
+        max-width: 200px !important;
     }
 }
 /* ═══ FIN FIX nav-tablette ═══ */
@@ -10818,8 +10870,23 @@ function connexion(e) {
                 if(oldBadge) oldBadge.remove();
                 const badge = document.createElement('div');
                 badge.id = 'user-badge';
-                badge.style.cssText = 'display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border-radius:25px;cursor:pointer;font-weight:600;margin-right:1rem;box-shadow:0 2px 8px rgba(102,126,234,0.3);';
-                badge.innerHTML = '<span style="font-size:1.2rem">👤</span><span>' + _esc(user.nom.split(' ')[0]) + '</span>';
+                badge.className = 'user-badge-nav'; // ═══ FIX 2026-05 #user-badge : classe CSS au lieu de styles inline
+                badge.style.cssText = 'display:flex;align-items:center;gap:0.4rem;padding:0.45rem 0.85rem;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border-radius:25px;cursor:pointer;font-weight:600;margin-right:0.5rem;box-shadow:0 2px 8px rgba(102,126,234,0.3);max-width:140px;flex-shrink:1;min-width:0;overflow:hidden;';
+                // ═══ FIX 2026-05 #badge-name : prénom court ou initiales si trop long ═══
+                var _badgeName = (function(fullName){
+                    if(!fullName) return 'Compte';
+                    var parts = fullName.trim().split(/\s+/);
+                    var firstName = parts[0];
+                    // Si le prénom seul fait > 12 caractères ET il y a d'autres mots → initiales
+                    // Ex: "Mohammed Konstantin Bouzkari" → "MKB"
+                    if(firstName.length > 12 && parts.length > 1){
+                        return parts.slice(0, 3).map(function(p){ return p.charAt(0).toUpperCase(); }).join('');
+                    }
+                    // Si même le prénom seul fait > 14 caractères (pas d'autres mots) → tronquer
+                    if(firstName.length > 14) return firstName.substring(0, 12) + '…';
+                    return firstName;
+                })(user.nom);
+                badge.innerHTML = '<span style="font-size:1.1rem;flex-shrink:0">👤</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.85rem">' + _esc(_badgeName) + '</span>';
                 badge.onclick = function() { showPage('profil'); if(typeof chargerProfil === 'function') chargerProfil(); };
                 nav.insertBefore(badge, nav.firstChild);
             }
