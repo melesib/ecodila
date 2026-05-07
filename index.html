@@ -7137,6 +7137,9 @@ window._sbWrite = function(k,v) {
   }
   d.settings[k] = v;
   // Settings : même traitement resilience mais clé = 'key', pas 'id'
+  // ═══ FIX 2026-05 : dédup des warnings _sbWrite (anti-spam console) ═══
+  // Sur réseau lent, sans dédup, chaque _sbWrite échoué = 1 warn → console pollué
+  window._sbWriteWarnDedup = window._sbWriteWarnDedup || {};
   window._withTimeout(
     _sb.from('settings').upsert({key:k,value:v,updated_at:new Date().toISOString()},{onConflict:'key'}),
     15000, 'sbWrite:settings'
@@ -7145,8 +7148,15 @@ window._sbWrite = function(k,v) {
       throw new Error(r.error.message);
     }
     console.log('[EcoDila] 💾 Settings:', k);
+    // Reset dedup pour cette clé : le fetch a marché, le prochain warn (s'il y en a) sera log
+    delete window._sbWriteWarnDedup[k];
   }).catch(function(err){
-    console.warn('[EcoDila] ⚠️ Settings write', k, ':', err.message, '→ mise en file sync');
+    // Dédup : 1 seul warn par clé toutes les 60s
+    var now = Date.now();
+    if (!window._sbWriteWarnDedup[k] || now - window._sbWriteWarnDedup[k] > 60000) {
+      window._sbWriteWarnDedup[k] = now;
+      console.warn('[EcoDila] ⚠️ Settings write', k, ':', err.message, '→ mise en file sync');
+    }
     window._sbQueuePending('settings', {key:k, value:v, updated_at:new Date().toISOString()});
     // Pas de toast pour settings : ce sont des prefs internes, pas des actions client critiques
   });
@@ -34269,22 +34279,70 @@ window._promoBarClick=function(){
     };
 
     // Wrapper pour fetch (erreurs réseau)
+    // ═══ FIX 2026-05 #anti-spam-fetch : éviter le spam de Fetch failed ═══
+    // Avant : chaque fetch échoué = 1 erreur loggée (50+ erreurs identiques sur 2G CI).
+    // Maintenant :
+    //   1. Anti-boucle : ignorer les fetches vers settings/error_log_recent
+    //      (sinon le log de l'erreur déclenche une nouvelle erreur, boucle infinie)
+    //   2. Dédup : max 1 erreur de "Fetch failed" par minute par endpoint
+    //   3. Filtre : ne pas logger "Failed to fetch" pour les endpoints non-critiques
+    //      (settings, page_visits, user_activity sont du tracking, pas des bugs)
     const originalFetch = window.fetch;
+    window._fetchErrDedup = window._fetchErrDedup || {};
+    const _fetchErrCriticalEndpoints = ['orders', 'offers', 'propositions', 'users', 'rpc'];
+    const _fetchErrAntiLoopEndpoints = ['ecodila_error_log', 'ecodila_error_count'];
     window.fetch = function(...args) {
         return originalFetch.apply(this, args).catch(error => {
-            logError({
-                type: 'Network Error',
-                severity: 'high',
-                message: 'Fetch failed: ' + error.message,
-                url: args[0],
-                method: args[1]?.method || 'GET',
-                page: window.location.pathname,
-                userId: (function(){ try{ const u=(window._sbRead('ecodila_current_user') || {}); return u.tel||u.telephone||u.id||'Anonyme'; }catch(e){ return 'Anonyme'; } })(),
-                userName: (function(){ try{ const u=(window._sbRead('ecodila_current_user') || {}); return u.nom||'Anonyme'; }catch(e){ return 'Anonyme'; } })()
-            });
+            try {
+                var url = String(args[0] || '');
+                // Anti-boucle : si on essaie de logger des erreurs et que ça échoue,
+                // ne PAS logger cette erreur (sinon boucle infinie)
+                var isAntiLoop = _fetchErrAntiLoopEndpoints.some(function(p){ return url.indexOf(p) !== -1; });
+                if (isAntiLoop) {
+                    throw error; // re-throw mais ne pas logger
+                }
+                // Dédup par endpoint (60s) — un seul log par endpoint par minute
+                var endpointKey = (url.match(/rest\/v1\/(\w+)/) || ['','unknown'])[1];
+                var dedupKey = 'fetchErr:' + endpointKey;
+                var now = Date.now();
+                if (window._fetchErrDedup[dedupKey] && now - window._fetchErrDedup[dedupKey] < 60000) {
+                    throw error; // déjà loggé récemment, on ignore
+                }
+                window._fetchErrDedup[dedupKey] = now;
+
+                // Filtre : si l'endpoint n'est PAS critique ET c'est juste "Failed to fetch",
+                // on ignore (c'est juste une coupure réseau du client, pas un bug).
+                var isCritical = _fetchErrCriticalEndpoints.some(function(p){ return endpointKey === p; });
+                var isPureNetworkError = (error.message || '').indexOf('Failed to fetch') !== -1
+                                      || (error.message || '').indexOf('NetworkError') !== -1
+                                      || (error.message || '').indexOf('Load failed') !== -1;
+                if (isPureNetworkError && !isCritical) {
+                    // Coupure réseau sur un endpoint non-critique → on ne logue pas
+                    // (mais on remonte un compteur silencieux pour l'audit)
+                    try {
+                        window._netErrSilentCount = (window._netErrSilentCount || 0) + 1;
+                    } catch(_){}
+                    throw error;
+                }
+
+                // Sinon : on log normalement
+                logError({
+                    type: 'Network Error',
+                    severity: isCritical ? 'high' : 'medium',
+                    message: 'Fetch failed: ' + error.message + ' (endpoint: ' + endpointKey + ')',
+                    url: url,
+                    method: args[1]?.method || 'GET',
+                    page: window.location.pathname,
+                    userId: (function(){ try{ const u=(window._sbRead('ecodila_current_user') || {}); return u.tel||u.telephone||u.id||'Anonyme'; }catch(e){ return 'Anonyme'; } })(),
+                    userName: (function(){ try{ const u=(window._sbRead('ecodila_current_user') || {}); return u.nom||'Anonyme'; }catch(e){ return 'Anonyme'; } })()
+                });
+            } catch(_loggerErr) {
+                // Une erreur dans le logger lui-même : on ignore silencieusement
+            }
             throw error;
         });
     };
+    // ═══ FIN FIX anti-spam-fetch ═══
 
 })();
 
