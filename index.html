@@ -43,6 +43,7 @@
 <meta name="msapplication-TileColor" content="#000000">
 <meta name="msapplication-TileImage" content="/mstile-150x150.png">
 <meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="light only">
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="LiHSfl7YCc3fDweA2e9EkXf_uN3uyjQi0RBLXQgMEmk" />
 <title>EcoDila — Achetez, Troquez & Négociez vos appareils en Côte d'Ivoire</title>
@@ -249,6 +250,48 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 @media(min-width:481px){.warranty-banner{padding:.6rem 1rem;gap:.5rem}.warranty-banner .wb-shield{font-size:1.2rem}.warranty-banner .wb-txt{font-size:.85rem}.warranty-banner .wb-btn{padding:.35rem .9rem;font-size:.75rem}}
 @media(min-width:769px){.warranty-banner{padding:.65rem 1.5rem}.warranty-banner .wb-txt{font-size:.92rem}.warranty-banner .wb-btn{padding:.38rem 1.1rem;font-size:.8rem}}
 .card-img{height:70px;display:flex;align-items:center;justify-content:center;background:#fff;position:relative;overflow:hidden}
+
+/* ═══ FIX 2026-05 #dark-mode-images : empêcher le forced dark mode du navigateur d'altérer les images ═══
+   Le forced dark mode (Edge, Chrome) inverse les couleurs et fait apparaître les images
+   avec des contours blancs disgracieux dans des cartes noires. On force le navigateur
+   à respecter notre design clair pour les zones d'images.
+   
+   Solution : color-scheme: light only + background: white forcé sur les conteneurs d'images.
+   Coût : 0 KB de JavaScript, 0 ms d'exécution. Ultra léger pour mobile lent.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+:root{
+  color-scheme: light only;
+}
+html, body{
+  color-scheme: light only;
+}
+/* Force le fond blanc des conteneurs d'images même en forced dark mode */
+.card-img,
+.card-img *,
+.product-img,
+.product-img *,
+img.product-photo,
+.featured-img,
+.modal-img,
+.buy-card-img{
+  forced-color-adjust: none;
+  -webkit-color-scheme: light only;
+  color-scheme: light only;
+}
+/* Le forced dark mode de certains navigateurs invente du noir. On force blanc. */
+.card-img{
+  background-color: #fff !important;
+}
+/* Pour les images directement (PNG avec fond blanc qui ressort sur dark) */
+.card-img img,
+.featured-img img,
+.modal-img img,
+.buy-card-img img{
+  background-color: transparent;
+  /* Aide à neutraliser un éventuel filter d'inversion */
+  filter: none !important;
+}
+/* ═══ FIN FIX dark-mode-images ═══ */
 .card-carousel{position:relative;width:100%;height:100%}
 .carousel-track{display:flex;width:100%;height:100%;transition:transform .5s ease-in-out}
 .carousel-slide{min-width:100%;height:100%;flex-shrink:0;position:relative}
