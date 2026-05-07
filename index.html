@@ -3329,6 +3329,21 @@ nav {
 }
 /* ═══ FIN FIX nav-tablette ═══ */
 
+/* ═══ FIX 2026-05 #avatar-picker : animation du sélecteur d'avatar ═══ */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); max-height: 0; }
+  to { opacity: 1; transform: translateY(0); max-height: 400px; }
+}
+#avatar-picker {
+  overflow: hidden;
+}
+@media (max-width: 480px) {
+  #avatar-picker-grid {
+    grid-template-columns: repeat(6, 1fr) !important;
+  }
+}
+/* ═══ FIN FIX avatar-picker ═══ */
+
 /* ────────────────────────────────────────────────────────────
    ≤ 480px — Mobile / Fold replié (374px)
    Nav-main cachée. Search full width en 2e ligne. Burger seul.
@@ -5372,6 +5387,276 @@ document.addEventListener('wheel', function(e){ if(e.target && e.target.type ===
 
 /* ── Sanitisation HTML (anti-XSS) — définie en premier pour usage global ── */
 function _esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ═══════════════════════════════════════════════════════════════
+   FIX 2026-05 #avatar : système d'avatars personnalisés
+   - Liste d'emojis sympa au choix
+   - Fallback : initiales colorées (couleur calculée depuis le nom)
+   - Persistance en DB (users.avatar)
+   - Affichage : badge nav, menu burger, fiche profil
+   ═══════════════════════════════════════════════════════════════ */
+window.AVATAR_EMOJIS = [
+  // Smileys
+  '😊','😎','🥳','🤓','🤩','🥰','😇','🤠',
+  // Animaux
+  '🦊','🐱','🐶','🦁','🐼','🦄','🐯','🐰',
+  '🐸','🦉','🐺','🦒','🐨','🐮','🐷','🐵',
+  // Nature
+  '🌟','🌈','🌸','🌻','🌺','⚡','🔥','❄️',
+  // Symboles
+  '💎','👑','🎨','🚀','⚽','🎮','🎵','🏆'
+];
+
+// Palette de 12 couleurs pour les initiales (cohérent avec le thème EcoDila)
+window.AVATAR_COLORS = [
+  ['#f97316','#ea580c'], // orange ecodila
+  ['#22c55e','#16a34a'], // vert
+  ['#3b82f6','#2563eb'], // bleu
+  ['#a855f7','#9333ea'], // violet
+  ['#ec4899','#db2777'], // rose
+  ['#ef4444','#dc2626'], // rouge
+  ['#14b8a6','#0d9488'], // teal
+  ['#eab308','#ca8a04'], // jaune
+  ['#8b5cf6','#7c3aed'], // indigo
+  ['#06b6d4','#0891b2'], // cyan
+  ['#84cc16','#65a30d'], // lime
+  ['#f59e0b','#d97706']  // ambre
+];
+
+// Hash simple pour transformer un nom en index couleur stable
+window._avatarHashName = function(name){
+  if(!name) return 0;
+  var hash = 0;
+  for(var i=0; i<name.length; i++){
+    hash = ((hash << 5) - hash) + name.charCodeAt(i);
+    hash = hash & hash; // 32-bit
+  }
+  return Math.abs(hash) % window.AVATAR_COLORS.length;
+};
+
+// Génère le HTML de l'avatar à afficher (emoji ou initiales colorées)
+window._avatarRender = function(user, size){
+  size = size || 'medium'; // medium | small | large
+  var dims = {
+    'tiny':   { w:'24px', h:'24px', font:'.8rem',  initFont:'.7rem' },
+    'small':  { w:'36px', h:'36px', font:'1.1rem', initFont:'.9rem' },
+    'medium': { w:'48px', h:'48px', font:'1.4rem', initFont:'1.1rem' },
+    'large':  { w:'54px', h:'54px', font:'1.5rem', initFont:'1.25rem' }
+  };
+  var d = dims[size] || dims.medium;
+  var avatar = (user && user.avatar) ? user.avatar : null;
+
+  // Si emoji choisi
+  if(avatar && avatar !== 'initials' && avatar.length <= 8){
+    return '<span style="font-size:' + d.font + ';line-height:1">' + _esc(avatar) + '</span>';
+  }
+  // Sinon : initiales colorées
+  var nom = (user && user.nom) || 'U';
+  var parts = nom.trim().split(/\s+/);
+  var initials = parts.length >= 2
+    ? (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase()
+    : parts[0].substring(0, 2).toUpperCase();
+  var colorIdx = window._avatarHashName(nom);
+  var colors = window.AVATAR_COLORS[colorIdx];
+  return '<span style="font-size:' + d.initFont + ';font-weight:800;color:#fff;letter-spacing:.5px">' + initials + '</span>';
+};
+
+// Génère le style background pour l'avatar (selon emoji ou initiales)
+window._avatarBgStyle = function(user){
+  var avatar = (user && user.avatar) ? user.avatar : null;
+  // Si emoji : fond neutre clair
+  if(avatar && avatar !== 'initials' && avatar.length <= 8){
+    return 'background:linear-gradient(135deg,#f3f4f6,#e5e7eb)';
+  }
+  // Sinon : couleur depuis le nom
+  var nom = (user && user.nom) || 'U';
+  var colorIdx = window._avatarHashName(nom);
+  var colors = window.AVATAR_COLORS[colorIdx];
+  return 'background:linear-gradient(135deg,' + colors[0] + ',' + colors[1] + ')';
+};
+
+// Ouvre le sélecteur d'avatar (sur la page Profil)
+window._avatarOpenPicker = function(){
+  var picker = document.getElementById('avatar-picker');
+  var grid = document.getElementById('avatar-picker-grid');
+  if(!picker || !grid) return;
+  var user = window.utilisateurConnecte || window.currentUser;
+  if(!user){
+    if(typeof showToast === 'function') showToast('🔒 Connectez-vous d\'abord');
+    return;
+  }
+  var currentAvatar = user.avatar || 'initials';
+
+  // Construire la grille
+  var html = '';
+  // Option "Initiales" en premier
+  var isInitials = (currentAvatar === 'initials' || !currentAvatar);
+  var nom = user.nom || 'U';
+  var parts = nom.trim().split(/\s+/);
+  var initials = parts.length >= 2 ? (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase() : parts[0].substring(0,2).toUpperCase();
+  var colors = window.AVATAR_COLORS[window._avatarHashName(nom)];
+  html += '<button onclick="_avatarSelect(\'initials\')" title="Initiales" style="aspect-ratio:1;border-radius:10px;border:' + (isInitials ? '2.5px solid #f97316' : '1.5px solid #e5e7eb') + ';background:linear-gradient(135deg,' + colors[0] + ',' + colors[1] + ');display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;color:#fff;font-weight:800;font-size:.85rem;letter-spacing:.5px;transition:transform .12s;padding:0">' + initials + '</button>';
+  // Liste des emojis
+  window.AVATAR_EMOJIS.forEach(function(emoji){
+    var selected = (currentAvatar === emoji);
+    html += '<button onclick="_avatarSelect(\'' + emoji + '\')" title="' + emoji + '" style="aspect-ratio:1;border-radius:10px;border:' + (selected ? '2.5px solid #f97316' : '1.5px solid #e5e7eb') + ';background:' + (selected ? 'linear-gradient(135deg,#fff7ed,#ffedd5)' : '#fff') + ';display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;font-size:1.4rem;line-height:1;transition:transform .12s;padding:0" onmouseover="this.style.transform=\'scale(1.1)\'" onmouseout="this.style.transform=\'scale(1)\'">' + emoji + '</button>';
+  });
+  grid.innerHTML = html;
+  picker.style.display = 'block';
+};
+
+window._avatarClosePicker = function(){
+  var picker = document.getElementById('avatar-picker');
+  if(picker) picker.style.display = 'none';
+};
+
+// Sélectionne un avatar et l'enregistre en DB
+window._avatarSelect = async function(emoji){
+  try {
+    var user = window.utilisateurConnecte || window.currentUser;
+    if(!user || !user.id){
+      if(typeof showToast === 'function') showToast('❌ Vous devez être connecté');
+      return;
+    }
+    // Mettre à jour localement immédiatement pour UX réactive
+    user.avatar = emoji;
+    if(window.utilisateurConnecte) window.utilisateurConnecte.avatar = emoji;
+    if(window.currentUser) window.currentUser.avatar = emoji;
+    // Persister en DB
+    try {
+      var r = await window._sb.from('users').update({ avatar: emoji }).eq('id', user.id);
+      if(r && r.error){
+        console.warn('[Avatar] Erreur DB:', r.error.message);
+        if(typeof showToast === 'function') showToast('⚠️ Sauvegarde différée (réseau)');
+      } else {
+        if(typeof showToast === 'function') showToast('✨ Avatar mis à jour !');
+      }
+    } catch(e){
+      console.warn('[Avatar] Network error:', e && e.message);
+    }
+    // Sauvegarder aussi en cache local
+    try { window._sbWrite && window._sbWrite('ecodila_current_user', user); } catch(_){}
+
+    // Mettre à jour TOUS les affichages
+    window._avatarRefreshAll();
+
+    // Fermer le picker après sélection
+    setTimeout(window._avatarClosePicker, 400);
+  } catch(err){
+    console.error('[Avatar] _avatarSelect error:', err);
+  }
+};
+
+// Rafraîchit tous les endroits qui affichent l'avatar
+window._avatarRefreshAll = function(){
+  var user = window.utilisateurConnecte || window.currentUser;
+  if(!user) return;
+
+  // 1. Avatar dans la fiche profil
+  var profileAvatarEl = document.getElementById('profil-avatar-display');
+  var profileAvatarContent = document.getElementById('profil-avatar-content');
+  if(profileAvatarEl && profileAvatarContent){
+    var avatar = user.avatar;
+    if(avatar && avatar !== 'initials' && avatar.length <= 8){
+      profileAvatarContent.textContent = avatar;
+      profileAvatarEl.style.background = 'linear-gradient(135deg,#f3f4f6,#e5e7eb)';
+      profileAvatarContent.style.fontSize = '1.6rem';
+      profileAvatarContent.style.color = '';
+      profileAvatarContent.style.fontWeight = '';
+    } else {
+      var nom = user.nom || 'U';
+      var parts = nom.trim().split(/\s+/);
+      var initials = parts.length >= 2 ? (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase() : parts[0].substring(0,2).toUpperCase();
+      var colors = window.AVATAR_COLORS[window._avatarHashName(nom)];
+      profileAvatarContent.textContent = initials;
+      profileAvatarEl.style.background = 'linear-gradient(135deg,' + colors[0] + ',' + colors[1] + ')';
+      profileAvatarContent.style.fontSize = '1.25rem';
+      profileAvatarContent.style.color = '#fff';
+      profileAvatarContent.style.fontWeight = '800';
+    }
+  }
+
+  // 2. Badge nav top
+  window._avatarUpdateNavBadge();
+
+  // 3. Badge menu burger
+  window._avatarUpdateBurgerBadge();
+};
+
+// Met à jour le badge dans la nav top
+window._avatarUpdateNavBadge = function(){
+  var badge = document.getElementById('user-badge');
+  if(!badge) return;
+  var user = window.utilisateurConnecte || window.currentUser;
+  if(!user) return;
+
+  var avatar = user.avatar;
+  var nom = user.nom || 'Compte';
+  var parts = nom.trim().split(/\s+/);
+  var firstName = parts[0];
+
+  // Format compact pour le nom (initiales si trop long)
+  var displayName;
+  if(firstName.length > 8 && parts.length > 1){
+    displayName = parts.slice(0, 3).map(function(p){ return p.charAt(0).toUpperCase(); }).join('');
+  } else if(firstName.length > 10){
+    displayName = firstName.substring(0, 8) + '…';
+  } else {
+    displayName = firstName;
+  }
+
+  // ═══ FIX 2026-05 #badge-discret : style subtil et harmonieux avec le nav noir ═══
+  // Si emoji choisi : fond translucide neutre
+  if(avatar && avatar !== 'initials' && avatar.length <= 8){
+    badge.style.background = 'rgba(255,255,255,0.08)';
+    badge.style.border = '1px solid rgba(255,255,255,0.12)';
+    badge.style.color = '#e5e7eb';
+    badge.style.boxShadow = 'none';
+    badge.innerHTML = '<span style="font-size:1rem;line-height:1;display:block">' + _esc(avatar) + '</span><span style="font-size:0.55rem;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;letter-spacing:.2px;color:#d1d5db">' + _esc(displayName) + '</span>';
+  } else {
+    // Initiales : pastille verte ecodila petite + nom en gris clair (fond translucide)
+    var initials = parts.length >= 2 ? (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase() : parts[0].substring(0,2).toUpperCase();
+    badge.style.background = 'rgba(255,255,255,0.08)';
+    badge.style.border = '1px solid rgba(255,255,255,0.12)';
+    badge.style.color = '#e5e7eb';
+    badge.style.boxShadow = 'none';
+    badge.innerHTML = '<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#2d6a4f,#52b788);color:#fff;font-size:.62rem;font-weight:800;letter-spacing:.3px;line-height:1">' + initials + '</span><span style="font-size:0.55rem;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;letter-spacing:.2px;color:#d1d5db">' + _esc(displayName) + '</span>';
+  }
+};
+
+// Met à jour le badge dans le menu burger
+window._avatarUpdateBurgerBadge = function(){
+  var burgerBadge = document.querySelector('.burger-user-badge');
+  if(!burgerBadge) return;
+  var user = window.utilisateurConnecte || window.currentUser;
+  if(!user) return;
+
+  var avatarSpan = burgerBadge.querySelector('span:first-child');
+  if(!avatarSpan) return;
+
+  var avatar = user.avatar;
+  if(avatar && avatar !== 'initials' && avatar.length <= 8){
+    avatarSpan.textContent = avatar;
+  } else {
+    var nom = user.nom || 'U';
+    var parts = nom.trim().split(/\s+/);
+    var initials = parts.length >= 2 ? (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase() : parts[0].substring(0,2).toUpperCase();
+    avatarSpan.textContent = initials;
+    var colors = window.AVATAR_COLORS[window._avatarHashName(nom)];
+    avatarSpan.style.background = 'linear-gradient(135deg,' + colors[0] + ',' + colors[1] + ')';
+    avatarSpan.style.color = '#fff';
+    avatarSpan.style.fontWeight = '800';
+    avatarSpan.style.fontSize = '1rem';
+    avatarSpan.style.borderRadius = '50%';
+    avatarSpan.style.width = '34px';
+    avatarSpan.style.height = '34px';
+    avatarSpan.style.display = 'inline-flex';
+    avatarSpan.style.alignItems = 'center';
+    avatarSpan.style.justifyContent = 'center';
+    avatarSpan.style.letterSpacing = '.5px';
+  }
+};
+/* ═══ FIN MODULE AVATAR ═══ */
 
 var _sb = window.supabase.createClient(
   "https://ftvowlmrsgcaienvhojj.supabase.co",
@@ -8783,7 +9068,11 @@ setTimeout(_pStart,3000);
     <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:16px;padding:1.3rem 1.4rem;margin-bottom:1rem;box-shadow:0 4px 16px rgba(34,197,94,.1)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem">
         <div style="display:flex;align-items:center;gap:.9rem">
-          <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#2d6a4f,#52b788);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0">👤</div>
+          <!-- ═══ FIX 2026-05 #avatar : avatar cliquable qui ouvre le sélecteur ═══ -->
+          <div id="profil-avatar-display" onclick="_avatarOpenPicker()" title="Cliquer pour changer mon avatar" style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#2d6a4f,#52b788);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;cursor:pointer;transition:transform .15s, box-shadow .15s;box-shadow:0 2px 8px rgba(45,106,79,.25);position:relative" onmouseover="this.style.transform='scale(1.05)';this.style.boxShadow='0 4px 14px rgba(45,106,79,.35)'" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 2px 8px rgba(45,106,79,.25)'">
+            <span id="profil-avatar-content">👤</span>
+            <span style="position:absolute;bottom:-2px;right:-2px;background:#f97316;color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.2)">✏️</span>
+          </div>
           <div>
             <div style="font-weight:800;font-size:1.05rem;color:#0f172a" id="profil-nom">—</div>
             <div style="font-size:.78rem;color:#374151;margin-top:.12rem">📱 <span id="profil-tel">—</span></div>
@@ -8791,6 +9080,17 @@ setTimeout(_pStart,3000);
           </div>
         </div>
         <button onclick="deconnexion()" style="padding:.4rem .9rem;background:#fff;border:1.5px solid #fca5a5;color:#dc2626;border-radius:8px;font-size:.75rem;font-weight:700;cursor:pointer;flex-shrink:0">🚪 Déconnexion</button>
+      </div>
+      <!-- ═══ Sélecteur d'avatar (caché par défaut) ═══ -->
+      <div id="avatar-picker" style="display:none;background:#fff;border:2px solid #f97316;border-radius:12px;padding:.9rem 1rem;margin-bottom:.8rem;animation:slideDown .25s ease">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.7rem">
+          <div style="font-weight:800;font-size:.92rem;color:#0f172a">🎨 Choisis ton avatar</div>
+          <button onclick="_avatarClosePicker()" style="background:transparent;border:none;color:#6b7280;font-size:1.1rem;cursor:pointer;padding:.15rem .35rem;border-radius:6px" title="Fermer">✕</button>
+        </div>
+        <div style="font-size:.7rem;color:#6b7280;margin-bottom:.6rem">Choisis un emoji ou reviens aux initiales</div>
+        <div id="avatar-picker-grid" style="display:grid;grid-template-columns:repeat(8,1fr);gap:.4rem">
+          <!-- rempli par JS -->
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem">
         <div style="background:rgba(255,255,255,.85);border-radius:10px;padding:.5rem .35rem;text-align:center;border:1px solid rgba(134,239,172,.5)">
@@ -10872,25 +11172,17 @@ function connexion(e) {
                 if(oldBadge) oldBadge.remove();
                 const badge = document.createElement('div');
                 badge.id = 'user-badge';
-                badge.className = 'user-badge-nav'; // ═══ FIX 2026-05 #user-badge : classe CSS au lieu de styles inline
-                // ═══ FIX 2026-05 #badge-vertical : layout vertical (emoji haut, nom bas) + couleur orange ecodila ═══
-                badge.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0.32rem 0.55rem;background:linear-gradient(135deg,#f97316,#ea580c);color:white;border-radius:10px;cursor:pointer;font-weight:600;margin-right:0.4rem;box-shadow:0 2px 8px rgba(249,115,22,0.3);max-width:80px;flex-shrink:0;min-width:50px;overflow:hidden;line-height:1.1;';
-                // ═══ FIX 2026-05 #badge-name : prénom court ou initiales si trop long ═══
-                var _badgeName = (function(fullName){
-                    if(!fullName) return 'Compte';
-                    var parts = fullName.trim().split(/\s+/);
-                    var firstName = parts[0];
-                    // Pour le badge VERTICAL compact, on est plus strict : > 8 chars → initiales si dispo
-                    if(firstName.length > 8 && parts.length > 1){
-                        return parts.slice(0, 3).map(function(p){ return p.charAt(0).toUpperCase(); }).join('');
-                    }
-                    // Si même le prénom seul fait > 10 caractères → tronquer
-                    if(firstName.length > 10) return firstName.substring(0, 8) + '…';
-                    return firstName;
-                })(user.nom);
-                badge.innerHTML = '<span style="font-size:1rem;line-height:1;display:block">👤</span><span style="font-size:0.55rem;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;letter-spacing:.2px">' + _esc(_badgeName) + '</span>';
+                badge.className = 'user-badge-nav';
+                // ═══ FIX 2026-05 #avatar : style de base, contenu géré par _avatarUpdateNavBadge ═══
+                badge.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0.32rem 0.55rem;border-radius:10px;cursor:pointer;font-weight:600;margin-right:0.4rem;max-width:80px;flex-shrink:0;min-width:50px;overflow:hidden;line-height:1.1;transition:background .15s, border-color .15s';
+                badge.onmouseover = function(){ this.style.background = 'rgba(255,255,255,0.14)'; this.style.borderColor = 'rgba(255,255,255,0.2)'; };
+                badge.onmouseout = function(){ this.style.background = 'rgba(255,255,255,0.08)'; this.style.borderColor = 'rgba(255,255,255,0.12)'; };
                 badge.onclick = function() { showPage('profil'); if(typeof chargerProfil === 'function') chargerProfil(); };
                 nav.insertBefore(badge, nav.firstChild);
+                // Appliquer le contenu (emoji ou initiales selon user.avatar)
+                if(typeof window._avatarUpdateNavBadge === 'function'){
+                    window._avatarUpdateNavBadge();
+                }
             }
             if (typeof updateUserBadge === 'function') updateUserBadge();
 
@@ -13695,6 +13987,10 @@ function chargerProfil(){
         function setTxt(id,v){var e=document.getElementById(id);if(e)e.textContent=v||'';}
         setTxt('profil-nom',currentUser.nom);
         setTxt('profil-tel',currentUser.tel);
+        // ═══ FIX 2026-05 #avatar : afficher l'avatar dans la fiche profil ═══
+        if(typeof window._avatarRefreshAll === 'function'){
+            window._avatarRefreshAll();
+        }
         if(utilisateurConnecte&&utilisateurConnecte.dateCreation){
             var dc=new Date(utilisateurConnecte.dateCreation),now=new Date();
             var dj=Math.floor((now-dc)/86400000),dm=Math.floor(dj/30),da=Math.floor(dj/365);
