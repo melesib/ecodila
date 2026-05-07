@@ -715,6 +715,32 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
   margin-top:auto; /* pousse le bouton tout en bas */
 }
 
+/* Prix masqué : style "secret" subtil */
+.nego-card .nego-price-masked{
+  font-family:'DM Sans',sans-serif !important;
+  letter-spacing:1px !important;
+  color:#94a3b8 !important;
+  font-weight:700 !important;
+  text-decoration:line-through;
+  text-decoration-color:rgba(148,163,184,.4);
+  opacity:.85;
+}
+
+/* Label "Négociable" : badge orange ecodila */
+.nego-card .nego-negociable{
+  font-size:.62rem;
+  font-weight:700;
+  color:#ea580c;
+  text-align:center;
+  margin:.15rem 0 .25rem;
+  letter-spacing:.3px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.2rem;
+  line-height:1;
+}
+
 .nego-btn-mini{
   background:linear-gradient(135deg,#f97316,#ea580c);
   color:#fff;
@@ -763,12 +789,15 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
   .nego-badge{padding:.15rem .35rem; font-size:.55rem;}
   .nego-card .nego-specs{font-size:.55rem;}
   .nego-card .card-content{padding:.4rem .45rem .45rem;}
+  .nego-card .nego-negociable{font-size:.56rem;}
+  .nego-card .nego-price-masked{letter-spacing:.5px !important;}
 }
 
 /* Sur très petit mobile (≤360px) : ajustements supplémentaires */
 @media (max-width:360px) {
   .nego-btn-mini{font-size:.55rem; padding:.2rem .3rem;}
   .nego-card .nego-specs{font-size:.52rem;}
+  .nego-card .nego-negociable{font-size:.52rem;}
 }
 
 /* Ancienne classe .nego-btn — gardée pour compat mais désactivée sur cards */
@@ -17690,7 +17719,12 @@ function _renderNegocier(){
         var modele = (item.modele || item.nom || 'Produit').toString().replace(/"/g, '&quot;');
         var marque = (item.marque || item.brand || '').toString();
         var prix = parseFloat(item.prix) || _getLowestPrice(item) || 0;
-        var prixFmt = prix.toLocaleString('fr-FR') + ' FCFA';
+        // ═══ FIX 2026-05 #nego-prix-masque : afficher XXXX au lieu du vrai prix ═══
+        // L'utilisateur ne voit pas le prix exact, juste un placeholder qui invite à négocier.
+        // On garde un format réaliste pour suggérer la longueur du prix réel.
+        var prixDigits = Math.max(4, prix.toFixed(0).length);
+        var prixMasque = 'X'.repeat(prixDigits - 3) + ' XXX';
+        var prixFmt = prixMasque + ' FCFA';
 
         // Click handler : si pas connecté, demander auth, sinon ouvrir modal négociation directement
         var clickAction = "event.stopPropagation();" +
@@ -17722,8 +17756,9 @@ function _renderNegocier(){
                     return '<div class="nego-specs">' + specs.join(' • ') + '</div>';
                 })() +
                 '<div class="card-price-row">' +
-                    '<div class="card-price">' + prixFmt + '</div>' +
+                    '<div class="card-price nego-price-masked">' + prixFmt + '</div>' +
                 '</div>' +
+                '<div class="nego-negociable">💬 Négociable</div>' +
                 '<button class="nego-btn-mini" onclick="' + clickAction + '">' +
                     '<span style="font-size:.85rem;line-height:1">💰</span><span>Négocier</span>' +
                 '</button>' +
