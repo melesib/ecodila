@@ -15875,6 +15875,14 @@ function showPage(name){
       setTimeout(function(){ if(typeof _buildTrocCatChips==='function') _buildTrocCatChips(); }, 80);
   }
 
+  // ═══ FIX 2026-05 #negocier-page : rendre la grille négocier ═══
+  // Avant : negocierGrid contenait des skeleton cards en HTML statique sans aucun JS
+  // pour les remplacer → 6 skeletons qui tournent indéfiniment.
+  // Maintenant : on appelle _renderNegocier() qui peuple la grille avec les vrais produits.
+  if (name === 'negocier') {
+      setTimeout(function(){ if(typeof _renderNegocier === 'function') _renderNegocier(); }, 80);
+  }
+
   if (name === 'avis') {
       if (typeof _syncAvis === 'function') _syncAvis();
       if (typeof renderReviews === 'function') renderReviews();
@@ -17001,6 +17009,116 @@ function filterCat(cat, btn) {
     if (btn) btn.classList.add('active');
     _applyFilters();
 }
+
+// ═══ FIX 2026-05 #negocier-page : fonctions de rendu pour la page Négocier ═══
+// Avant : la page negocier n'avait aucun JS pour remplir sa grille → 6 skeletons infinis.
+// Maintenant : _renderNegocier() peuple la grille, filterCatNego() filtre par catégorie.
+var _activeCatFilterNego = 'Tous';
+function _renderNegocier(){
+    var grid = document.getElementById('negocierGrid');
+    if(!grid) return;
+    var prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+
+    // Si aucun produit chargé → garder skeletons (le catalogue est en train de charger)
+    if(prods.length === 0){
+        // On laisse les skeletons mais on retente dans 1s au cas où
+        setTimeout(_renderNegocier, 1000);
+        return;
+    }
+
+    // Filtrer par catégorie active
+    var items = prods;
+    if(_activeCatFilterNego && _activeCatFilterNego !== 'Tous'){
+        items = items.filter(function(p){
+            var cat = (p.cat || p.categorie || '').toString();
+            return cat === _activeCatFilterNego;
+        });
+    }
+
+    // Filtrer : stock > 0 et prix > 0 (négociable)
+    items = items.filter(function(p){
+        var stock = (typeof p.stock !== 'undefined') ? parseInt(p.stock, 10) : 1;
+        if(isNaN(stock)) stock = 1;
+        var prix = parseFloat(p.prix) || _getLowestPrice(p) || 0;
+        return stock > 0 && prix > 0 && !p.archive && !p._softDeleted;
+    });
+
+    // Si vide après filtrage
+    if(items.length === 0){
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem 1.5rem">' +
+            '<div style="font-size:2.5rem;margin-bottom:.8rem">🔍</div>' +
+            '<h3 style="color:var(--black);margin-bottom:.5rem">Aucun produit dans cette catégorie</h3>' +
+            '<p style="color:#6b7280;font-size:.85rem">Essayez une autre catégorie ou consultez le catalogue complet.</p>' +
+            '<button onclick="showPage(\'catalogue\')" style="margin-top:1rem;padding:.7rem 1.4rem;background:#1b4332;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit">📱 Voir le catalogue</button>' +
+            '</div>';
+        return;
+    }
+
+    // Limite affichage (perf)
+    var maxItems = 24;
+    var displayItems = items.slice(0, maxItems);
+
+    // Rendre les cartes — chaque card ouvre directement openOfferModal au click (pas openModal)
+    grid.innerHTML = displayItems.map(function(item){
+        var hasMultipleImages = item.photos && Array.isArray(item.photos) && item.photos.length > 1;
+        var _extractPhoto = function(p){
+            if(!p) return null;
+            if(typeof p === 'string') return p;
+            return p.data || p.url || p.dataUrl || p.image || null;
+        };
+        var images = item.photos && Array.isArray(item.photos) && item.photos.length > 0
+            ? item.photos.map(_extractPhoto).filter(Boolean)
+            : item.imgs && Array.isArray(item.imgs) && item.imgs.length > 0
+                ? item.imgs.filter(function(u){ return u && typeof u === 'string'; })
+                : item.img && typeof item.img === 'string' ? [item.img] : [];
+        var imgSrc = images.length > 0 ? images[0] : '';
+        var modele = (item.modele || item.nom || 'Produit').toString().replace(/"/g, '&quot;');
+        var marque = (item.marque || item.brand || '').toString();
+        var prix = parseFloat(item.prix) || _getLowestPrice(item) || 0;
+        var prixFmt = prix.toLocaleString('fr-FR') + ' FCFA';
+
+        // Click handler : si pas connecté, demander auth, sinon ouvrir modal négociation directement
+        var clickAction = "event.stopPropagation();" +
+            "if(!userLoggedIn&&!utilisateurConnecte){" +
+                "actionEnAttente='offre';" +
+                "produitEnAttente='" + item.id + "';" +
+                "showToast('🔒 Connectez-vous pour négocier');" +
+                "demanderAuthentification();" +
+                "return;" +
+            "}" +
+            "openOfferModal('" + item.id + "')";
+
+        return '<div class="card" onclick="' + clickAction + '" style="cursor:pointer">' +
+            '<div class="card-img">' +
+                (imgSrc ? '<img src="' + imgSrc + '" alt="' + modele + '" loading="lazy" style="width:100%;height:100%;object-fit:contain">' : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:2.5rem;color:#cbd5e1">📦</div>') +
+                '<div style="position:absolute;top:.4rem;right:.4rem;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;padding:.25rem .5rem;border-radius:6px;font-size:.65rem;font-weight:800;box-shadow:0 2px 6px rgba(249,115,22,.4)">💰 NÉGO</div>' +
+            '</div>' +
+            '<div class="card-content">' +
+                (marque ? '<div class="card-brand">' + marque + '</div>' : '') +
+                '<div class="card-title">' + modele + '</div>' +
+                '<div class="card-price-row">' +
+                    '<div class="card-price">' + prixFmt + '</div>' +
+                '</div>' +
+                '<button class="cab" onclick="' + clickAction + '" style="background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;width:100%;margin-top:.4rem">' +
+                    '<span>💰</span><span>Proposer mon prix</span>' +
+                '</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+
+    console.log('[Negocier] ✅ Grille rendue :', displayItems.length, 'produit(s)');
+}
+
+function filterCatNego(cat, btn){
+    _activeCatFilterNego = cat;
+    try { _trackAction('filter_nego', { filtre: 'catégorie négo', valeur: cat }); } catch(_){}
+    document.querySelectorAll('#negocier-filter-btns .fb').forEach(function(b){ b.classList.remove('active'); });
+    if(btn) btn.classList.add('active');
+    _renderNegocier();
+}
+window._renderNegocier = _renderNegocier;
+window.filterCatNego = filterCatNego;
+// ═══ FIN FIX negocier-page ═══
 
 var _priceDragging = false;
 var _priceMax = 500000;
