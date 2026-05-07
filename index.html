@@ -17706,10 +17706,14 @@ function _renderNegocier(){
         var imgSrc = images.length > 0 ? images[0] : '';
         var modele = (item.modele || item.nom || 'Produit').toString().replace(/"/g, '&quot;');
         var marque = (item.marque || item.brand || '').toString();
-        var prix = parseFloat(item.prix) || _getLowestPrice(item) || 0;
-        // ═══ FIX 2026-05 #nego-prix : afficher le plus petit prix avec mention "À partir de" ═══
-        // (Comme le catalogue, pas de masque - on garde la transparence sur le prix)
-        var prixFmt = 'À partir de ' + prix.toLocaleString('fr-FR') + ' FCFA';
+        // ═══ FIX 2026-05 #nego-prix : MÊME logique que le catalogue (L17265) ═══
+        // Calcule le plus petit prix parmi neuf/occasion/recond. Si plusieurs existent,
+        // préfixe "dès " comme le catalogue. Sinon affichage simple.
+        var prixFmt = (function(){
+            var ps = [item.prixNeuf, item.prixOccasion, item.prixReconditionne].filter(function(v){ return v > 0; });
+            var lo = ps.length ? Math.min.apply(null, ps) : (item.prix || 0);
+            return (ps.length > 1 ? 'dès ' : '') + lo.toLocaleString('fr-FR') + ' FCFA';
+        })();
 
         // Click handler : si pas connecté, demander auth, sinon ouvrir modal négociation directement
         var clickAction = "event.stopPropagation();" +
