@@ -3131,13 +3131,13 @@ nav {
     }
     /* User badge : limité strictement, prioritaire à compresser */
     #user-badge, .user-badge-nav {
-        max-width: 110px !important;
-        min-width: 0 !important;
-        flex-shrink: 1 !important;
-        padding: 0.4rem 0.7rem !important;
-        font-size: 0.8rem !important;
-        margin-right: 0.3rem !important;
-        gap: 0.3rem !important;
+        max-width: 70px !important;
+        min-width: 48px !important;
+        flex-shrink: 0 !important;
+        padding: 0.28rem 0.4rem !important;
+        font-size: 0.55rem !important;
+        margin-right: 0.25rem !important;
+        gap: 1px !important;
     }
     .search-bar-container {
         max-width: 170px !important;
@@ -3212,9 +3212,9 @@ nav {
         max-width: 80px !important;
     }
     #user-badge, .user-badge-nav {
-        max-width: 90px !important;
-        padding: 0.35rem 0.5rem !important;
-        font-size: 0.72rem !important;
+        max-width: 56px !important;
+        min-width: 42px !important;
+        padding: 0.25rem 0.32rem !important;
     }
     .search-bar-container {
         max-width: 110px !important;
@@ -3269,9 +3269,9 @@ nav {
         max-width: 130px !important;
     }
     #user-badge, .user-badge-nav {
-        max-width: 130px !important;
-        padding: 0.45rem 0.85rem !important;
-        font-size: 0.85rem !important;
+        max-width: 80px !important;
+        min-width: 55px !important;
+        padding: 0.32rem 0.55rem !important;
     }
     .search-bar-container {
         max-width: 220px !important;
@@ -3299,7 +3299,8 @@ nav {
         max-width: 140px !important;
     }
     #user-badge, .user-badge-nav {
-        max-width: 140px !important;
+        max-width: 90px !important;
+        min-width: 60px !important;
     }
     .search-bar-container {
         max-width: 240px !important;
@@ -3322,7 +3323,8 @@ nav {
         margin-right: 0.3rem;
     }
     #user-badge, .user-badge-nav {
-        max-width: 200px !important;
+        max-width: 100px !important;
+        min-width: 65px !important;
     }
 }
 /* ═══ FIN FIX nav-tablette ═══ */
@@ -10871,22 +10873,22 @@ function connexion(e) {
                 const badge = document.createElement('div');
                 badge.id = 'user-badge';
                 badge.className = 'user-badge-nav'; // ═══ FIX 2026-05 #user-badge : classe CSS au lieu de styles inline
-                badge.style.cssText = 'display:flex;align-items:center;gap:0.4rem;padding:0.45rem 0.85rem;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border-radius:25px;cursor:pointer;font-weight:600;margin-right:0.5rem;box-shadow:0 2px 8px rgba(102,126,234,0.3);max-width:140px;flex-shrink:1;min-width:0;overflow:hidden;';
+                // ═══ FIX 2026-05 #badge-vertical : layout vertical (emoji haut, nom bas) + couleur orange ecodila ═══
+                badge.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0.32rem 0.55rem;background:linear-gradient(135deg,#f97316,#ea580c);color:white;border-radius:10px;cursor:pointer;font-weight:600;margin-right:0.4rem;box-shadow:0 2px 8px rgba(249,115,22,0.3);max-width:80px;flex-shrink:0;min-width:50px;overflow:hidden;line-height:1.1;';
                 // ═══ FIX 2026-05 #badge-name : prénom court ou initiales si trop long ═══
                 var _badgeName = (function(fullName){
                     if(!fullName) return 'Compte';
                     var parts = fullName.trim().split(/\s+/);
                     var firstName = parts[0];
-                    // Si le prénom seul fait > 12 caractères ET il y a d'autres mots → initiales
-                    // Ex: "Mohammed Konstantin Bouzkari" → "MKB"
-                    if(firstName.length > 12 && parts.length > 1){
+                    // Pour le badge VERTICAL compact, on est plus strict : > 8 chars → initiales si dispo
+                    if(firstName.length > 8 && parts.length > 1){
                         return parts.slice(0, 3).map(function(p){ return p.charAt(0).toUpperCase(); }).join('');
                     }
-                    // Si même le prénom seul fait > 14 caractères (pas d'autres mots) → tronquer
-                    if(firstName.length > 14) return firstName.substring(0, 12) + '…';
+                    // Si même le prénom seul fait > 10 caractères → tronquer
+                    if(firstName.length > 10) return firstName.substring(0, 8) + '…';
                     return firstName;
                 })(user.nom);
-                badge.innerHTML = '<span style="font-size:1.1rem;flex-shrink:0">👤</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.85rem">' + _esc(_badgeName) + '</span>';
+                badge.innerHTML = '<span style="font-size:1rem;line-height:1;display:block">👤</span><span style="font-size:0.55rem;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;letter-spacing:.2px">' + _esc(_badgeName) + '</span>';
                 badge.onclick = function() { showPage('profil'); if(typeof chargerProfil === 'function') chargerProfil(); };
                 nav.insertBefore(badge, nav.firstChild);
             }
