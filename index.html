@@ -7424,6 +7424,9 @@ setTimeout(_pStart,3000);
     <button class="ebn-tab" id="ebn-acheter" onclick="_ebnGo('acheter')" aria-label="Acheter">
       <span class="ebn-icon">💳</span><span>Acheter</span>
     </button>
+    <button class="ebn-tab" id="ebn-negocier" onclick="_ebnGo('negocier')" aria-label="Négocier">
+      <span class="ebn-icon">💰</span><span>Négocier</span>
+    </button>
     <button class="ebn-tab" id="ebn-troquer" onclick="_ebnGo('troquer')" aria-label="Troquer">
       <span class="ebn-icon">🔄</span><span>Troquer</span>
     </button>
@@ -17054,9 +17057,11 @@ function _renderNegocier(){
         return;
     }
 
-    // Limite affichage (perf)
-    var maxItems = 24;
-    var displayItems = items.slice(0, maxItems);
+    // ═══ FIX 2026-05 : afficher TOUS les produits négociables ═══
+    // Sur la page Négocier, on veut voir tous les produits négociables, pas juste 24.
+    // (Le catalogue principal limite à 12+lazy-load, mais ici l'utilisateur cherche
+    // explicitement à négocier, donc on affiche tout d'un coup.)
+    var displayItems = items;
 
     // Rendre les cartes — chaque card ouvre directement openOfferModal au click (pas openModal)
     grid.innerHTML = displayItems.map(function(item){
@@ -33566,6 +33571,7 @@ showPage = function(name) {
                 <div class="burger-section burger-nav-section">Navigation</div>
                 <button class="menu-link burger-nav-section" onclick="showPage('catalogue')">🛒 Catalogue</button>
                 <button class="menu-link burger-nav-section" onclick="selectedProductForBuy=null;window._currentBuyProduct=null;showPage('acheter')">💳 Acheter</button>
+                <button class="menu-link burger-nav-section" onclick="showPage('negocier')">💰 Négocier</button>
                 <button class="menu-link burger-nav-section" onclick="showPage('troquer')">🔄 Troquer</button>
                 <button class="menu-link burger-nav-section" onclick="showPage('parrainage')"><span class="money-fly">💸</span> Parrainer</button>
 
