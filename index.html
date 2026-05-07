@@ -43,7 +43,7 @@
 <meta name="msapplication-TileColor" content="#000000">
 <meta name="msapplication-TileImage" content="/mstile-150x150.png">
 <meta name="theme-color" content="#000000">
-<meta name="color-scheme" content="light only">
+<meta name="color-scheme" content="light dark">
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="LiHSfl7YCc3fDweA2e9EkXf_uN3uyjQi0RBLXQgMEmk" />
 <title>EcoDila — Achetez, Troquez & Négociez vos appareils en Côte d'Ivoire</title>
@@ -251,45 +251,64 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 @media(min-width:769px){.warranty-banner{padding:.65rem 1.5rem}.warranty-banner .wb-txt{font-size:.92rem}.warranty-banner .wb-btn{padding:.38rem 1.1rem;font-size:.8rem}}
 .card-img{height:70px;display:flex;align-items:center;justify-content:center;background:#fff;position:relative;overflow:hidden}
 
-/* ═══ FIX 2026-05 #dark-mode-images : empêcher le forced dark mode du navigateur d'altérer les images ═══
-   Le forced dark mode (Edge, Chrome) inverse les couleurs et fait apparaître les images
-   avec des contours blancs disgracieux dans des cartes noires. On force le navigateur
-   à respecter notre design clair pour les zones d'images.
+/* ═══ FIX 2026-05 #dark-mode-images : intégrer les images en dark mode ═══
+   Stratégie : utiliser mix-blend-mode: multiply qui fait disparaître le fond blanc
+   des images PNG sur n'importe quel fond. Les pixels blancs deviennent transparents
+   visuellement, le produit reste visible.
    
-   Solution : color-scheme: light only + background: white forcé sur les conteneurs d'images.
-   Coût : 0 KB de JavaScript, 0 ms d'exécution. Ultra léger pour mobile lent.
-   ═══════════════════════════════════════════════════════════════════════════════════════════ */
-:root{
-  color-scheme: light only;
-}
-html, body{
-  color-scheme: light only;
-}
-/* Force le fond blanc des conteneurs d'images même en forced dark mode */
+   Coût : 0 KB JS, 0 ms d'exécution. CSS pur avec accélération GPU.
+   Compatible : iOS Safari 8+, Chrome Android 75+, Edge, Firefox (99%+ des appareils)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Indiquer au navigateur que ce site supporte les 2 modes (évite l'inversion forcée) */
+:root { color-scheme: light dark; }
+
+/* 2. Conteneurs d'images : fond blanc clair fixe (résiste au dark mode forcé) */
 .card-img,
-.card-img *,
-.product-img,
-.product-img *,
-img.product-photo,
 .featured-img,
 .modal-img,
-.buy-card-img{
+.buy-card-img {
+  background-color: #f8fafc !important;
   forced-color-adjust: none;
-  -webkit-color-scheme: light only;
-  color-scheme: light only;
 }
-/* Le forced dark mode de certains navigateurs invente du noir. On force blanc. */
-.card-img{
-  background-color: #fff !important;
-}
-/* Pour les images directement (PNG avec fond blanc qui ressort sur dark) */
-.card-img img,
-.featured-img img,
-.modal-img img,
-.buy-card-img img{
+
+/* 3. Image elle-même : multiply fait absorber le blanc dans le fond clair
+      = produit propre sur fond clair, même en dark mode du système */
+.card-img > img,
+.featured-img > img,
+.modal-img > img,
+.buy-card-img > img,
+.card-carousel img {
+  mix-blend-mode: multiply;
   background-color: transparent;
-  /* Aide à neutraliser un éventuel filter d'inversion */
-  filter: none !important;
+  forced-color-adjust: none;
+}
+
+/* 4. Quand le système est en dark mode, on garde le fond clair pour les images,
+      mais on assombrit légèrement pour mieux s'intégrer au reste sombre du site */
+@media (prefers-color-scheme: dark) {
+  .card-img,
+  .featured-img,
+  .modal-img,
+  .buy-card-img {
+    background-color: #f1f5f9 !important; /* gris très clair, presque blanc */
+  }
+  /* Le navigateur peut quand même décider d'inverser tout. On le force à respecter. */
+  .card,
+  .featured-card,
+  .modal-content {
+    forced-color-adjust: none;
+  }
+}
+
+/* 5. Filtre de secours si certains navigateurs continuent à inverser */
+@media (forced-colors: active) {
+  .card-img,
+  .featured-img,
+  .modal-img {
+    forced-color-adjust: none;
+    background-color: #fff !important;
+  }
 }
 /* ═══ FIN FIX dark-mode-images ═══ */
 .card-carousel{position:relative;width:100%;height:100%}
