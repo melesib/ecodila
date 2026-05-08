@@ -5828,6 +5828,13 @@ window._sbDiscoverSchema = function(){
             window._sbBadCols[table][col] = true;
             console.log('[EcoDila] 📋 Schema: "' + col + '" absente de "' + table + '"');
           }
+        } else {
+          // ═══ FIX 2026-05-08 #schema-cache : cacher AUSSI les colonnes qui existent ═══
+          // Avant : seules les colonnes absentes étaient cachées → les colonnes EXISTANTES
+          // étaient re-testées à chaque chargement (21 SELECT inutiles).
+          // Maintenant : on cache l'état "OK" aussi → 0 SELECT au 2e chargement.
+          window._sbBadCols[table] = window._sbBadCols[table] || {};
+          window._sbBadCols[table][col] = false; // false = colonne existe (OK)
         }
         // Sauvegarder à la fin de la dernière vérif
         if(done === pending) window._sbSaveBadColsCache();
@@ -6048,7 +6055,9 @@ setTimeout(function(){ try { window._sbDiscoverSchema(); } catch(e){} }, 2000);
    - Sinon : client_id = UUID anonyme stocké en localStorage (suit le navigateur)
 */
 window._lidaConv = (function(){
-  var POLL_INTERVAL = 8000;  // 8s : polling pour nouvelles réponses admin
+  var POLL_INTERVAL = 60000;     // 60s : polling lent par défaut (économise réseau + Supabase)
+  var POLL_INTERVAL_FAST = 8000; // 8s : polling rapide quand chat ouvert (réactif)
+  var POLL_IDLE_TIMEOUT = 300000; // 5 min : stop polling si pas d'activité
   var pollTimer = null;
   var lastSeenId = 0;        // ID du dernier message reçu (évite doublons)
   var unreadCount = 0;
@@ -6259,24 +6268,84 @@ window._lidaConv = (function(){
   }
 
   // Démarrer le polling pour les réponses admin
+  // ═══ FIX 2026-05-08 #polling-perf : polling intelligent ═══
+  // Avant : poll toutes les 8s pendant des heures = 450 fetch/heure inutiles
+  // Maintenant :
+  //   - 60s par défaut (au lieu de 8s)
+  //   - 8s seulement quand chat ouvert
+  //   - Skip si page cachée (onglet arrière-plan)
+  //   - Skip si user pas connecté
+  //   - Stop après 5 min d'inactivité
+  var lastUserActivity = Date.now();
+  var chatIsOpen = false;
+  
+  // Tracker l'activité utilisateur pour gérer l'inactivité
+  ['click', 'keydown', 'mousemove', 'touchstart'].forEach(function(evt){
+    document.addEventListener(evt, function(){
+      lastUserActivity = Date.now();
+    }, {passive: true, capture: true});
+  });
+  
+  // Hook : savoir si chat ouvert
+  window._lidaChatOpen = function(open){ chatIsOpen = !!open; };
+  
   function startPolling(){
     if(pollTimer) return;
     var poll = async function(){
+      // Skip si page cachée (onglet en arrière-plan) — économie batterie/réseau
+      // Quand l'utilisateur revient, le polling reprend automatiquement
+      if (document.hidden) return;
+      
+      // Skip si inactif depuis > 5 min (l'utilisateur n'utilise plus l'app)
+      // → reprend dès qu'il interagit (click, touch, key)
+      if (Date.now() - lastUserActivity > POLL_IDLE_TIMEOUT) {
+        console.log('[LIDA polling] Inactif > 5min, polling pausé jusqu\'à activité');
+        stopPolling();
+        var resumeOnActivity = function(){
+          lastUserActivity = Date.now();
+          ['click', 'keydown', 'touchstart'].forEach(function(e){
+            document.removeEventListener(e, resumeOnActivity, {capture: true});
+          });
+          startPolling();
+        };
+        ['click', 'keydown', 'touchstart'].forEach(function(e){
+          document.addEventListener(e, resumeOnActivity, {once: true, capture: true});
+        });
+        return;
+      }
+      
+      // ⚠️ TOUT le monde reçoit le polling, connecté ou pas :
+      // - Visiteur qui demande de l'aide pour trouver un produit
+      // - Client qui n'arrive pas à s'inscrire (Bamba) et a besoin de réponse admin
+      // - Anonyme qui négocie avant de créer un compte
+      // Sans polling, ils ne recevraient jamais la réponse de l'admin
+      
       var newMessages = await checkNewAdminReplies();
       if(newMessages.length > 0){
         unreadCount = newMessages.length;
         showNewMessageBadge(newMessages);
-        // Stocker pour affichage à l'ouverture du chat
         window._lidaPendingMessages = newMessages;
       }
     };
-    poll();  // immédiat
-    pollTimer = setInterval(poll, POLL_INTERVAL);
+    
+    // Premier poll immédiat (mais après 3s pour ne pas bloquer le chargement initial)
+    setTimeout(poll, 3000);
+    
+    // Setup interval qui s'adapte selon état chat
+    var scheduleNext = function(){
+      var interval = chatIsOpen ? POLL_INTERVAL_FAST : POLL_INTERVAL;
+      pollTimer = setTimeout(function(){
+        poll().then(scheduleNext);
+      }, interval);
+    };
+    scheduleNext();
   }
+  // ═══ FIN FIX polling-perf ═══
 
   function stopPolling(){
     if(pollTimer){
-      clearInterval(pollTimer);
+      clearTimeout(pollTimer);
+      clearInterval(pollTimer); // au cas où c'est encore un setInterval ailleurs
       pollTimer = null;
     }
   }
@@ -29377,6 +29446,8 @@ function _chatMicShimmer(){
 function toggleChat(){
   chatOpen=!chatOpen;
   document.getElementById('chatWrap').classList.toggle('show',chatOpen);
+  // ═══ FIX 2026-05-08 #polling-perf : signal au polling chat ═══
+  if (typeof window._lidaChatOpen === 'function') window._lidaChatOpen(chatOpen);
   if(chatOpen){
     var tip = document.getElementById('waFloatTip');
     if(tip) tip.classList.remove('show');
