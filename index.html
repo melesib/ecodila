@@ -7134,7 +7134,7 @@ window._sbFlushPending = function(){
 
             window._withTimeout(
                 _sb.from(item.table).upsert(dataToSend, {onConflict: onConflict}),
-                15000, 'retry:' + item.table
+                30000, 'retry:' + item.table
             ).then(function(r){
                 if(r && r.error){
                     // 🆕 RESILIENCE COLONNES : si erreur "column X does not exist", retirer X
@@ -7729,7 +7729,7 @@ window._sbWrite = function(k,v) {
         lastCleanedBatch = currentBatch; // Mémoriser le dernier état nettoyé
         return window._withTimeout(
           _sb.from(t).upsert(currentBatch, {onConflict:'id'}),
-          15000, 'sbWrite:' + t
+          30000, 'sbWrite:' + t
         ).then(function(r){
           if(r && r.error){
             var errMsg = r.error.message || '';
@@ -7803,7 +7803,7 @@ window._sbWrite = function(k,v) {
   window._sbWriteWarnDedup = window._sbWriteWarnDedup || {};
   window._withTimeout(
     _sb.from('settings').upsert({key:k,value:v,updated_at:new Date().toISOString()},{onConflict:'key'}),
-    15000, 'sbWrite:settings'
+    30000, 'sbWrite:settings'
   ).then(function(r){
     if(r && r.error){
       throw new Error(r.error.message);
@@ -9595,13 +9595,13 @@ function sendResetLink(event) {
     var _userQuery = function(){
         return window._withTimeout(
             _sb.from('users').select('*').like('telephone', '%'+phoneTel8+'%'),
-            20000, 'reset-select-users'
+            30000, 'reset-select-users'
         );
     };
     var _parrainQuery = function(){
         return window._withTimeout(
             _sb.from('parrains').select('*').like('telephone', '%'+phoneTel8+'%'),
-            20000, 'reset-select-parrains'
+            30000, 'reset-select-parrains'
         ).catch(function(){ return { data: [] }; }); // table parrains optionnelle
     };
 
@@ -9935,7 +9935,7 @@ function confirmNewPassword(event) {
         // Update only this user in Supabase — avec timeout + catch
         return window._withTimeout(
             _sb.from('users').update({password: hashed}).eq('id', users[userIndex].id),
-            12000, 'pwd-reset'
+            30000, 'pwd-reset'
         ).then(function(r){
             if(r && r.error){ throw new Error(r.error.message); }
             return r;
@@ -11123,7 +11123,7 @@ function connexion(e) {
         var _loginQuery = function(){
             return window._withTimeout(
                 _sb.from('users').select('*').like('telephone', '%'+_loginTel8+'%'),
-                20000, 'login-select'
+                30000, 'login-select'
             );
         };
         _loginQuery().then(function(_loginRes){
@@ -11748,19 +11748,25 @@ function inscription(e){
             // STRATÉGIE : si le réseau échoue, on crée le compte LOCALEMENT
             // et on queue l'INSERT pour sync plus tard. Le compte est utilisable
             // immédiatement. Aucun client n'est bloqué à cause du réseau.
+            //
+            // ═══ FIX 2026-05 #insert-timeout : 15s → 30s ═══
+            // Diagnostic 2026-05-08 : sur 2G/3G en CI, un INSERT users prend
+            // souvent > 15s (handshake TLS + payload + roundtrip).
+            // Test simulé confirmé : à 25s la requête bloque, à 15.1s elle passe juste.
+            // → 30s donne la marge nécessaire pour les connexions très lentes.
             _diagStep('insert_started');
             _withTimeout(
                 _sb.from('users').insert(nouvelUtilisateur),
-                15000, 'user-insert'
+                30000, 'user-insert'
             ).then(function(insRes){
                 if(insRes && insRes.error){
                     _diagStep('insert_error', { code: insRes.error.code, message: insRes.error.message, details: insRes.error.details, hint: insRes.error.hint });
                     console.warn('[Inscription] Insert error:', insRes.error.message, '→ retry upsert');
-                    // Retry via upsert (idempotent)
+                    // Retry via upsert (idempotent) — aussi à 30s
                     _diagStep('upsert_started');
                     return _withTimeout(
                         _sb.from('users').upsert(nouvelUtilisateur, {onConflict:'id'}),
-                        15000, 'user-upsert'
+                        30000, 'user-upsert'
                     ).then(function(upRes){
                         if(upRes && upRes.error){
                             _diagStep('upsert_error', { code: upRes.error.code, message: upRes.error.message, details: upRes.error.details, hint: upRes.error.hint });
@@ -11797,10 +11803,23 @@ function inscription(e){
                 // Finaliser en mode local : user connecté, compte en sessionStorage
                 _finalizeRegistration(nouvelUtilisateur, _tel8, true);
 
-                // Message informatif (pas alarmant)
+                // ═══ FIX 2026-05 #insert-timeout : message plus clair pour CI 2G/3G ═══
                 setTimeout(function(){
-                    showToast('ℹ️ Connexion instable — votre compte est créé et sera synchronisé automatiquement.');
+                    showToast('✅ Compte créé ! Connexion lente détectée — synchronisation en cours en arrière-plan, gardez l\'app ouverte 1 minute.');
                 }, 2500);
+
+                // Force des retries agressifs pour ce compte spécifiquement
+                // (en plus de la queue normale qui retry toutes les 30s).
+                // Ça donne au compte 4 chances rapprochées de se synchroniser
+                // avant que l'utilisateur ne ferme l'app.
+                [5000, 15000, 30000, 60000].forEach(function(delay){
+                    setTimeout(function(){
+                        if (typeof window._sbFlushPending === 'function' && navigator.onLine !== false) {
+                            console.log('[Inscription] Retry agressif à +' + delay + 'ms');
+                            window._sbFlushPending();
+                        }
+                    }, delay);
+                });
             });
         } // _doInsertUser
 
@@ -25526,7 +25545,7 @@ function _submitOfferContinue(prix, nom, tel){
       offerForDB[k] = offer[k];
     });
     var _wrap = (typeof window._withTimeout === 'function')
-      ? function(p, lbl){ return window._withTimeout(p, 15000, lbl||'offer-insert'); }
+      ? function(p, lbl){ return window._withTimeout(p, 30000, lbl||'offer-insert'); }
       : function(p){ return Promise.resolve(p); };
 
     // 1. Tenter INSERT/upsert dans offers
@@ -28744,7 +28763,7 @@ function submitBuy(){
         orderForDB[k] = commandeComplete[k];
       });
       var _wrap = (typeof window._withTimeout === 'function')
-        ? function(p){ return window._withTimeout(p, 15000, 'order-insert'); }
+        ? function(p){ return window._withTimeout(p, 30000, 'order-insert'); }
         : function(p){ return Promise.resolve(p); };
       _wrap(_sb.from('orders').upsert(orderForDB, {onConflict:'id'})).then(function(r){
         if(r && r.error){
