@@ -43,7 +43,6 @@
 <meta name="msapplication-TileColor" content="#000000">
 <meta name="msapplication-TileImage" content="/mstile-150x150.png">
 <meta name="theme-color" content="#000000">
-<meta name="color-scheme" content="light dark">
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="LiHSfl7YCc3fDweA2e9EkXf_uN3uyjQi0RBLXQgMEmk" />
 <title>EcoDila — Achetez, Troquez & Négociez vos appareils en Côte d'Ivoire</title>
@@ -234,7 +233,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 #price-thumb:active{cursor:grabbing!important}
 #price-tip{pointer-events:none;z-index:5;white-space:nowrap;transition:left .1s ease,opacity .2s}
 .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.35rem;padding-bottom:5rem}
-.card{background:var(--white);border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;contain:layout style paint}
+.card{background:white;border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;contain:layout style paint}
 /* skeleton — défini plus bas ligne ~741 (une seule source de vérité) */
 @keyframes _etatFlash{0%{transform:scale(1)}50%{transform:scale(1.08);filter:brightness(1.3)}100%{transform:scale(1)}}
 .card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);transform:translateY(-1px)}
@@ -249,66 +248,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 @media(min-width:321px) and (max-width:480px){.warranty-banner .wb-txt{font-size:.68rem}.warranty-banner .wb-btn{font-size:.6rem}}
 @media(min-width:481px){.warranty-banner{padding:.6rem 1rem;gap:.5rem}.warranty-banner .wb-shield{font-size:1.2rem}.warranty-banner .wb-txt{font-size:.85rem}.warranty-banner .wb-btn{padding:.35rem .9rem;font-size:.75rem}}
 @media(min-width:769px){.warranty-banner{padding:.65rem 1.5rem}.warranty-banner .wb-txt{font-size:.92rem}.warranty-banner .wb-btn{padding:.38rem 1.1rem;font-size:.8rem}}
-.card-img{height:70px;display:flex;align-items:center;justify-content:center;background:var(--white);position:relative;overflow:hidden}
-
-/* ═══ FIX 2026-05 #dark-mode-images : intégrer les images sans rectangles blancs ═══
-   Stratégie : utiliser EXACTEMENT la couleur de fond du site (--white = #f6f4f0)
-   pour les conteneurs d'images. Les pixels blancs des PNG (#fff) sont rendus
-   transparents via mix-blend-mode: multiply, ce qui les fait fusionner avec le
-   fond beige cassé du site. Plus aucun rectangle blanc visible.
-   
-   Coût : 0 KB JS, ~600 bytes CSS gzippé. Compositing GPU natif.
-   ═══════════════════════════════════════════════════════════════════════════════ */
-
-/* 1. Indiquer au navigateur que ce site supporte les 2 modes (évite l'inversion forcée) */
-:root { color-scheme: light dark; }
-
-/* 2. Conteneurs d'images : MÊME couleur que le fond du site (--white = #f6f4f0) */
-.card-img,
-.featured-img,
-.modal-img,
-.buy-card-img {
-  background-color: var(--white) !important;
-  forced-color-adjust: none;
-}
-
-/* 3. mix-blend-mode: multiply efface les pixels blancs purs des PNG
-      → le blanc devient invisible, le produit reste net */
-.card-img > img,
-.featured-img > img,
-.modal-img > img,
-.buy-card-img > img,
-.card-carousel img {
-  mix-blend-mode: multiply;
-  background-color: transparent;
-  forced-color-adjust: none;
-}
-
-/* 4. Si système en dark mode forcé : on garde le même rendu clair (cohérence) */
-@media (prefers-color-scheme: dark) {
-  .card-img,
-  .featured-img,
-  .modal-img,
-  .buy-card-img {
-    background-color: var(--white) !important;
-  }
-  .card,
-  .featured-card,
-  .modal-content {
-    forced-color-adjust: none;
-  }
-}
-
-/* 5. Filtre de secours pour les navigateurs en mode forced-colors (accessibilité) */
-@media (forced-colors: active) {
-  .card-img,
-  .featured-img,
-  .modal-img {
-    forced-color-adjust: none;
-    background-color: var(--white) !important;
-  }
-}
-/* ═══ FIN FIX dark-mode-images ═══ */
+.card-img{height:70px;display:flex;align-items:center;justify-content:center;background:#fff;position:relative;overflow:hidden}
 .card-carousel{position:relative;width:100%;height:100%}
 .carousel-track{display:flex;width:100%;height:100%;transition:transform .5s ease-in-out}
 .carousel-slide{min-width:100%;height:100%;flex-shrink:0;position:relative}
