@@ -15,6 +15,64 @@
   Link: </ai.txt>; rel="ai-policy", </LICENSE.txt>; rel="license"
 
 # ════════════════════════════════════════════════════════════════════
+# FAVICONS & ICONES — cache long terme (immutable)
+# ════════════════════════════════════════════════════════════════════
+# Force Chrome/Safari/Firefox à cacher les favicons 1 an au lieu de
+# les redécharger à chaque visite (cause de la "disparition" entre rechargements).
+
+/favicon.ico
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/x-icon
+
+/favicon.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/favicon-16x16.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/favicon-32x32.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/favicon-48x48.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/favicon-96x96.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/apple-touch-icon.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/android-chrome-192x192.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/android-chrome-512x512.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/android-chrome-maskable-192x192.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/android-chrome-maskable-512x512.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/mstile-150x150.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/site.webmanifest
+  Cache-Control: public, max-age=86400
+  Content-Type: application/manifest+json; charset=utf-8
+
+# ════════════════════════════════════════════════════════════════════
 # BACK-OFFICES — BLOCAGE TOTAL : noindex + nofollow + noai + noarchive
 # ════════════════════════════════════════════════════════════════════
 
