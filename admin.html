@@ -14765,11 +14765,17 @@ async function loadData() {
                 }).slice(0, 500);
                 console.log('[Admin loadData] ✅ Erreurs chargées depuis settings: ' + window._sbErrorLogs.length);
             } else {
-                window._sbErrorLogs = window._sbErrorLogs || [];
-                console.log('[Admin loadData] Settings.error_log_recent vide ou absent');
+                // ═══ FIX 2026-05-08 #purge-memoire : Supabase vide = FORCE _sbErrorLogs à vide ═══
+                // Avant : window._sbErrorLogs = window._sbErrorLogs || []
+                //         → garde les 50 erreurs déjà en mémoire si Supabase répond []
+                //         → après une purge, les erreurs revenaient au refresh
+                // Maintenant : on FORCE à [] si Supabase est vide. Source de vérité = Supabase.
+                window._sbErrorLogs = [];
+                console.log('[Admin loadData] Settings.error_log_recent vide → mémoire FORCÉE à vide');
             }
         } catch(errLoad) {
             console.warn('[Admin loadData] Erreur chargement error_log_recent:', errLoad && errLoad.message);
+            // En cas d'erreur réseau, on GARDE le cache mémoire (pas de purge accidentelle)
             window._sbErrorLogs = window._sbErrorLogs || [];
         }
         // ═══ FIN FIX A-admin (loadData) ═══
@@ -28381,10 +28387,14 @@ if(typeof _ecoIsSuperAdmin==='function'&&!_ecoIsSuperAdmin()){showNotification('
     if (!errorLog.length) { showToast('ℹ️ Aucune erreur à purger', 'info'); return; }
     if (!confirm('⚠️ Supprimer TOUTES les ' + errorLog.length + ' erreurs ? Cette action est irréversible.')) return;
 
-    // ═══ FIX 2026-05 #purge-vraie-source : persister vide dans settings (vraie source) ═══
-    // Avant : _sb.from('error_logs').delete() ne marchait pas (table inexistante).
-    // Maintenant : on upsert le log VIDE dans settings, là où il est vraiment stocké.
+    // ═══ FIX 2026-05 #purge-totale : effacer TOUS les caches (Supabase + mémoire + localStorage) ═══
+    // Bug initial : la purge ne touchait pas Supabase (table error_logs inexistante)
+    // Bug v2 : Supabase OK mais mémoire JavaScript gardait les 50 erreurs au refresh
+    //          (loadData utilisait `|| []` qui ne forçait pas la mise à zéro)
+    // Solution v3 : nettoyer TOUTES les sources possibles + forcer rechargement DOM
+
     Promise.all([
+        // 1. Supabase : la SOURCE DE VÉRITÉ
         _sb.from('settings').upsert({
             key: 'ecodila_error_log',
             value: [],
@@ -28406,11 +28416,48 @@ if(typeof _ecoIsSuperAdmin==='function'&&!_ecoIsSuperAdmin()){showNotification('
         console.warn('[Admin] ⚠️ Purge totale persiste partielle:', err);
     });
 
+    // 2. Mémoire JavaScript : TOUS les caches connus
     window._sbErrorLogs = [];
-    _lsSet('ecodila_error_log', '[]');
-    _lsSet('ecodila_error_count', '0');
+    if (window._sbAllSettings) {
+        window._sbAllSettings['ecodila_error_log'] = [];
+        window._sbAllSettings['ecodila_error_log_recent'] = [];
+        window._sbAllSettings['ecodila_error_count'] = '0';
+    }
+
+    // 3. localStorage (fallback offline-first)
+    try {
+        _lsSet('ecodila_error_log', '[]');
+        _lsSet('ecodila_error_count', '0');
+        // Aussi vider sessionStorage au cas où
+        try { sessionStorage.removeItem('ecodila_error_log'); } catch(_){}
+        try { sessionStorage.removeItem('ecodila_error_count'); } catch(_){}
+    } catch(e){}
+
+    // 4. Re-render immédiat de la liste
     showToast('💣 Toutes les erreurs ont été purgées', 'success');
     loadErrors();
+
+    // 5. Filet de sécurité : si quelque chose remplit _sbErrorLogs après notre purge
+    //    (par exemple un loadData async qui reset depuis cache), on re-purge à 1s
+    setTimeout(function(){
+        if (window._sbErrorLogs && window._sbErrorLogs.length > 0) {
+            console.warn('[Admin] ⚠️ _sbErrorLogs s\'est rempli après la purge, re-purge en cours...');
+            window._sbErrorLogs = [];
+            if (window._sbAllSettings) {
+                window._sbAllSettings['ecodila_error_log_recent'] = [];
+            }
+            loadErrors();
+        }
+    }, 1500);
+
+    // 6. Filet de sécurité ultime : à 5s, vérifier encore une fois
+    setTimeout(function(){
+        if (window._sbErrorLogs && window._sbErrorLogs.length > 0) {
+            console.warn('[Admin] ⚠️ _sbErrorLogs ENCORE rempli à 5s, force reload de la page');
+            window._sbErrorLogs = [];
+            loadErrors();
+        }
+    }, 5000);
 }
 
 function deleteError(id) {
