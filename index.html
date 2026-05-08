@@ -234,7 +234,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 #price-thumb:active{cursor:grabbing!important}
 #price-tip{pointer-events:none;z-index:5;white-space:nowrap;transition:left .1s ease,opacity .2s}
 .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.35rem;padding-bottom:5rem}
-.card{background:white;border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;contain:layout style paint}
+.card{background:var(--white);border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;contain:layout style paint}
 /* skeleton — défini plus bas ligne ~741 (une seule source de vérité) */
 @keyframes _etatFlash{0%{transform:scale(1)}50%{transform:scale(1.08);filter:brightness(1.3)}100%{transform:scale(1)}}
 .card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);transform:translateY(-1px)}
@@ -249,31 +249,31 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 @media(min-width:321px) and (max-width:480px){.warranty-banner .wb-txt{font-size:.68rem}.warranty-banner .wb-btn{font-size:.6rem}}
 @media(min-width:481px){.warranty-banner{padding:.6rem 1rem;gap:.5rem}.warranty-banner .wb-shield{font-size:1.2rem}.warranty-banner .wb-txt{font-size:.85rem}.warranty-banner .wb-btn{padding:.35rem .9rem;font-size:.75rem}}
 @media(min-width:769px){.warranty-banner{padding:.65rem 1.5rem}.warranty-banner .wb-txt{font-size:.92rem}.warranty-banner .wb-btn{padding:.38rem 1.1rem;font-size:.8rem}}
-.card-img{height:70px;display:flex;align-items:center;justify-content:center;background:#fff;position:relative;overflow:hidden}
+.card-img{height:70px;display:flex;align-items:center;justify-content:center;background:var(--white);position:relative;overflow:hidden}
 
-/* ═══ FIX 2026-05 #dark-mode-images : intégrer les images en dark mode ═══
-   Stratégie : utiliser mix-blend-mode: multiply qui fait disparaître le fond blanc
-   des images PNG sur n'importe quel fond. Les pixels blancs deviennent transparents
-   visuellement, le produit reste visible.
+/* ═══ FIX 2026-05 #dark-mode-images : intégrer les images sans rectangles blancs ═══
+   Stratégie : utiliser EXACTEMENT la couleur de fond du site (--white = #f6f4f0)
+   pour les conteneurs d'images. Les pixels blancs des PNG (#fff) sont rendus
+   transparents via mix-blend-mode: multiply, ce qui les fait fusionner avec le
+   fond beige cassé du site. Plus aucun rectangle blanc visible.
    
-   Coût : 0 KB JS, 0 ms d'exécution. CSS pur avec accélération GPU.
-   Compatible : iOS Safari 8+, Chrome Android 75+, Edge, Firefox (99%+ des appareils)
+   Coût : 0 KB JS, ~600 bytes CSS gzippé. Compositing GPU natif.
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 /* 1. Indiquer au navigateur que ce site supporte les 2 modes (évite l'inversion forcée) */
 :root { color-scheme: light dark; }
 
-/* 2. Conteneurs d'images : fond blanc clair fixe (résiste au dark mode forcé) */
+/* 2. Conteneurs d'images : MÊME couleur que le fond du site (--white = #f6f4f0) */
 .card-img,
 .featured-img,
 .modal-img,
 .buy-card-img {
-  background-color: #f8fafc !important;
+  background-color: var(--white) !important;
   forced-color-adjust: none;
 }
 
-/* 3. Image elle-même : multiply fait absorber le blanc dans le fond clair
-      = produit propre sur fond clair, même en dark mode du système */
+/* 3. mix-blend-mode: multiply efface les pixels blancs purs des PNG
+      → le blanc devient invisible, le produit reste net */
 .card-img > img,
 .featured-img > img,
 .modal-img > img,
@@ -284,16 +284,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
   forced-color-adjust: none;
 }
 
-/* 4. Quand le système est en dark mode, on garde le fond clair pour les images,
-      mais on assombrit légèrement pour mieux s'intégrer au reste sombre du site */
+/* 4. Si système en dark mode forcé : on garde le même rendu clair (cohérence) */
 @media (prefers-color-scheme: dark) {
   .card-img,
   .featured-img,
   .modal-img,
   .buy-card-img {
-    background-color: #f1f5f9 !important; /* gris très clair, presque blanc */
+    background-color: var(--white) !important;
   }
-  /* Le navigateur peut quand même décider d'inverser tout. On le force à respecter. */
   .card,
   .featured-card,
   .modal-content {
@@ -301,13 +299,13 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
   }
 }
 
-/* 5. Filtre de secours si certains navigateurs continuent à inverser */
+/* 5. Filtre de secours pour les navigateurs en mode forced-colors (accessibilité) */
 @media (forced-colors: active) {
   .card-img,
   .featured-img,
   .modal-img {
     forced-color-adjust: none;
-    background-color: #fff !important;
+    background-color: var(--white) !important;
   }
 }
 /* ═══ FIN FIX dark-mode-images ═══ */
@@ -11704,37 +11702,88 @@ function inscription(e){
         });
 
         function _doInsertUser(nouvelUtilisateur, _tel8) {
+            // ═══ FIX 2026-05 #inscription-diag : diagnostic verbose pour tracer les échecs ═══
+            // Si Bamba (ou un autre) ne peut pas créer son compte, ce diagnostic révèle
+            // pourquoi : timeout, erreur 401/409/500, schema mismatch, etc.
+            // Le résultat est stocké dans settings.ecodila_registration_diag_<userId>
+            // → tu peux le consulter dans le BO admin / Supabase
+            var _diagId = nouvelUtilisateur.id;
+            var _diagStart = Date.now();
+            var _diag = {
+                id: _diagId,
+                tel: nouvelUtilisateur.telephone,
+                nom: nouvelUtilisateur.nom,
+                started: new Date().toISOString(),
+                steps: [],
+                userAgent: (navigator.userAgent || '').slice(0, 200),
+                connectionType: (navigator.connection && navigator.connection.effectiveType) || 'unknown',
+                online: navigator.onLine
+            };
+            function _diagStep(name, data){
+                _diag.steps.push({
+                    t: Date.now() - _diagStart,
+                    step: name,
+                    data: data || null
+                });
+                console.log('[Inscription DIAG]', (Date.now() - _diagStart) + 'ms', name, data || '');
+            }
+            function _diagSave(){
+                try {
+                    if (window._sb && typeof window._sb.from === 'function') {
+                        window._sb.from('settings').upsert({
+                            key: 'ecodila_registration_diag_' + _diagId,
+                            value: _diag,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'key' }).then(function(){}, function(){});
+                    }
+                } catch(_){}
+                // Aussi en local pour pouvoir le récupérer depuis l'appareil
+                try {
+                    localStorage.setItem('ecodila_last_registration_diag', JSON.stringify(_diag));
+                } catch(_){}
+            }
+            _diagStep('start', { fingerprint: nouvelUtilisateur.fingerprint, ip: nouvelUtilisateur.registrationIp });
+
             // INSERT avec timeout + fallback offline-first
             // STRATÉGIE : si le réseau échoue, on crée le compte LOCALEMENT
             // et on queue l'INSERT pour sync plus tard. Le compte est utilisable
             // immédiatement. Aucun client n'est bloqué à cause du réseau.
+            _diagStep('insert_started');
             _withTimeout(
                 _sb.from('users').insert(nouvelUtilisateur),
                 15000, 'user-insert'
             ).then(function(insRes){
                 if(insRes && insRes.error){
+                    _diagStep('insert_error', { code: insRes.error.code, message: insRes.error.message, details: insRes.error.details, hint: insRes.error.hint });
                     console.warn('[Inscription] Insert error:', insRes.error.message, '→ retry upsert');
                     // Retry via upsert (idempotent)
+                    _diagStep('upsert_started');
                     return _withTimeout(
                         _sb.from('users').upsert(nouvelUtilisateur, {onConflict:'id'}),
                         15000, 'user-upsert'
                     ).then(function(upRes){
                         if(upRes && upRes.error){
+                            _diagStep('upsert_error', { code: upRes.error.code, message: upRes.error.message, details: upRes.error.details, hint: upRes.error.hint });
                             // Les deux ont échoué côté DB — on passe en mode offline-first
                             throw new Error('insert+upsert failed: ' + upRes.error.message);
                         }
+                        _diagStep('upsert_ok');
                         return upRes;
                     });
                 }
+                _diagStep('insert_ok');
                 return insRes;
             }).then(function(){
                 // ✅ Succès INSERT ou upsert → finalisation normale
+                _diagStep('finalize_online');
+                _diag.outcome = 'success_online';
+                _diagSave();
                 _finalizeRegistration(nouvelUtilisateur, _tel8);
             }).catch(function(err){
                 // ❌ Echec réseau ou DB → MODE OFFLINE-FIRST
-                // On queue l'INSERT pour retry plus tard ET on crée le compte
-                // localement. L'utilisateur peut se connecter et utiliser le site
-                // immédiatement. La sync avec Supabase se fait en arrière-plan.
+                _diagStep('catch_error', { name: err.name, message: err.message, stack: (err.stack || '').slice(0, 500) });
+                _diag.outcome = 'fallback_offline';
+                _diagSave();
                 console.warn('[Inscription] Réseau/DB échec → création locale + queue pending:', err.message);
 
                 try {
@@ -11746,7 +11795,6 @@ function inscription(e){
                 }
 
                 // Finaliser en mode local : user connecté, compte en sessionStorage
-                // Le retry automatique (toutes les 60s + reconnexion) synchronisera
                 _finalizeRegistration(nouvelUtilisateur, _tel8, true);
 
                 // Message informatif (pas alarmant)
@@ -34972,6 +35020,39 @@ window._promoBarClick=function(){
 
     // Fonction pour logger une erreur
     function logError(errorData) {
+        // ═══ FIX 2026-05 #anti-spam-fetch v2 : dernier filet de sécurité ═══
+        // Même si une erreur réseau passe à travers les autres filtres (logUserError,
+        // unhandledrejection, fetch wrapper), on la stoppe ici. C'est le dernier rempart
+        // avant l'écriture en DB qui causait le spam.
+        try {
+            var checkMsg = String((errorData && (errorData.message || '')) || '').toLowerCase();
+            var noisyKeywords = [
+                'failed to fetch',
+                'networkerror',
+                'network error',
+                'load failed',
+                'aborted',
+                'cancelled',
+                'canceled',
+                'err_internet',
+                'err_network',
+                'err_connection',
+                'err_timed_out',
+                'err_name_not_resolved',
+                'ns_error_net',
+                'ns_error_failure',
+                'sbwrite:',
+                'sbinsert:',
+                'sbselect:',
+                'sbupdate:'
+            ];
+            if (noisyKeywords.some(function(kw){ return checkMsg.indexOf(kw) !== -1; })) {
+                // Erreur réseau : silencieuse, pas en DB
+                window._netErrSilentCount = (window._netErrSilentCount || 0) + 1;
+                return;
+            }
+        } catch(_){}
+
         const error = {
             id: 'ERR' + Date.now() + Math.random().toString(36).substr(2, 9),
             timestamp: new Date().toISOString(),
@@ -35030,10 +35111,32 @@ window._promoBarClick=function(){
         'Loading chunk',              // Erreurs de chargement de chunk webpack
         'ChunkLoadError',
         'Unexpected token <',         // Erreur HTML chargé à la place d'un JS (réseau)
-        'NetworkError',
-        'Load failed',
+        // ═══ FIX 2026-05 #anti-spam-fetch v2 : erreurs réseau du client (pas des bugs serveur) ═══
+        'Failed to fetch',            // Coupure réseau classique (Chrome/Firefox)
+        'NetworkError',               // Firefox network error
+        'network error',              // variations
+        'Network Error',
+        'Load failed',                // Safari iOS quand réseau coupé
+        'load failed',
         'cancelled',
-        'The operation was aborted'
+        'canceled',
+        'aborted',
+        'The operation was aborted',
+        'AbortError',
+        'TimeoutError',
+        'timeout',
+        'ERR_INTERNET_DISCONNECTED',  // Chrome offline
+        'ERR_NETWORK',                // Chrome
+        'ERR_CONNECTION',
+        'ERR_TIMED_OUT',
+        'ERR_NAME_NOT_RESOLVED',
+        'NS_ERROR_NET',               // Firefox
+        'NS_ERROR_FAILURE',
+        'sbWrite:',                   // Timeouts internes _withTimeout pour _sbWrite
+        'sbInsert:',                  // Idem pour _sbInsert
+        'sbSelect:',
+        'sbUpdate:',
+        'TypeError: Failed to fetch'  // Variante Chrome
     ];
     // Déduplication : éviter de loguer la même erreur plusieurs fois en 5s
     var _errDedup = {};
@@ -35094,6 +35197,16 @@ window._promoBarClick=function(){
 
     // Fonction publique pour logger des erreurs custom
     window.logUserError = function(action, message, details = {}, severity = 'medium') {
+        // ═══ FIX 2026-05 #anti-spam-fetch v2 : ignorer les erreurs réseau ═══
+        var msgStr = String(message || '');
+        if (_errNoisyPatterns.some(function(p){ return msgStr.indexOf(p) !== -1; })) {
+            // Compteur silencieux
+            try { window._netErrSilentCount = (window._netErrSilentCount || 0) + 1; } catch(_){}
+            return;
+        }
+        // Dédup (5s) sur action+message
+        if (_isDuplicateError(action + ':' + msgStr)) return;
+
         logError({
             type: 'User Action Error',
             severity: severity,
@@ -35109,18 +35222,22 @@ window._promoBarClick=function(){
     };
 
     // Wrapper pour fetch (erreurs réseau)
-    // ═══ FIX 2026-05 #anti-spam-fetch : éviter le spam de Fetch failed ═══
+    // ═══ FIX 2026-05 #anti-spam-fetch v2 : éviter le spam de Fetch failed ═══
     // Avant : chaque fetch échoué = 1 erreur loggée (50+ erreurs identiques sur 2G CI).
     // Maintenant :
     //   1. Anti-boucle : ignorer les fetches vers settings/error_log_recent
     //      (sinon le log de l'erreur déclenche une nouvelle erreur, boucle infinie)
-    //   2. Dédup : max 1 erreur de "Fetch failed" par minute par endpoint
-    //   3. Filtre : ne pas logger "Failed to fetch" pour les endpoints non-critiques
-    //      (settings, page_visits, user_activity sont du tracking, pas des bugs)
+    //   2. Liste BLANCHE explicite : seuls quelques endpoints CRITIQUES loggent (orders/offers/users)
+    //   3. Liste NOIRE explicite : settings/page_visits/user_activity ne loggent JAMAIS
+    //   4. Détection insensible à la casse + variations de message
     const originalFetch = window.fetch;
     window._fetchErrDedup = window._fetchErrDedup || {};
+    // Endpoints critiques : SEULS ceux-là logent une erreur de fetch
     const _fetchErrCriticalEndpoints = ['orders', 'offers', 'propositions', 'users', 'rpc'];
-    const _fetchErrAntiLoopEndpoints = ['ecodila_error_log', 'ecodila_error_count'];
+    // Endpoints non-critiques : ne loggent JAMAIS d'erreur réseau (tracking interne)
+    const _fetchErrSilentEndpoints = ['settings', 'page_visits', 'user_activity', 'visitors', 'conversations', 'login_attempts', 'error_logs'];
+    // Anti-boucle : URLs qui ne doivent jamais être loggées (sinon boucle infinie)
+    const _fetchErrAntiLoopEndpoints = ['ecodila_error_log', 'ecodila_error_count', 'ecodila_error'];
     window.fetch = function(...args) {
         return originalFetch.apply(this, args).catch(error => {
             try {
@@ -35131,8 +35248,24 @@ window._promoBarClick=function(){
                 if (isAntiLoop) {
                     throw error; // re-throw mais ne pas logger
                 }
-                // Dédup par endpoint (60s) — un seul log par endpoint par minute
+                // Détecter l'endpoint Supabase (rest/v1/<table>) ou rpc/<func>
                 var endpointKey = (url.match(/rest\/v1\/(\w+)/) || ['','unknown'])[1];
+
+                // ═══ NOUVEAU : Liste NOIRE prioritaire ═══
+                // Si l'endpoint est dans la liste des silents → JAMAIS logguer, peu importe l'erreur
+                var isSilent = _fetchErrSilentEndpoints.some(function(p){ return endpointKey === p; });
+                if (isSilent) {
+                    // Compteur silencieux pour audit (visible dans console seulement)
+                    try {
+                        window._netErrSilentCount = (window._netErrSilentCount || 0) + 1;
+                        if (window._netErrSilentCount % 10 === 0) {
+                            console.warn('[EcoDila] 🔇 ' + window._netErrSilentCount + ' erreurs réseau silencieuses ignorées (settings/tracking)');
+                        }
+                    } catch(_){}
+                    throw error;
+                }
+
+                // Dédup par endpoint (60s) — un seul log par endpoint par minute
                 var dedupKey = 'fetchErr:' + endpointKey;
                 var now = Date.now();
                 if (window._fetchErrDedup[dedupKey] && now - window._fetchErrDedup[dedupKey] < 60000) {
@@ -35140,22 +35273,32 @@ window._promoBarClick=function(){
                 }
                 window._fetchErrDedup[dedupKey] = now;
 
-                // Filtre : si l'endpoint n'est PAS critique ET c'est juste "Failed to fetch",
+                // Filtre : si l'endpoint n'est PAS critique ET c'est juste une erreur réseau,
                 // on ignore (c'est juste une coupure réseau du client, pas un bug).
                 var isCritical = _fetchErrCriticalEndpoints.some(function(p){ return endpointKey === p; });
-                var isPureNetworkError = (error.message || '').indexOf('Failed to fetch') !== -1
-                                      || (error.message || '').indexOf('NetworkError') !== -1
-                                      || (error.message || '').indexOf('Load failed') !== -1;
+                var msg = String(error.message || '').toLowerCase();
+                var isPureNetworkError = msg.indexOf('failed to fetch') !== -1
+                                      || msg.indexOf('networkerror') !== -1
+                                      || msg.indexOf('network error') !== -1
+                                      || msg.indexOf('load failed') !== -1
+                                      || msg.indexOf('aborted') !== -1
+                                      || msg.indexOf('timeout') !== -1
+                                      || msg.indexOf('cancelled') !== -1
+                                      || msg.indexOf('canceled') !== -1
+                                      || msg.indexOf('err_internet_disconnected') !== -1
+                                      || msg.indexOf('err_network') !== -1
+                                      || msg.indexOf('err_connection') !== -1
+                                      || msg.indexOf('err_timed_out') !== -1
+                                      || msg.indexOf('err_name_not_resolved') !== -1;
                 if (isPureNetworkError && !isCritical) {
                     // Coupure réseau sur un endpoint non-critique → on ne logue pas
-                    // (mais on remonte un compteur silencieux pour l'audit)
                     try {
                         window._netErrSilentCount = (window._netErrSilentCount || 0) + 1;
                     } catch(_){}
                     throw error;
                 }
 
-                // Sinon : on log normalement
+                // Sinon : on log normalement (uniquement les erreurs critiques)
                 logError({
                     type: 'Network Error',
                     severity: isCritical ? 'high' : 'medium',
@@ -35172,7 +35315,161 @@ window._promoBarClick=function(){
             throw error;
         });
     };
-    // ═══ FIN FIX anti-spam-fetch ═══
+    // ═══ FIN FIX anti-spam-fetch v2 ═══
+
+    // ═══ FIX 2026-05 #purge-tool : outil de purge des erreurs spammées ═══
+    // Usage console : window._purgeNetworkErrors()
+    // → Supprime toutes les erreurs réseau (Failed to fetch, etc.) du log
+    window._purgeNetworkErrors = function(){
+        try {
+            var current = window._sbRead('ecodila_error_log') || [];
+            var noisyRegex = /failed to fetch|networkerror|load failed|aborted|cancelled|canceled|err_(internet|network|connection|timed_out|name_not_resolved)|ns_error_(net|failure)|sb(write|insert|select|update):/i;
+            var clean = current.filter(function(e){
+                var msg = String(e.message || '').toLowerCase();
+                return !noisyRegex.test(msg);
+            });
+            var removed = current.length - clean.length;
+            // Persister
+            window._sbWrite('ecodila_error_log', clean);
+            // Aussi mettre à jour le mirror dans settings
+            try {
+                if (window._sb && typeof window._sb.from === 'function') {
+                    window._sb.from('settings').upsert({
+                        key: 'ecodila_error_log_recent',
+                        value: clean.slice(0, 50),
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'key' });
+                }
+            } catch(_){}
+            // Compter les non-résolues
+            var unresolved = clean.filter(function(e){ return !e.resolved; }).length;
+            window._sbWrite('ecodila_error_count', unresolved.toString());
+            console.log('[EcoDila] 🗑️ Erreurs réseau purgées :', removed, '/', current.length);
+            console.log('[EcoDila] ✅ Erreurs restantes :', clean.length, '(non résolues:', unresolved, ')');
+            return { removed: removed, total: current.length, remaining: clean.length };
+        } catch(err){
+            console.error('[EcoDila] Purge échouée:', err);
+            return null;
+        }
+    };
+    // ═══ FIN FIX purge-tool ═══
+
+    // ═══ FIX 2026-05 #inscription-tools : outils de debug pour les inscriptions échouées ═══
+    // Usage console (sur n'importe quelle page) :
+    //   1. window._showLastRegistrationDiag()   → voir le diag de la dernière tentative
+    //   2. window._listRegistrationDiags()      → lister TOUS les diags (depuis le BO)
+    //   3. window._retryPendingUsers()          → forcer le retry des comptes en queue
+    //   4. window._countPendingUsers()          → savoir combien sont en attente
+    
+    window._showLastRegistrationDiag = function(){
+        try {
+            var raw = localStorage.getItem('ecodila_last_registration_diag');
+            if (!raw) {
+                console.log('[EcoDila] Aucun diagnostic d\'inscription trouvé sur cet appareil.');
+                return null;
+            }
+            var diag = JSON.parse(raw);
+            console.group('🔍 Diagnostic dernière inscription');
+            console.log('Utilisateur:', diag.nom, '|', diag.tel);
+            console.log('User-Agent:', diag.userAgent);
+            console.log('Connection:', diag.connectionType, '| Online:', diag.online);
+            console.log('Started:', diag.started);
+            console.log('Outcome:', diag.outcome || '(en cours)');
+            console.log('Steps:');
+            (diag.steps || []).forEach(function(s){
+                console.log('  +' + s.t + 'ms', s.step, s.data || '');
+            });
+            console.groupEnd();
+            return diag;
+        } catch(e){
+            console.error('[EcoDila] Impossible de lire le diagnostic:', e);
+            return null;
+        }
+    };
+
+    window._listRegistrationDiags = function(){
+        try {
+            return window._sb.from('settings')
+                .select('key, value, updated_at')
+                .like('key', 'ecodila_registration_diag_%')
+                .order('updated_at', {ascending: false})
+                .limit(50)
+                .then(function(r){
+                    if (r.error) {
+                        console.error('[EcoDila] Erreur:', r.error);
+                        return [];
+                    }
+                    var diags = (r.data || []).map(function(row){ return row.value; });
+                    console.group('📋 ' + diags.length + ' diagnostics d\'inscription');
+                    diags.forEach(function(d){
+                        var s = d.steps || [];
+                        var lastStep = s[s.length - 1] || {};
+                        console.log(
+                            (d.outcome === 'success_online' ? '✅' : '❌'),
+                            d.nom, '|', d.tel,
+                            '|', d.outcome || lastStep.step,
+                            '| connection:', d.connectionType
+                        );
+                    });
+                    console.groupEnd();
+                    return diags;
+                });
+        } catch(e){
+            console.error('[EcoDila] Erreur:', e);
+            return null;
+        }
+    };
+
+    window._countPendingUsers = function(){
+        try {
+            var pending = JSON.parse(localStorage.getItem('ecodila_pending_users') || '[]');
+            console.log('[EcoDila] Comptes en queue local:', pending.length);
+            (pending || []).forEach(function(u){
+                console.log('  -', u.nom, '|', u.telephone, '|', u.id);
+            });
+            return pending;
+        } catch(e){
+            console.error('[EcoDila] Erreur:', e);
+            return [];
+        }
+    };
+
+    window._retryPendingUsers = async function(){
+        try {
+            var pending = JSON.parse(localStorage.getItem('ecodila_pending_users') || '[]');
+            if (!pending.length) {
+                console.log('[EcoDila] Aucun compte en queue.');
+                return { synced: 0, failed: 0 };
+            }
+            console.log('[EcoDila] Tentative de sync de', pending.length, 'compte(s)...');
+            var synced = 0, failed = 0, stillPending = [];
+            for (var i = 0; i < pending.length; i++) {
+                var u = pending[i];
+                try {
+                    var r = await window._sb.from('users').upsert(u, { onConflict: 'id' });
+                    if (r && r.error) {
+                        console.warn('  ❌', u.nom, ':', r.error.message);
+                        failed++;
+                        stillPending.push(u);
+                    } else {
+                        console.log('  ✅', u.nom, 'synchronisé');
+                        synced++;
+                    }
+                } catch (e) {
+                    console.warn('  ❌', u.nom, ':', e.message);
+                    failed++;
+                    stillPending.push(u);
+                }
+            }
+            localStorage.setItem('ecodila_pending_users', JSON.stringify(stillPending));
+            console.log('[EcoDila] Sync terminé : ✅', synced, '| ❌', failed);
+            return { synced: synced, failed: failed };
+        } catch(e){
+            console.error('[EcoDila] Erreur:', e);
+            return null;
+        }
+    };
+    // ═══ FIN FIX inscription-tools ═══
 
 })();
 
