@@ -28343,8 +28343,34 @@ if(typeof _ecoIsSuperAdmin==='function'&&!_ecoIsSuperAdmin()){showNotification('
     var remaining = errorLog.filter(e => !e.resolved);
     window._sbErrorLogs = remaining;
     _lsSet('ecodila_error_log', JSON.stringify(remaining));
-    /* Purger aussi en base Supabase */
-    resolved.forEach(function(e){ _sb.from('error_logs').delete().eq('id', e.id).then(function(){}); });
+
+    // ═══ FIX 2026-05 #purge-vraie-source : persister dans settings (vraie source) ═══
+    // Avant : on tentait _sb.from('error_logs').delete() — table inexistante (PGRST204)
+    // Donc la "purge" ne touchait QUE la mémoire locale, et les erreurs revenaient
+    // au prochain rechargement depuis settings.ecodila_error_log_recent.
+    // Maintenant : on UPSERT le log nettoyé dans settings (pattern unique du projet).
+    Promise.all([
+        _sb.from('settings').upsert({
+            key: 'ecodila_error_log',
+            value: remaining,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'key' }),
+        _sb.from('settings').upsert({
+            key: 'ecodila_error_log_recent',
+            value: remaining.slice(0, 50),
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'key' }),
+        _sb.from('settings').upsert({
+            key: 'ecodila_error_count',
+            value: remaining.filter(function(e){ return !e.resolved; }).length.toString(),
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'key' })
+    ]).then(function(){
+        console.log('[Admin] ✅ Purge résolues persistée dans settings');
+    }).catch(function(err){
+        console.warn('[Admin] ⚠️ Purge persiste en partie échouée:', err);
+    });
+
     showToast('🗑️ ' + resolved.length + ' erreurs purgées', 'success');
     loadErrors();
 }
@@ -28354,8 +28380,32 @@ if(typeof _ecoIsSuperAdmin==='function'&&!_ecoIsSuperAdmin()){showNotification('
     const errorLog = (window._sbErrorLogs || []);
     if (!errorLog.length) { showToast('ℹ️ Aucune erreur à purger', 'info'); return; }
     if (!confirm('⚠️ Supprimer TOUTES les ' + errorLog.length + ' erreurs ? Cette action est irréversible.')) return;
-    /* Purger en base Supabase */
-    errorLog.forEach(function(e){ _sb.from('error_logs').delete().eq('id', e.id).then(function(){}); });
+
+    // ═══ FIX 2026-05 #purge-vraie-source : persister vide dans settings (vraie source) ═══
+    // Avant : _sb.from('error_logs').delete() ne marchait pas (table inexistante).
+    // Maintenant : on upsert le log VIDE dans settings, là où il est vraiment stocké.
+    Promise.all([
+        _sb.from('settings').upsert({
+            key: 'ecodila_error_log',
+            value: [],
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'key' }),
+        _sb.from('settings').upsert({
+            key: 'ecodila_error_log_recent',
+            value: [],
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'key' }),
+        _sb.from('settings').upsert({
+            key: 'ecodila_error_count',
+            value: '0',
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'key' })
+    ]).then(function(){
+        console.log('[Admin] ✅ Purge totale persistée dans settings — toutes les erreurs supprimées en DB');
+    }).catch(function(err){
+        console.warn('[Admin] ⚠️ Purge totale persiste partielle:', err);
+    });
+
     window._sbErrorLogs = [];
     _lsSet('ecodila_error_log', '[]');
     _lsSet('ecodila_error_count', '0');
