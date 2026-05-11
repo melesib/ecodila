@@ -28467,13 +28467,42 @@ function deleteError(id) {
     var eName = '#'+targetId+(err?' — '+(err.message||'').substring(0,40):'');
     _ecoDeleteConfirm('Erreur', targetId, eName,
       function(eid){
-        /* Supprimer de Supabase */
-        _sb.from('error_logs').delete().eq('id', eid).then(function(r){
-          if(r.error) console.warn('[HardDel] ⚠️:', r.error.message);
-          else console.log('[HardDel] ✅ error_logs', eid, 'supprimé');
+        /* ═══ FIX 2026-05-11 #deleteError-vraie-source ═══
+           Bug : on tentait _sb.from('error_logs').delete() — table inexistante
+           Donc la suppression ne touchait QUE la mémoire JS, et l'erreur
+           revenait au prochain rechargement depuis settings.ecodila_error_log_recent.
+           Maintenant : on UPSERT le log nettoyé dans settings (vraie source). */
+        var newLog = (window._sbErrorLogs||[]).filter(function(e){return e.id !== eid;});
+        
+        Promise.all([
+          _sb.from('settings').upsert({
+            key: 'ecodila_error_log',
+            value: newLog,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'key' }),
+          _sb.from('settings').upsert({
+            key: 'ecodila_error_log_recent',
+            value: newLog.slice(0, 50),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'key' }),
+          _sb.from('settings').upsert({
+            key: 'ecodila_error_count',
+            value: newLog.filter(function(e){ return !e.resolved; }).length.toString(),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'key' })
+        ]).then(function(){
+          console.log('[HardDel] ✅ Erreur ' + eid + ' supprimée de settings (vraie source)');
+        }).catch(function(err){
+          console.warn('[HardDel] ⚠️ Persiste partiel:', err);
         });
-        /* Retirer de la mémoire */
-        window._sbErrorLogs = (window._sbErrorLogs||[]).filter(function(e){return e.id !== eid;});
+        
+        /* Retirer aussi de la mémoire (pour réactivité immédiate) */
+        window._sbErrorLogs = newLog;
+        if (window._sbAllSettings) {
+          window._sbAllSettings['ecodila_error_log'] = newLog;
+          window._sbAllSettings['ecodila_error_log_recent'] = newLog.slice(0, 50);
+        }
+        
         showToast('✅ Erreur supprimée définitivement', 'success');
         if (!id) closeErrorDetailModal();
         loadErrors();
@@ -59428,4 +59457,3 @@ setTimeout(function(){
 </script>
 </body>
 </html>
-<!-- ecodila-fix-final-1778240253 -->
