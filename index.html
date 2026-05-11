@@ -19683,11 +19683,13 @@ window._negoTrackAbandon = function(reason){
 
     // Insert async (ne pas bloquer la fermeture du modal)
     if(window._sb){
+      // FIX 2026-05-11 : capturer l'id AVANT l'insert async (currentOfferItem peut devenir null)
+      var _trackedId = currentOfferItem && currentOfferItem.id;
       _sb.from('nego_abandoned').insert(row).then(function(res){
         if(res.error){
           console.error('[nego-abandon] ❌ ERREUR Supabase:', res.error.message, '| code:', res.error.code, '| details:', res.error.details);
         } else {
-          console.log('[nego-abandon] ✅ tracked OK:', reason, currentOfferItem.id);
+          console.log('[nego-abandon] ✅ tracked OK:', reason, _trackedId || '(id perdu)');
         }
       });
     } else {
