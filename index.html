@@ -8154,6 +8154,26 @@ setTimeout(_pStart,3000);
     </button>
   </div>
 </div>
+<!-- ═══ FIX 2026-05-11 #ebnGo-stub : éviter ReferenceError si clic avant que le JS soit prêt ═══
+     Bug : sur connexion lente (2G/3G), l'utilisateur peut cliquer sur un bouton ebn-tab
+     AVANT que window._ebnGo soit défini (ligne 37706). Stack: ReferenceError: _ebnGo is not defined.
+     Fix : stub global qui met en file d'attente les clics, exécutés dès que la vraie fonction est prête. -->
+<script>
+(function(){
+  if (typeof window._ebnGo === 'function') return; // déjà défini, ne rien faire
+  window._ebnGoQueue = window._ebnGoQueue || [];
+  window._ebnGo = function(name){
+    // Si la vraie fonction n'est pas encore prête, mettre en file d'attente
+    window._ebnGoQueue.push(name);
+    // Feedback visuel : on indique au user qu'on a bien entendu son clic
+    try {
+      var btn = document.getElementById('ebn-' + name);
+      if (btn) { btn.style.opacity = '0.5'; setTimeout(function(){ btn.style.opacity = '1'; }, 500); }
+    } catch(e){}
+  };
+})();
+</script>
+<!-- ═══ FIN FIX ebnGo-stub ═══ -->
 <!-- Bouton retour retiré -->
 <nav>
   <div class="logo" onclick="showPage('catalogue')">Ec<img src="data:image/png;base64,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" alt="o" style="height:1em;width:1em;object-fit:contain;vertical-align:middle;display:inline-block;margin-bottom:0.05em;"><span>Dila</span></div>
@@ -37712,6 +37732,16 @@ window._ebnGo = function(name) {
   if(name === 'acheter'){ selectedProductForBuy=null; window._currentBuyProduct=null; }
   if (typeof showPage === 'function') showPage(name);
 };
+
+/* ═══ FIX 2026-05-11 #ebnGo-flush : traiter la file d'attente du stub ═══
+   Si l'utilisateur a cliqué sur un onglet AVANT que ce script s'exécute,
+   les clics sont mémorisés dans _ebnGoQueue. On les traite maintenant. */
+if (window._ebnGoQueue && window._ebnGoQueue.length > 0) {
+  // Prendre uniquement le DERNIER clic (le plus pertinent), pas toute la queue
+  var lastClick = window._ebnGoQueue[window._ebnGoQueue.length - 1];
+  window._ebnGoQueue = [];
+  setTimeout(function(){ window._ebnGo(lastClick); }, 100);
+}
 
 /* ── Action retour ───────────────────────────────────────── */
 window._ebnBack = function() {
