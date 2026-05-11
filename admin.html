@@ -20033,48 +20033,244 @@ function _compressImage(file, callback) {
     reader.readAsDataURL(file);
 }
 
+/* ═══════════════════════════════════════════════════════════
+ * ═ FIX 2026-05-11 #photo-helpers ═══════════════════════════
+ * Helpers pour gérer les 2 formats de photos coexistant :
+ * - ANCIEN : { data: "data:image/jpeg;base64,...", name, isMain }
+ * - NOUVEAU : { data: "https://...", url: "https://...", name, isMain }
+ *
+ * Ces helpers sont utilisés partout pour lire/détecter les photos.
+ * Le code legacy qui lit ph.data continue de marcher (URL dans .data).
+ * ═══════════════════════════════════════════════════════════ */
+
 /**
- * Recadre une image base64 existante : trim blanc + centrer dans carré
+ * Retourne la source d'affichage d'une photo (URL ou base64).
+ * Tolère : string direct, { data: "..." }, { url: "..." }
+ */
+function _photoSrc(ph) {
+    if (!ph) return '';
+    if (typeof ph === 'string') return ph;
+    // Priorité : url (nouveau format) puis data (ancien base64 OU url stockée dans data)
+    return ph.url || ph.data || '';
+}
+
+/**
+ * Détecte si une photo est au nouveau format (URL Supabase Storage)
+ * vs ancien format (base64 inline).
+ */
+function _isPhotoUrl(ph) {
+    var src = _photoSrc(ph);
+    return typeof src === 'string' && src.indexOf('http') === 0;
+}
+
+/**
+ * Détecte si une photo est au format base64 inline (ancien).
+ */
+function _isPhotoBase64(ph) {
+    var src = _photoSrc(ph);
+    return typeof src === 'string' && src.indexOf('data:') === 0;
+}
+
+/* ═══ FIN helpers photo ═══ */
+
+
+/* ═══════════════════════════════════════════════════════════
+ * ═ FIX 2026-05-11 #photos-upload-storage ═══════════════════
+ * Upload des photos base64 vers Supabase Storage.
+ *
+ * Stratégie défensive :
+ * - Si photo est déjà une URL (commence par http) → garde telle quelle
+ * - Si photo est en base64 (commence par data:) → upload vers Storage
+ * - Si l'upload échoue pour UNE photo → garde son base64 (fallback)
+ * - Si la fonction plante complètement → retourne le tableau original
+ *
+ * Cette approche garantit que la création de produit NE PEUT PAS échouer
+ * à cause de Storage. Au pire, le produit est créé avec base64 comme avant.
+ * ═══════════════════════════════════════════════════════════ */
+
+/**
+ * Upload toutes les photos base64 d'un tableau vers Supabase Storage.
+ * Retourne une promesse qui résout avec le tableau de photos (URLs ou base64 fallback).
+ *
+ * @param {Array} photos - Tableau de photos { data, name, isMain }
+ * @param {string} productId - ID du produit (pour organiser les fichiers)
+ * @returns {Promise<Array>} Tableau de photos avec URLs (ou base64 si fallback)
+ */
+async function _uploadPhotosToStorage(photos, productId) {
+    if (!Array.isArray(photos) || photos.length === 0) {
+        return photos || [];
+    }
+    
+    if (!productId) {
+        console.warn('[Storage Upload] Pas de productId, fallback base64');
+        return photos;
+    }
+    
+    var results = [];
+    var uploadedCount = 0;
+    var fallbackCount = 0;
+    
+    for (var i = 0; i < photos.length; i++) {
+        var ph = photos[i];
+        
+        // ── Cas 1 : déjà une URL → garde telle quelle ──
+        if (ph && typeof ph.data === 'string' && ph.data.indexOf('http') === 0) {
+            results.push(ph);
+            continue;
+        }
+        
+        // ── Cas 2 : base64 → upload vers Storage ──
+        try {
+            var dataUrl = ph.data;
+            if (!dataUrl || typeof dataUrl !== 'string' || dataUrl.indexOf('data:') !== 0) {
+                // Format inattendu, on garde tel quel
+                results.push(ph);
+                fallbackCount++;
+                continue;
+            }
+            
+            var mimeMatch = dataUrl.match(/^data:([^;]+);base64,/);
+            var mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+            var base64Data = dataUrl.replace(/^data:[^;]+;base64,/, '');
+            
+            // Décoder base64 → bytes
+            var binary = atob(base64Data);
+            var bytes = new Uint8Array(binary.length);
+            for (var j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+            var blob = new Blob([bytes], { type: mimeType });
+            
+            // Nom unique
+            var ext = mimeType.split('/')[1].replace('jpeg', 'jpg');
+            var fileName = productId + '/' + (i+1) + '-' + Date.now() + '.' + ext;
+            
+            // Upload
+            var uploadResult = await _sb.storage
+                .from('product-photos')
+                .upload(fileName, blob, { contentType: mimeType, upsert: false });
+            
+            if (uploadResult.error) {
+                console.warn('[Storage Upload] Photo ' + (i+1) + ' échec, fallback base64:', uploadResult.error.message);
+                results.push(ph);
+                fallbackCount++;
+                continue;
+            }
+            
+            // Récupérer URL publique
+            var urlResult = _sb.storage
+                .from('product-photos')
+                .getPublicUrl(fileName);
+            
+            var publicUrl = urlResult.data.publicUrl;
+            
+            // Garder structure compatible (URL dans .data ET .url)
+            results.push({
+                url: publicUrl,
+                data: publicUrl,
+                name: ph.name || (fileName.split('/').pop()),
+                isMain: ph.isMain === true,
+                _storagePath: fileName  // Pour suppression future
+            });
+            
+            uploadedCount++;
+            console.log('[Storage Upload] Photo ' + (i+1) + ' OK : ' + Math.round(blob.size / 1024) + 'kb → URL');
+            
+        } catch (e) {
+            console.warn('[Storage Upload] Photo ' + (i+1) + ' erreur, fallback base64:', e.message);
+            results.push(ph);
+            fallbackCount++;
+        }
+    }
+    
+    if (uploadedCount > 0) {
+        console.log('[Storage Upload] ✅ ' + uploadedCount + ' photo(s) uploadée(s)' +
+                    (fallbackCount > 0 ? ', ' + fallbackCount + ' en fallback base64' : ''));
+    }
+    
+    return results;
+}
+
+/* ═══ FIN _uploadPhotosToStorage ═══ */
+
+
+/**
+ * Recadre une image base64 OU URL : trim blanc + centrer dans carré
+ * ═══ FIX 2026-05-11 #recadrage-url ═══
+ * Avant : ne supportait QUE base64 (img.src = base64)
+ * Maintenant : supporte aussi les URLs Supabase Storage via crossOrigin.
+ *              Si CORS échoue, fallback fetch + base64 conversion.
  */
 function _recadrerImageBase64(base64, callback){
     var img = new Image();
+    
+    // ═══ Si c'est une URL distante, activer CORS pour pouvoir lire les pixels ═══
+    var isUrl = typeof base64 === 'string' && base64.indexOf('http') === 0;
+    if (isUrl) {
+        img.crossOrigin = 'anonymous';
+    }
+    
     img.onload = function(){
-        var scanCanvas = document.createElement('canvas');
-        scanCanvas.width = img.width; scanCanvas.height = img.height;
-        var scanCtx = scanCanvas.getContext('2d');
-        scanCtx.drawImage(img, 0, 0);
-        var data = scanCtx.getImageData(0, 0, img.width, img.height).data;
-        var minX=img.width, minY=img.height, maxX=0, maxY=0;
-        var seuil = 245;
-        for(var y=0; y<img.height; y++){
-            for(var x=0; x<img.width; x++){
-                var i=(y*img.width+x)*4;
-                if(data[i]<seuil || data[i+1]<seuil || data[i+2]<seuil || data[i+3]<200){
-                    if(x<minX) minX=x; if(x>maxX) maxX=x;
-                    if(y<minY) minY=y; if(y>maxY) maxY=y;
+        try {
+            var scanCanvas = document.createElement('canvas');
+            scanCanvas.width = img.width; scanCanvas.height = img.height;
+            var scanCtx = scanCanvas.getContext('2d');
+            scanCtx.drawImage(img, 0, 0);
+            var data = scanCtx.getImageData(0, 0, img.width, img.height).data;
+            var minX=img.width, minY=img.height, maxX=0, maxY=0;
+            var seuil = 245;
+            for(var y=0; y<img.height; y++){
+                for(var x=0; x<img.width; x++){
+                    var i=(y*img.width+x)*4;
+                    if(data[i]<seuil || data[i+1]<seuil || data[i+2]<seuil || data[i+3]<200){
+                        if(x<minX) minX=x; if(x>maxX) maxX=x;
+                        if(y<minY) minY=y; if(y>maxY) maxY=y;
+                    }
                 }
             }
+            if(maxX<=minX || maxY<=minY){ minX=0; minY=0; maxX=img.width-1; maxY=img.height-1; }
+            var cw=maxX-minX, ch=maxY-minY;
+            var pad=Math.round(Math.max(cw,ch)*0.03);
+            minX=Math.max(0,minX-pad); minY=Math.max(0,minY-pad);
+            maxX=Math.min(img.width-1,maxX+pad); maxY=Math.min(img.height-1,maxY+pad);
+            cw=maxX-minX; ch=maxY-minY;
+            var side=Math.max(cw,ch);
+            var MAX=800;
+            var finalSize=Math.min(side,MAX);
+            var outCanvas = document.createElement('canvas');
+            outCanvas.width=finalSize; outCanvas.height=finalSize;
+            var ctx=outCanvas.getContext('2d');
+            ctx.fillStyle='#ffffff';
+            ctx.fillRect(0,0,finalSize,finalSize);
+            var scale=finalSize/side;
+            var dw=Math.round(cw*scale), dh=Math.round(ch*scale);
+            var dx=Math.round((finalSize-dw)/2), dy=Math.round((finalSize-dh)/2);
+            ctx.drawImage(img, minX, minY, cw, ch, dx, dy, dw, dh);
+            callback(outCanvas.toDataURL('image/jpeg', 0.75));
+        } catch(corsErr) {
+            // ═══ Fallback si CORS bloque getImageData ═══
+            console.warn('[Recadrage] CORS bloque getImageData, fallback fetch:', corsErr.message);
+            if (isUrl) {
+                fetch(base64)
+                    .then(function(r){ return r.blob(); })
+                    .then(function(blob){
+                        var fr = new FileReader();
+                        fr.onload = function(){ _recadrerImageBase64(fr.result, callback); };
+                        fr.readAsDataURL(blob);
+                    })
+                    .catch(function(e){
+                        console.error('[Recadrage] Fallback échec:', e);
+                        callback(base64); // retourner l'original sans recadrage
+                    });
+            } else {
+                callback(base64); // base64 + CORS error = impossible, on garde tel quel
+            }
         }
-        if(maxX<=minX || maxY<=minY){ minX=0; minY=0; maxX=img.width-1; maxY=img.height-1; }
-        var cw=maxX-minX, ch=maxY-minY;
-        var pad=Math.round(Math.max(cw,ch)*0.03);
-        minX=Math.max(0,minX-pad); minY=Math.max(0,minY-pad);
-        maxX=Math.min(img.width-1,maxX+pad); maxY=Math.min(img.height-1,maxY+pad);
-        cw=maxX-minX; ch=maxY-minY;
-        var side=Math.max(cw,ch);
-        var MAX=800;
-        var finalSize=Math.min(side,MAX);
-        var outCanvas = document.createElement('canvas');
-        outCanvas.width=finalSize; outCanvas.height=finalSize;
-        var ctx=outCanvas.getContext('2d');
-        ctx.fillStyle='#ffffff';
-        ctx.fillRect(0,0,finalSize,finalSize);
-        var scale=finalSize/side;
-        var dw=Math.round(cw*scale), dh=Math.round(ch*scale);
-        var dx=Math.round((finalSize-dw)/2), dy=Math.round((finalSize-dh)/2);
-        ctx.drawImage(img, minX, minY, cw, ch, dx, dy, dw, dh);
-        callback(outCanvas.toDataURL('image/jpeg', 0.75));
     };
+    
+    img.onerror = function() {
+        console.error('[Recadrage] Image load échec:', base64.substring(0, 60));
+        callback(base64); // garder l'original
+    };
+    
     img.src = base64;
 }
 
@@ -20369,6 +20565,17 @@ function initPhotoDragDrop() {
 setTimeout(initPhotoDragDrop, 500);
 
 function saveProduct() {
+    // ═══ FIX 2026-05-11 #saveProduct-storage ═══
+    // saveProduct est appelé via onclick="saveProduct()" (synchrone).
+    // On délègue à _saveProductAsync qui gère l'upload Storage en async.
+    // L'erreur est attrapée pour éviter unhandledrejection.
+    _saveProductAsync().catch(function(err){
+        console.error('[saveProduct] Erreur globale:', err);
+        showNotification('❌ Erreur sauvegarde : ' + (err.message || err), 'error');
+    });
+}
+
+async function _saveProductAsync() {
     // Récupérer les valeurs du formulaire
     const name = document.getElementById('product-name').value.trim();
     const category = getProductCategory();
@@ -20420,9 +20627,35 @@ function saveProduct() {
         return;
     }
     
+    // ═══ FIX 2026-05-11 #saveProduct-storage ═══
+    // Upload photos base64 vers Supabase Storage AVANT création produit.
+    // Bénéfice : DB ne stocke que ~30 chars (URL) au lieu de ~63KB (base64).
+    // Fallback : si upload échoue, garde base64 (pas de régression).
+    var productId = 'PROD' + Date.now();
+    var photosToSave = productPhotos.map(p => ({
+        data: p.data,
+        name: p.name,
+        isMain: p.isMain
+    }));
+    
+    // Détecter s'il y a des photos base64 à uploader
+    var hasBase64 = photosToSave.some(p => p && typeof p.data === 'string' && p.data.indexOf('data:') === 0);
+    
+    if (hasBase64) {
+        try {
+            showNotification('📤 Upload des photos vers le cloud...', 'info');
+            photosToSave = await _uploadPhotosToStorage(photosToSave, productId);
+            console.log('[saveProduct] Photos finales:', photosToSave.length, 
+                        'dont URLs:', photosToSave.filter(p => p.data && p.data.indexOf('http') === 0).length);
+        } catch(uploadErr) {
+            console.warn('[saveProduct] Upload Storage échoué, fallback base64:', uploadErr);
+            // photosToSave reste en base64, pas d'erreur bloquante
+        }
+    }
+    
     // Créer l'objet produit
     const product = {
-        id: 'PROD' + Date.now(),
+        id: productId,
         nom: name,
         categorie: category,
         brand: brand || null,
@@ -20437,11 +20670,7 @@ function saveProduct() {
         qualite: state,
         description: description || null,
         labels: _readLabelsFromForm(),
-        photos: productPhotos.map(p => ({
-            data: p.data,
-            name: p.name,
-            isMain: p.isMain
-        })),
+        photos: photosToSave,  // ← URLs ou base64 selon upload
         date: new Date().toLocaleDateString('fr-FR'),
         dateCreated: new Date().toISOString(),
         is_active: true,
