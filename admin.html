@@ -13251,6 +13251,69 @@ window.admMgr = {
     </div>
 </div>
 
+<!-- ═══ FIX 2026-05-11 #partenaires-modal ═══ -->
+<!-- Modal Partenaire (création / édition) -->
+<div id="partner-modal" class="modal-overlay">
+    <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+            <h2 class="modal-title" id="partner-modal-title">🤝 Nouveau partenaire</h2>
+            <button class="modal-close" onclick="_partner_closeModal()" aria-label="Fermer">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group form-group-full">
+                    <label class="form-label">Nom de la marque <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="partner-name" class="form-input" placeholder="Ex : Apple, Samsung, JBL..." required>
+                </div>
+            </div>
+            
+            <div class="form-group form-group-full">
+                <label class="form-label">Logo de la marque <span style="color:var(--danger)">*</span></label>
+                <input type="file" id="partner-logo-file" class="form-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" onchange="_partner_handleLogoSelect(this)">
+                <div id="partner-logo-preview" style="margin-top:.75rem;display:none">
+                    <img id="partner-logo-img" style="max-width:120px;max-height:120px;background:#fff;padding:.5rem;border-radius:8px;object-fit:contain">
+                    <button type="button" onclick="_partner_clearLogo()" style="margin-left:.75rem;padding:.4rem .8rem;background:rgba(255,68,102,.1);color:#ff4466;border:1px solid rgba(255,68,102,.3);border-radius:6px;font-size:.8rem;cursor:pointer">🗑 Retirer</button>
+                </div>
+                <div style="font-size:.8rem;color:var(--text-muted);margin-top:.3rem">PNG/JPG/WebP/SVG max 500ko</div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Type de lien</label>
+                    <select id="partner-link-type" class="form-select" onchange="_partner_toggleLinkField()">
+                        <option value="filter">📂 Filtrer le catalogue par cette marque</option>
+                        <option value="external">🔗 Lien externe (site officiel)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ordre d'affichage</label>
+                    <input type="number" id="partner-order" class="form-input" value="0" min="0">
+                </div>
+            </div>
+            
+            <div class="form-group form-group-full" id="partner-link-value-group">
+                <label class="form-label" id="partner-link-value-label">Nom de la marque pour le filtre</label>
+                <input type="text" id="partner-link-value" class="form-input" placeholder="Ex : Apple (doit correspondre à la marque des produits)">
+                <div style="font-size:.8rem;color:var(--text-muted);margin-top:.3rem" id="partner-link-value-hint">💡 Laisser vide pour utiliser le nom du partenaire automatiquement</div>
+            </div>
+            
+            <div class="form-group form-group-full">
+                <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+                    <input type="checkbox" id="partner-active" checked style="width:18px;height:18px;cursor:pointer">
+                    <span>Actif (visible sur le site)</span>
+                </label>
+            </div>
+            
+            <input type="hidden" id="partner-modal-id">
+            <input type="hidden" id="partner-existing-logo-url">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="_partner_closeModal()" aria-label="Annuler">Annuler</button>
+            <button class="btn btn-primary" id="partner-modal-save-btn" onclick="_partner_saveModal()" aria-label="💾 Enregistrer">💾 Enregistrer</button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal détails erreur -->
 <div id="error-detail-modal" class="modal-overlay">
     <div class="modal">
@@ -18308,27 +18371,300 @@ function _partner_updateBadge() {
 }
 
 /**
- * STUB : ouvre le modal de création/édition (à implémenter étape 3)
+ * Ouvre le modal de création/édition d'un partenaire
+ * @param {number|null} partnerId - ID du partenaire à éditer (null = création)
  */
 function _partner_openModal(partnerId) {
-    showNotification('🚧 Modal en cours de développement (étape 3)', 'info');
-    console.log('[Partners] _partner_openModal called with id:', partnerId || 'NEW');
+    var modal = document.getElementById('partner-modal');
+    var title = document.getElementById('partner-modal-title');
+    if (!modal) return;
+    
+    // Reset du form
+    document.getElementById('partner-name').value = '';
+    document.getElementById('partner-logo-file').value = '';
+    document.getElementById('partner-link-type').value = 'filter';
+    document.getElementById('partner-link-value').value = '';
+    document.getElementById('partner-order').value = '0';
+    document.getElementById('partner-active').checked = true;
+    document.getElementById('partner-modal-id').value = '';
+    document.getElementById('partner-existing-logo-url').value = '';
+    document.getElementById('partner-logo-preview').style.display = 'none';
+    _partner_toggleLinkField();
+    
+    if (partnerId) {
+        // Mode édition
+        var p = (window._partnersData || []).find(function(x){ return x.id === partnerId; });
+        if (!p) {
+            showNotification('❌ Partenaire introuvable', 'error');
+            return;
+        }
+        title.textContent = '✏️ Modifier ' + (p.name || 'partenaire');
+        document.getElementById('partner-modal-id').value = p.id;
+        document.getElementById('partner-name').value = p.name || '';
+        document.getElementById('partner-link-type').value = p.link_type || 'filter';
+        document.getElementById('partner-link-value').value = p.link_value || '';
+        document.getElementById('partner-order').value = p.display_order || 0;
+        document.getElementById('partner-active').checked = p.is_active !== false;
+        document.getElementById('partner-existing-logo-url').value = p.logo_url || '';
+        if (p.logo_url) {
+            document.getElementById('partner-logo-img').src = p.logo_url;
+            document.getElementById('partner-logo-preview').style.display = 'block';
+        }
+        _partner_toggleLinkField();
+    } else {
+        title.textContent = '🤝 Nouveau partenaire';
+    }
+    
+    modal.classList.add('active');
+    setTimeout(function(){ document.getElementById('partner-name').focus(); }, 100);
+}
+
+function _partner_closeModal() {
+    var modal = document.getElementById('partner-modal');
+    if (modal) modal.classList.remove('active');
 }
 
 /**
- * STUB : toggle actif/inactif (à implémenter étape 3)
+ * Toggle l'affichage du champ "valeur du lien" selon le type
+ */
+function _partner_toggleLinkField() {
+    var type = document.getElementById('partner-link-type').value;
+    var label = document.getElementById('partner-link-value-label');
+    var input = document.getElementById('partner-link-value');
+    var hint = document.getElementById('partner-link-value-hint');
+    
+    if (type === 'external') {
+        label.textContent = 'URL du site officiel';
+        input.placeholder = 'https://www.apple.com';
+        hint.textContent = '🔗 Lien complet avec https://';
+    } else {
+        label.textContent = 'Nom de la marque pour le filtre';
+        input.placeholder = 'Ex : Apple (doit correspondre à la marque des produits)';
+        hint.textContent = '💡 Laisser vide pour utiliser le nom du partenaire automatiquement';
+    }
+}
+
+/**
+ * Aperçu du logo sélectionné
+ */
+function _partner_handleLogoSelect(input) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    
+    // Validation taille (500ko)
+    if (file.size > 500 * 1024) {
+        showNotification('⚠️ Logo trop volumineux (' + Math.round(file.size/1024) + 'ko). Max 500ko.', 'warning');
+        input.value = '';
+        return;
+    }
+    
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('partner-logo-img').src = e.target.result;
+        document.getElementById('partner-logo-preview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+
+/**
+ * Retire le logo en cours
+ */
+function _partner_clearLogo() {
+    document.getElementById('partner-logo-file').value = '';
+    document.getElementById('partner-logo-img').src = '';
+    document.getElementById('partner-logo-preview').style.display = 'none';
+    document.getElementById('partner-existing-logo-url').value = '';
+}
+
+/**
+ * Upload le logo vers Supabase Storage (bucket partner-logos)
+ * Retourne l'URL publique ou null si échec
+ */
+async function _partner_uploadLogo(file, partnerName) {
+    try {
+        if (!file) return null;
+        
+        var ext = (file.name || 'logo.png').split('.').pop().toLowerCase();
+        if (['jpg','jpeg','png','webp','svg'].indexOf(ext) === -1) ext = 'png';
+        
+        var safeName = (partnerName || 'partner').toLowerCase().replace(/[^a-z0-9]/g, '-');
+        var fileName = safeName + '-' + Date.now() + '.' + ext;
+        
+        // Upload dans le bucket "product-photos" (on réutilise, dans un sous-dossier partners/)
+        var uploadResult = await _sb.storage
+            .from('product-photos')
+            .upload('partners/' + fileName, file, { 
+                contentType: file.type || 'image/png', 
+                upsert: false 
+            });
+        
+        if (uploadResult.error) {
+            console.error('[Partners] Upload logo échec:', uploadResult.error.message);
+            return null;
+        }
+        
+        var urlResult = _sb.storage
+            .from('product-photos')
+            .getPublicUrl('partners/' + fileName);
+        
+        return urlResult.data.publicUrl;
+    } catch(e) {
+        console.error('[Partners] Exception upload logo:', e);
+        return null;
+    }
+}
+
+/**
+ * Sauvegarde le partenaire (création ou modification)
+ */
+async function _partner_saveModal() {
+    var saveBtn = document.getElementById('partner-modal-save-btn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Enregistrement...'; }
+    
+    try {
+        var name = (document.getElementById('partner-name').value || '').trim();
+        var linkType = document.getElementById('partner-link-type').value;
+        var linkValue = (document.getElementById('partner-link-value').value || '').trim();
+        var order = parseInt(document.getElementById('partner-order').value) || 0;
+        var isActive = document.getElementById('partner-active').checked;
+        var partnerId = document.getElementById('partner-modal-id').value;
+        var existingLogoUrl = document.getElementById('partner-existing-logo-url').value;
+        var fileInput = document.getElementById('partner-logo-file');
+        var newFile = fileInput.files && fileInput.files[0];
+        
+        // Validation
+        if (!name) {
+            showNotification('❌ Nom requis', 'error');
+            return;
+        }
+        if (linkType === 'external' && !linkValue) {
+            showNotification('❌ URL requise pour un lien externe', 'error');
+            return;
+        }
+        if (linkType === 'external' && linkValue.indexOf('http') !== 0) {
+            showNotification('❌ URL doit commencer par https:// ou http://', 'error');
+            return;
+        }
+        if (!partnerId && !newFile) {
+            showNotification('❌ Logo requis pour un nouveau partenaire', 'error');
+            return;
+        }
+        
+        // Si nouveau fichier, upload vers Storage
+        var logoUrl = existingLogoUrl;
+        if (newFile) {
+            showNotification('📤 Upload du logo...', 'info');
+            logoUrl = await _partner_uploadLogo(newFile, name);
+            if (!logoUrl) {
+                showNotification('❌ Échec upload du logo', 'error');
+                return;
+            }
+        }
+        
+        // Si linkValue vide en mode filter → utiliser le nom du partenaire
+        if (linkType === 'filter' && !linkValue) {
+            linkValue = name;
+        }
+        
+        // Préparer l'objet à sauvegarder
+        var payload = {
+            name: name,
+            logo_url: logoUrl,
+            link_type: linkType,
+            link_value: linkValue,
+            display_order: order,
+            is_active: isActive,
+            updated_at: new Date().toISOString()
+        };
+        
+        // Insert ou Update
+        if (partnerId) {
+            // Update
+            var { error: updateErr } = await _sb.from('partners')
+                .update(payload)
+                .eq('id', partnerId);
+            
+            if (updateErr) {
+                showNotification('❌ Erreur sauvegarde : ' + updateErr.message, 'error');
+                return;
+            }
+            showNotification('✅ Partenaire mis à jour', 'success');
+        } else {
+            // Insert
+            var { error: insertErr } = await _sb.from('partners')
+                .insert(payload);
+            
+            if (insertErr) {
+                showNotification('❌ Erreur création : ' + insertErr.message, 'error');
+                return;
+            }
+            showNotification('✅ Partenaire créé : ' + name, 'success');
+        }
+        
+        // Fermer le modal et recharger
+        _partner_closeModal();
+        await _partner_refresh();
+        
+    } catch(e) {
+        console.error('[Partners] saveModal exception:', e);
+        showNotification('❌ Erreur : ' + (e.message || e), 'error');
+    } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Enregistrer'; }
+    }
+}
+
+/**
+ * Active/désactive un partenaire (toggle is_active)
  */
 async function _partner_toggleActive(partnerId) {
-    showNotification('🚧 Toggle en cours de développement (étape 3)', 'info');
-    console.log('[Partners] _partner_toggleActive called with id:', partnerId);
+    try {
+        var p = (window._partnersData || []).find(function(x){ return x.id === partnerId; });
+        if (!p) return;
+        
+        var newActive = p.is_active === false ? true : false;
+        
+        var { error } = await _sb.from('partners')
+            .update({ is_active: newActive, updated_at: new Date().toISOString() })
+            .eq('id', partnerId);
+        
+        if (error) {
+            showNotification('❌ Erreur : ' + error.message, 'error');
+            return;
+        }
+        
+        showNotification(newActive ? '✅ Partenaire activé' : '👁 Partenaire désactivé', 'success');
+        await _partner_refresh();
+    } catch(e) {
+        console.error('[Partners] toggleActive exception:', e);
+    }
 }
 
 /**
- * STUB : supprime un partenaire (à implémenter étape 3)
+ * Supprime un partenaire (avec confirmation)
  */
 async function _partner_delete(partnerId) {
-    showNotification('🚧 Suppression en cours de développement (étape 3)', 'info');
-    console.log('[Partners] _partner_delete called with id:', partnerId);
+    var p = (window._partnersData || []).find(function(x){ return x.id === partnerId; });
+    if (!p) return;
+    
+    if (!confirm('Supprimer le partenaire "' + (p.name || '?') + '" ?\n\nCette action est irréversible.')) {
+        return;
+    }
+    
+    try {
+        var { error } = await _sb.from('partners')
+            .delete()
+            .eq('id', partnerId);
+        
+        if (error) {
+            showNotification('❌ Erreur suppression : ' + error.message, 'error');
+            return;
+        }
+        
+        showNotification('🗑 Partenaire supprimé', 'success');
+        await _partner_refresh();
+    } catch(e) {
+        console.error('[Partners] delete exception:', e);
+    }
 }
 
 /* ═══ FIN partenaires ═══ */
