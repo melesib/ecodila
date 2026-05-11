@@ -166,6 +166,35 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 .nav-links{display:flex;gap:.3rem;flex-wrap:wrap}
 .nb{font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;padding:.45rem 1rem;border-radius:6px;border:none;cursor:pointer;transition:all .2s;background:transparent;color:#bbb}
 .nb:hover{color:white}.nb.act{background:var(--gl);color:var(--black)}
+
+/* ═══ FIX 2026-05-11 #nav-responsive — Boutons nav toujours lisibles ═══ */
+@media (max-width: 1024px) {
+    .nav-links { gap: .25rem; }
+    .nb { font-size: .78rem; padding: .42rem .85rem; }
+}
+@media (max-width: 900px) {
+    .nav-links { gap: .2rem; }
+    .nb { font-size: .75rem; padding: .4rem .75rem; font-weight: 600; }
+}
+@media (max-width: 768px) {
+    .nav-links { gap: .25rem; justify-content: center; }
+    .nb { font-size: .8rem; padding: .5rem .9rem; font-weight: 600; min-height: 40px; display: inline-flex; align-items: center; }
+}
+@media (max-width: 600px) {
+    .nav-links { gap: .2rem; }
+    .nb { font-size: .75rem; padding: .45rem .7rem; min-height: 38px; }
+}
+@media (max-width: 480px) {
+    .nav-links { gap: .15rem; }
+    .nb { font-size: .72rem; padding: .42rem .6rem; min-height: 36px; }
+}
+/* Fold/Flip très petits écrans */
+@media (max-width: 380px) {
+    .nav-links { gap: .12rem; }
+    .nb { font-size: .68rem; padding: .38rem .5rem; min-height: 34px; letter-spacing: -.2px; }
+}
+/* ═══ FIN #nav-responsive ═══ */
+
 .hero{background:var(--black);padding:1.4rem 2rem 1.3rem;text-align:center;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 65% 40%,rgba(82,183,136,.15) 0%,transparent 65%),radial-gradient(ellipse at 20% 75%,rgba(231,111,81,.1) 0%,transparent 55%)}
 .hero-tag{display:inline-block;font-size:.68rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--gl);background:rgba(82,183,136,.12);border:1px solid rgba(82,183,136,.3);padding:.2rem .75rem;border-radius:100px;margin-bottom:.7rem;position:relative}
