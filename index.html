@@ -5084,6 +5084,64 @@ nav {
         #buy-submit-btn:disabled{opacity:.45;cursor:not-allowed;}
 
 /* ═══════════════════════════════════════════
+   FIX 2026-05-11 #partners-css
+   SECTION MARQUES PARTENAIRES
+   ═══════════════════════════════════════════ */
+.partners-section {
+    padding:.8rem 0 1rem;
+    border-bottom:1px solid rgba(255,255,255,.04);
+}
+.partners-grid {
+    display:flex;flex-wrap:wrap;justify-content:center;
+    gap:.8rem;padding:.4rem 0;
+}
+.partner-item {
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    width:90px;height:90px;
+    background:#fff;border:2px solid rgba(255,255,255,.08);
+    border-radius:14px;padding:.6rem;
+    cursor:pointer;text-decoration:none;
+    transition:transform .25s cubic-bezier(.25,.8,.25,1),
+               box-shadow .25s,border-color .25s;
+    position:relative;overflow:hidden;
+    animation:partnerCardIn .5s cubic-bezier(.22,.68,0,1.15) both;
+}
+@keyframes partnerCardIn {
+    from{opacity:0;transform:translateY(20px) scale(.85)}
+    to{opacity:1;transform:translateY(0) scale(1)}
+}
+.partner-item:hover {
+    transform:translateY(-5px) scale(1.06);
+    box-shadow:0 12px 30px rgba(82,183,136,.35);
+    border-color:rgba(82,183,136,.6);
+}
+.partner-item img {
+    max-width:100%;max-height:100%;
+    object-fit:contain;
+    transition:transform .25s ease;
+}
+.partner-item:hover img { transform:scale(1.1); }
+.partner-item-label {
+    position:absolute;bottom:-30px;left:0;right:0;
+    background:rgba(45,106,79,.95);color:#fff;
+    font-size:.6rem;font-weight:700;letter-spacing:.4px;
+    padding:.18rem .3rem;text-transform:uppercase;
+    transition:bottom .25s ease;
+}
+.partner-item:hover .partner-item-label { bottom:0; }
+
+/* Responsive mobile */
+@media (max-width: 768px) {
+    .partners-grid { gap:.6rem; }
+    .partner-item { width:72px;height:72px;padding:.45rem; }
+    .partner-item-label { font-size:.52rem; }
+}
+@media (max-width: 480px) {
+    .partners-section { padding:.6rem 0 .8rem; }
+    .partner-item { width:60px;height:60px;padding:.35rem; }
+}
+
+/* ═══════════════════════════════════════════
    NAVIGATION MOBILE — Bottom bar + Back button
    ═══════════════════════════════════════════ */
 #eco-bottom-nav{
@@ -8272,6 +8330,18 @@ setTimeout(_pStart,3000);
       <h2 style="color:var(--white);font-size:.95rem;margin:0">Produits mis en avant</h2>
     </div>
     <div class="featured-grid" id="featured-grid"><!-- JS --></div>
+  </div>
+</div>
+
+<!-- ══════ FIX 2026-05-11 #partners-section ══════ -->
+<!-- ══════ SECTION MARQUES PARTENAIRES ══════ -->
+<div id="partners-section" class="partners-section" style="display:none">
+  <div class="container">
+    <div class="section-header" style="margin-bottom:.6rem;padding:.3rem 0 .2rem;border:none">
+      <div class="featured-label" style="background:linear-gradient(135deg,#2d6a4f,#52b788)">🤝 Marques de confiance</div>
+      <h2 style="color:var(--white);font-size:.95rem;margin:0">Nos partenaires</h2>
+    </div>
+    <div class="partners-grid" id="partners-grid"><!-- JS --></div>
   </div>
 </div>
 
@@ -37277,6 +37347,115 @@ window._openFeaturedModal = function(productId, cardEl){
         }
     }, 250);
 };
+
+/* ═══════════════════════════════════════════
+ * FIX 2026-05-11 #partners-render
+ * Render des marques partenaires sur la home
+ * ═══════════════════════════════════════════ */
+
+window._partnersCache = null;
+
+async function _fetchPartners() {
+    try {
+        if (typeof supa === 'undefined' || !supa) {
+            console.log('[Partners] Supabase pas prêt');
+            return [];
+        }
+        var { data, error } = await supa.from('partners')
+            .select('*')
+            .eq('is_active', true)
+            .order('display_order', { ascending: true });
+        
+        if (error) {
+            console.warn('[Partners] Fetch error:', error.message);
+            return [];
+        }
+        window._partnersCache = data || [];
+        return window._partnersCache;
+    } catch(e) {
+        console.warn('[Partners] Exception:', e);
+        return [];
+    }
+}
+
+function renderPartners() {
+    var section = document.getElementById('partners-section');
+    var grid = document.getElementById('partners-grid');
+    if (!section || !grid) return;
+    
+    var list = window._partnersCache || [];
+    
+    if (list.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    
+    section.style.display = '';
+    grid.innerHTML = list.map(function(p) {
+        var clickHandler;
+        if (p.link_type === 'external' && p.link_value) {
+            // Lien externe : ouvre dans nouvel onglet
+            clickHandler = 'window.open(\'' + p.link_value.replace(/'/g, '%27') + '\', \'_blank\')';
+        } else {
+            // Filtre catalogue par marque
+            var brandFilter = (p.link_value || p.name || '').replace(/'/g, '%27');
+            clickHandler = '_partnerFilterBrand(\'' + brandFilter + '\')';
+        }
+        
+        return '<div class="partner-item" onclick="' + clickHandler + '" title="' + 
+               (p.name || '').replace(/"/g, '&quot;') + '">' +
+            '<img src="' + (p.logo_url || '') + '" alt="' + (p.name || '').replace(/"/g, '&quot;') + '" loading="lazy">' +
+            '<div class="partner-item-label">' + (p.name || '') + '</div>' +
+        '</div>';
+    }).join('');
+}
+
+/**
+ * Filtre le catalogue par marque (clic sur logo partenaire)
+ */
+function _partnerFilterBrand(brand) {
+    if (!brand) return;
+    
+    // 1. Naviguer vers le catalogue
+    try {
+        if (typeof showPage === 'function') showPage('catalogue');
+    } catch(e) { /* ok */ }
+    
+    // 2. Mettre la marque dans la barre de recherche (si elle existe)
+    setTimeout(function() {
+        var searchInput = document.getElementById('search-input') || 
+                         document.querySelector('input[type="search"]') ||
+                         document.querySelector('input[placeholder*="echerche"]');
+        if (searchInput) {
+            searchInput.value = brand;
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // 3. Scroll vers le catalogue
+        var catalogueSection = document.getElementById('page-catalogue') ||
+                              document.getElementById('catalogue-grid');
+        if (catalogueSection) {
+            catalogueSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 100);
+}
+
+/**
+ * Charge et affiche les partenaires (à appeler au démarrage)
+ */
+async function _loadPartners() {
+    await _fetchPartners();
+    renderPartners();
+}
+
+// Lancer le chargement au démarrage (avec petit délai pour s'assurer que supa est prêt)
+setTimeout(function() {
+    if (typeof _loadPartners === 'function') _loadPartners();
+}, 800);
+
+/* ═══ FIN partenaires render ═══ */
+
 
 function renderFeatured() {
     const section = document.getElementById('featured-section');
