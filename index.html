@@ -37357,11 +37357,13 @@ window._partnersCache = null;
 
 async function _fetchPartners() {
     try {
-        if (typeof supa === 'undefined' || !supa) {
+        // FIX 2026-05-11 : sur le site, Supabase est exposée comme _sb (pas supa)
+        var sbClient = window._sb || window.supa || null;
+        if (!sbClient) {
             console.log('[Partners] Supabase pas prêt');
             return [];
         }
-        var { data, error } = await supa.from('partners')
+        var { data, error } = await sbClient.from('partners')
             .select('*')
             .eq('is_active', true)
             .order('display_order', { ascending: true });
