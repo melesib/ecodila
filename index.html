@@ -37414,33 +37414,46 @@ function renderPartners() {
 
 /**
  * Filtre le catalogue par marque (clic sur logo partenaire)
+ * FIX 2026-05-11 : utiliser global-search (vrai id sur le site)
  */
 function _partnerFilterBrand(brand) {
     if (!brand) return;
     
-    // 1. Naviguer vers le catalogue
+    // 1. Mettre la marque dans la barre de recherche globale
+    var searchInput = document.getElementById('global-search');
+    if (searchInput) {
+        searchInput.value = brand;
+        searchInput.focus();
+        // Déclencher les events que la recherche écoute
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+        searchInput.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Enter' }));
+        
+        // Lancer la recherche globale si la fonction existe
+        try {
+            if (typeof globalSearch === 'function') {
+                globalSearch();
+            } else if (typeof performSearch === 'function') {
+                performSearch(brand);
+            }
+        } catch(e) { console.warn('[Partners] Search trigger error:', e); }
+    } else {
+        console.warn('[Partners] Barre de recherche introuvable');
+    }
+    
+    // 2. Naviguer vers le catalogue (si pas déjà dessus)
     try {
         if (typeof showPage === 'function') showPage('catalogue');
     } catch(e) { /* ok */ }
     
-    // 2. Mettre la marque dans la barre de recherche (si elle existe)
+    // 3. Scroll vers le catalogue
     setTimeout(function() {
-        var searchInput = document.getElementById('search-input') || 
-                         document.querySelector('input[type="search"]') ||
-                         document.querySelector('input[placeholder*="echerche"]');
-        if (searchInput) {
-            searchInput.value = brand;
-            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        
-        // 3. Scroll vers le catalogue
         var catalogueSection = document.getElementById('page-catalogue') ||
                               document.getElementById('catalogue-grid');
         if (catalogueSection) {
             catalogueSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-    }, 100);
+    }, 200);
 }
 
 /**
