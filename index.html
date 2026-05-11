@@ -5087,6 +5087,62 @@ nav {
    FIX 2026-05-11 #partners-css
    SECTION MARQUES PARTENAIRES
    ═══════════════════════════════════════════ */
+
+/* ═══ Badge HERO pour sections d'accueil ═══ */
+.section-hero-label {
+    display:inline-flex;align-items:center;gap:.4rem;
+    font-size:.78rem;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;
+    color:#fff;background:linear-gradient(135deg, rgba(245,158,11,.95), rgba(251,191,36,.85));
+    border:1px solid rgba(245,158,11,.4);
+    padding:.45rem .9rem;border-radius:100px;margin-bottom:.5rem;
+    box-shadow:0 4px 18px rgba(245,158,11,.35),
+               0 0 0 2px rgba(245,158,11,.1);
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    transition:transform .25s ease, box-shadow .25s ease;
+    position:relative;overflow:hidden;
+}
+.section-hero-label::before {
+    content:'';position:absolute;top:0;left:-100%;
+    width:50%;height:100%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent);
+    animation:sectionShine 3s ease-in-out infinite;
+}
+@keyframes sectionShine {
+    0%,100%{left:-100%}
+    50%{left:150%}
+}
+.section-hero-label.green {
+    background:linear-gradient(135deg, rgba(45,106,79,.95), rgba(82,183,136,.85));
+    border-color:rgba(82,183,136,.4);
+    box-shadow:0 4px 18px rgba(82,183,136,.35),
+               0 0 0 2px rgba(82,183,136,.1);
+}
+
+/* ═══ Titres de section plus visibles ═══ */
+.section-hero-title {
+    color:#fff !important;
+    font-size:1.4rem !important;
+    font-weight:800 !important;
+    letter-spacing:-.5px;
+    margin:0 !important;
+    text-shadow:0 2px 12px rgba(0,0,0,.3);
+}
+
+/* Responsive titres */
+@media (max-width: 768px) {
+    .section-hero-label { font-size:.68rem;padding:.38rem .75rem;letter-spacing:.9px; }
+    .section-hero-title { font-size:1.2rem !important; }
+}
+@media (max-width: 480px) {
+    .section-hero-label { font-size:.6rem;padding:.32rem .65rem;letter-spacing:.7px; }
+    .section-hero-title { font-size:1.05rem !important; }
+}
+/* Fold/Flip très petits écrans (< 380px) */
+@media (max-width: 380px) {
+    .section-hero-label { font-size:.55rem;padding:.28rem .55rem;letter-spacing:.5px; }
+    .section-hero-title { font-size:.95rem !important; }
+}
+
 .partners-section {
     padding:.8rem 0 1rem;
     border-bottom:1px solid rgba(255,255,255,.04);
@@ -8348,9 +8404,9 @@ setTimeout(_pStart,3000);
 <!-- ══════ SECTION PRODUITS MIS EN AVANT ══════ -->
 <div id="featured-section" class="featured-section" style="display:none">
   <div class="container">
-    <div class="section-header" style="margin-bottom:.3rem;padding:.3rem 0 .2rem;border:none">
-      <div class="featured-label">⭐ Sélection du moment</div>
-      <h2 style="color:var(--white);font-size:.95rem;margin:0">Produits mis en avant</h2>
+    <div class="section-header" style="margin-bottom:.6rem;padding:.3rem 0 .2rem;border:none">
+      <div class="featured-label section-hero-label">⭐ Sélection du moment</div>
+      <h2 class="section-hero-title">Produits mis en avant</h2>
     </div>
     <div class="featured-grid" id="featured-grid"><!-- JS --></div>
   </div>
@@ -8360,9 +8416,9 @@ setTimeout(_pStart,3000);
 <!-- ══════ SECTION MARQUES PARTENAIRES ══════ -->
 <div id="partners-section" class="partners-section" style="display:none">
   <div class="container">
-    <div class="section-header" style="margin-bottom:.6rem;padding:.3rem 0 .2rem;border:none">
-      <div class="featured-label" style="background:linear-gradient(135deg,#2d6a4f,#52b788)">🤝 Marques de confiance</div>
-      <h2 style="color:var(--white);font-size:.95rem;margin:0">Nos partenaires</h2>
+    <div class="section-header" style="margin-bottom:.8rem;padding:.3rem 0 .2rem;border:none">
+      <div class="featured-label section-hero-label green">🤝 Marques de confiance</div>
+      <h2 class="section-hero-title">Nos partenaires</h2>
     </div>
     <div class="partners-grid" id="partners-grid"><!-- JS --></div>
   </div>
