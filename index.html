@@ -6547,16 +6547,9 @@ async function _sbInit() {
     }
 
     // ── PHASE 1 : Produits + Settings (Supabase — optimisé) ──
-    // ═══ FIX 2026-05-11 #photos-lazy : éviter 2,3 Mo de base64 au démarrage ═══
-    // Bug : SELECT * incluait `photos` (base64) = ~63ko/produit × 36 = 2,3 Mo
-    //       Sur 4G = 3+ secondes, sur 2G/3G CI = 30+ secondes avant interactif
-    // Solution : SELECT initial SANS photos (toutes autres colonnes vérifiées),
-    //            puis 2e fetch en arrière-plan pour récupérer photos+id et fusionner.
     var t0 = performance.now();
-    // Liste exhaustive des 63 colonnes (toutes SAUF 'photos')
-    var _productColsLight = '_fournContact,_fournNom,_fournNotes,_fournPrix,_origine,_trocId,_trocValEst,accessoires,boost,boostEnd,boostType,brand,cat,categorie,categorie_id,couleur,created_at,date,dateCreated,dateMaj,description,detail,enPromo,etat,fournContact,fournisseur,garantie,id,images,imeis,img,imgs,isMain,is_active,labels,lineNum,marque,memory,model,modele,nom,notes,prix,prixAchat,prixAchatNeuf,prixAchatOccasion,prixAchatReconditionne,prixBarre,prixNeuf,prixOccasion,prixPromo,prixReconditionne,prix_achat,prix_barre,qty,qualite,ram,screen,slug,spec,stock,updated_at,visible';
     var r1 = await Promise.all([
-      _sb.from('products').select(_productColsLight).eq('is_active',true).order('created_at',{ascending:false}),
+      _sb.from('products').select('*').eq('is_active',true).order('created_at',{ascending:false}),
       _sb.from('settings').select('*')
     ]);
     var d = window._d;
@@ -6610,43 +6603,6 @@ async function _sbInit() {
 
     // ── Affichage / mise à jour ──
     if(typeof _onProductsReady === 'function') _onProductsReady();
-
-    // ═══ FIX 2026-05-11 #photos-lazy : fetch des photos en arrière-plan ═══
-    // Le site est maintenant interactif (texte/prix/specs visibles).
-    // On charge les photos SÉPARÉMENT pour ne pas bloquer le rendu initial.
-    // setTimeout 0 = attendre le prochain tick pour laisser le DOM se peindre d'abord.
-    setTimeout(function(){
-      _sb.from('products')
-        .select('id,photos')
-        .eq('is_active', true)
-        .then(function(r){
-          if(!r || !r.data) return;
-          // Fusionner les photos dans d.products
-          var photoMap = {};
-          r.data.forEach(function(p){ photoMap[p.id] = p.photos; });
-          d.products.forEach(function(p){
-            if(photoMap[p.id] !== undefined) p.photos = photoMap[p.id];
-          });
-          console.log('[EcoDila] 📸 Photos chargées en arrière-plan : ' + r.data.length + ' produits');
-          // Re-render le catalogue si la fonction existe
-          if(typeof renderCatalogue === 'function' && d.products) {
-            try { renderCatalogue(d.products); } catch(e){ console.warn('[Photos lazy] re-render failed:', e); }
-          }
-          // Mettre à jour le cache localStorage avec les photos
-          try {
-            var _cacheFull = d.products.map(function(p){
-              var c = {}; ['id','nom','categorie','brand','model','prix','prixNeuf','prixOccasion','prixReconditionne','prixAchat','prixAchatNeuf','prixAchatOccasion','prixAchatReconditionne','qualite','stock','labels','screen','memory','date','boost','is_active','created_at'].forEach(function(k){ if(p[k]!==undefined) c[k]=p[k]; });
-              if(p.photos && p.photos[0]) c.photos = [p.photos[0]];
-              return c;
-            });
-            localStorage.setItem('ecodila_products_cache', JSON.stringify(_cacheFull));
-          } catch(e){}
-        })
-        .catch(function(err){
-          console.warn('[EcoDila] ⚠️ Fetch photos arrière-plan échoué:', err);
-        });
-    }, 0);
-    // ═══ FIN FIX photos-lazy ═══
 
     // ── Re-init livraison (settings maintenant disponibles) ──
     if(typeof window.flSiteInitAll === 'function') window.flSiteInitAll();
