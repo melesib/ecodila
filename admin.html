@@ -6798,6 +6798,12 @@ window._sbReload = async function() {
                     <span>Fournisseurs</span>
                     <span class="nav-item-badge" id="fournisseurs-count">0</span>
                 </a>
+                <!-- ═══ FIX 2026-05-11 #partenaires-menu ═══ -->
+                <a class="nav-item" data-page="partenaires">
+                    <span class="nav-item-icon">🤝</span>
+                    <span>Partenaires</span>
+                    <span class="nav-item-badge" id="partenaires-count">0</span>
+                </a>
             </div><!-- /nav-section-items -->
             </div><!-- /nav-section -->
             
@@ -7526,6 +7532,50 @@ window._sbReload = async function() {
                     <div style="font-size:3rem;margin-bottom:.75rem">🏭</div>
                     <div style="font-weight:700;font-size:1rem;margin-bottom:.4rem">Aucun fournisseur enregistré</div>
                     <div style="font-size:.85rem">Les fournisseurs sont ajoutés lors de la création de produits ou manuellement ici.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ FIX 2026-05-11 #partenaires-page ═══ -->
+        <!-- Partenaires Page -->
+        <div id="page-partenaires" class="page-content hidden">
+            <div class="page-header">
+                <h1 class="page-title">🤝 Marques Partenaires</h1>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="_partner_refresh()" aria-label="🔄 Actualiser">🔄 Actualiser</button>
+                    <button class="btn btn-primary" onclick="_partner_openModal()" aria-label="+ Nouveau partenaire">+ Nouveau partenaire</button>
+                </div>
+            </div>
+            <div class="page-body">
+                <div style="background:var(--card);padding:1rem 1.25rem;border-radius:12px;margin-bottom:1.5rem;border:1px solid var(--border)">
+                    <div style="font-size:.9rem;color:var(--text-muted);line-height:1.6">
+                        💡 Affichez vos marques partenaires sur la page d'accueil après les produits mis en avant.
+                        Chaque logo redirige vers le catalogue filtré par cette marque OU vers un lien externe.
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:1.5rem">
+                    <div class="stat-card">
+                        <div class="stat-label">Total partenaires</div>
+                        <div class="stat-value" id="partner-stat-total">0</div>
+                        <div class="stat-change text-muted">enregistrés</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Actifs</div>
+                        <div class="stat-value" id="partner-stat-actifs" style="color:var(--success)">0</div>
+                        <div class="stat-change text-muted">visibles sur le site</div>
+                    </div>
+                </div>
+
+                <!-- Grille des partenaires -->
+                <div id="partner-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.1rem">
+                    <!-- Populated by JS -->
+                </div>
+                <div id="partner-empty" style="display:none;text-align:center;padding:4rem 1rem;color:var(--text-muted)">
+                    <div style="font-size:3rem;margin-bottom:.75rem">🤝</div>
+                    <div style="font-weight:700;font-size:1rem;margin-bottom:.4rem">Aucun partenaire enregistré</div>
+                    <div style="font-size:.85rem">Cliquez sur "Nouveau partenaire" pour ajouter une marque.</div>
                 </div>
             </div>
         </div>
@@ -14147,6 +14197,10 @@ function navigateToPage(pageName) {
         case 'fournisseurs':
             _fourn_loadPage();
             break;
+        case 'partenaires':
+            // ═══ FIX 2026-05-11 #partenaires-route ═══
+            _partner_loadPage();
+            break;
         case 'orders':
             loadOrders();
             break;
@@ -18134,6 +18188,151 @@ function _fourn_loadPage() {
     var badge = document.getElementById('fournisseurs-count');
     if (badge) badge.textContent = _fourn_getAll().length;
 }
+
+/* ═══════════════════════════════════════════════════════════
+ * ═ FIX 2026-05-11 #partenaires-js ═══════════════════════════
+ * Gestion des marques partenaires affichées sur la home.
+ * Table Supabase : partners
+ * Structure : { id, name, logo_url, link_type, link_value, is_active, display_order }
+ * ═══════════════════════════════════════════════════════════ */
+
+// État local des partenaires (cache mémoire)
+window._partnersData = [];
+
+/**
+ * Charge tous les partenaires depuis Supabase
+ */
+async function _partner_loadAll() {
+    try {
+        var { data, error } = await _sb.from('partners')
+            .select('*')
+            .order('display_order', { ascending: true });
+        
+        if (error) {
+            console.error('[Partners] Erreur fetch:', error.message);
+            window._partnersData = [];
+            return [];
+        }
+        
+        window._partnersData = data || [];
+        return window._partnersData;
+    } catch(e) {
+        console.error('[Partners] Exception fetch:', e);
+        window._partnersData = [];
+        return [];
+    }
+}
+
+/**
+ * Rafraîchit la page partenaires
+ */
+async function _partner_refresh() {
+    await _partner_loadAll();
+    _partner_render();
+    _partner_updateStats();
+    _partner_updateBadge();
+}
+
+/**
+ * Charge la page partenaires (appelé quand on clique sur le menu)
+ */
+async function _partner_loadPage() {
+    await _partner_loadAll();
+    _partner_render();
+    _partner_updateStats();
+    _partner_updateBadge();
+}
+
+/**
+ * Rendu de la grille des partenaires
+ */
+function _partner_render() {
+    var grid = document.getElementById('partner-grid');
+    var empty = document.getElementById('partner-empty');
+    if (!grid) return;
+    
+    var list = window._partnersData || [];
+    
+    if (list.length === 0) {
+        grid.innerHTML = '';
+        if (empty) empty.style.display = 'block';
+        return;
+    }
+    
+    if (empty) empty.style.display = 'none';
+    
+    grid.innerHTML = list.map(function(p) {
+        var isActive = p.is_active !== false;
+        var linkLabel = p.link_type === 'external' 
+            ? '🔗 ' + (p.link_value || '').substring(0, 30) + '...' 
+            : '📂 Filtre : ' + (p.link_value || p.name);
+        
+        return '<div style="background:var(--card);padding:1rem;border-radius:12px;border:1px solid var(--border);' + 
+               (isActive ? '' : 'opacity:.5') + '">' +
+            '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.75rem">' +
+                '<img src="' + (p.logo_url || '') + '" alt="' + (p.name || '') + '" ' +
+                     'style="width:60px;height:60px;object-fit:contain;background:#fff;border-radius:8px;padding:.3rem" ' +
+                     'onerror="this.style.display=\'none\'">' +
+                '<div style="flex:1">' +
+                    '<div style="font-weight:700;font-size:1rem">' + (p.name || 'Sans nom') + '</div>' +
+                    '<div style="font-size:.8rem;color:var(--text-muted)">Ordre : ' + (p.display_order || 0) + '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:.75rem;word-break:break-all">' + linkLabel + '</div>' +
+            '<div style="display:flex;gap:.5rem;flex-wrap:wrap">' +
+                '<button onclick="_partner_openModal(' + p.id + ')" style="flex:1;padding:.4rem .8rem;background:var(--card-2);border:1px solid var(--border);border-radius:6px;font-size:.8rem;cursor:pointer">✏️ Modifier</button>' +
+                '<button onclick="_partner_toggleActive(' + p.id + ')" style="flex:1;padding:.4rem .8rem;background:var(--card-2);border:1px solid var(--border);border-radius:6px;font-size:.8rem;cursor:pointer">' + (isActive ? '👁 Désactiver' : '✅ Activer') + '</button>' +
+                '<button onclick="_partner_delete(' + p.id + ')" style="padding:.4rem .8rem;background:rgba(255,68,102,.1);color:#ff4466;border:1px solid rgba(255,68,102,.3);border-radius:6px;font-size:.8rem;cursor:pointer">🗑</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+/**
+ * Mise à jour des stats
+ */
+function _partner_updateStats() {
+    var list = window._partnersData || [];
+    var statTotal = document.getElementById('partner-stat-total');
+    var statActifs = document.getElementById('partner-stat-actifs');
+    if (statTotal) statTotal.textContent = list.length;
+    if (statActifs) statActifs.textContent = list.filter(function(p){ return p.is_active !== false; }).length;
+}
+
+/**
+ * Mise à jour du badge dans la sidebar
+ */
+function _partner_updateBadge() {
+    var badge = document.getElementById('partenaires-count');
+    if (badge) badge.textContent = (window._partnersData || []).length;
+}
+
+/**
+ * STUB : ouvre le modal de création/édition (à implémenter étape 3)
+ */
+function _partner_openModal(partnerId) {
+    showNotification('🚧 Modal en cours de développement (étape 3)', 'info');
+    console.log('[Partners] _partner_openModal called with id:', partnerId || 'NEW');
+}
+
+/**
+ * STUB : toggle actif/inactif (à implémenter étape 3)
+ */
+async function _partner_toggleActive(partnerId) {
+    showNotification('🚧 Toggle en cours de développement (étape 3)', 'info');
+    console.log('[Partners] _partner_toggleActive called with id:', partnerId);
+}
+
+/**
+ * STUB : supprime un partenaire (à implémenter étape 3)
+ */
+async function _partner_delete(partnerId) {
+    showNotification('🚧 Suppression en cours de développement (étape 3)', 'info');
+    console.log('[Partners] _partner_delete called with id:', partnerId);
+}
+
+/* ═══ FIN partenaires ═══ */
+
 
 // ── Rendu de la grille ───────────────────────────────────────────────────
 function _fourn_render() {
