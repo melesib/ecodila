@@ -5092,8 +5092,11 @@ nav {
     border-bottom:1px solid rgba(255,255,255,.04);
 }
 .partners-grid {
-    display:flex;flex-wrap:wrap;justify-content:center;
+    display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;
     gap:.8rem;padding:.4rem 0;
+}
+.partner-item-wrap {
+    display:flex;flex-direction:column;align-items:center;gap:.3rem;
 }
 .partner-item {
     display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -5130,15 +5133,35 @@ nav {
 }
 .partner-item:hover .partner-item-label { bottom:0; }
 
+/* Badge commercial sous le logo */
+.partner-item-badge {
+    display:inline-block;
+    background:linear-gradient(135deg,#f59e0b,#fbbf24);
+    color:#000;
+    font-size:.55rem;font-weight:800;letter-spacing:.3px;
+    padding:.18rem .45rem;border-radius:8px;
+    text-align:center;
+    max-width:110px;
+    line-height:1.25;
+    box-shadow:0 2px 8px rgba(245,158,11,.35);
+    animation:partnerBadgeIn .6s ease both .3s;
+}
+@keyframes partnerBadgeIn {
+    from{opacity:0;transform:translateY(-5px) scale(.8)}
+    to{opacity:1;transform:translateY(0) scale(1)}
+}
+
 /* Responsive mobile */
 @media (max-width: 768px) {
     .partners-grid { gap:.6rem; }
     .partner-item { width:72px;height:72px;padding:.45rem; }
     .partner-item-label { font-size:.52rem; }
+    .partner-item-badge { font-size:.5rem;max-width:90px;padding:.15rem .35rem; }
 }
 @media (max-width: 480px) {
     .partners-section { padding:.6rem 0 .8rem; }
     .partner-item { width:60px;height:60px;padding:.35rem; }
+    .partner-item-badge { font-size:.45rem;max-width:70px; }
 }
 
 /* ═══════════════════════════════════════════
@@ -37404,10 +37427,18 @@ function renderPartners() {
             clickHandler = '_partnerFilterBrand(\'' + brandFilter + '\')';
         }
         
-        return '<div class="partner-item" onclick="' + clickHandler + '" title="' + 
+        // FIX 2026-05-11 : badge commercial sous le logo
+        var badgeHtml = p.badge_text 
+            ? '<div class="partner-item-badge">' + p.badge_text + '</div>'
+            : '';
+        
+        return '<div class="partner-item-wrap">' +
+            '<div class="partner-item" onclick="' + clickHandler + '" title="' + 
                (p.name || '').replace(/"/g, '&quot;') + '">' +
-            '<img src="' + (p.logo_url || '') + '" alt="' + (p.name || '').replace(/"/g, '&quot;') + '" loading="lazy">' +
-            '<div class="partner-item-label">' + (p.name || '') + '</div>' +
+                '<img src="' + (p.logo_url || '') + '" alt="' + (p.name || '').replace(/"/g, '&quot;') + '" loading="lazy">' +
+                '<div class="partner-item-label">' + (p.name || '') + '</div>' +
+            '</div>' +
+            badgeHtml +
         '</div>';
     }).join('');
 }

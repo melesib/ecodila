@@ -13297,6 +13297,13 @@ window.admMgr = {
                 <div style="font-size:.8rem;color:var(--text-muted);margin-top:.3rem" id="partner-link-value-hint">💡 Laisser vide pour utiliser le nom du partenaire automatiquement</div>
             </div>
             
+            <!-- ═══ FIX 2026-05-11 #partner-badge-field ═══ -->
+            <div class="form-group form-group-full">
+                <label class="form-label">Message commercial (optionnel)</label>
+                <input type="text" id="partner-badge" class="form-input" placeholder="Ex : 🚚 Livraison gratuite, 🛡️ Garantie 12 mois, ⭐ Marque du moment..." maxlength="50">
+                <div style="font-size:.8rem;color:var(--text-muted);margin-top:.3rem">💡 Affiché sous le logo. Max 50 caractères. Émojis bienvenus !</div>
+            </div>
+            
             <div class="form-group form-group-full">
                 <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
                     <input type="checkbox" id="partner-active" checked style="width:18px;height:18px;cursor:pointer">
@@ -18329,6 +18336,9 @@ function _partner_render() {
         var linkLabel = p.link_type === 'external' 
             ? '🔗 ' + (p.link_value || '').substring(0, 30) + '...' 
             : '📂 Filtre : ' + (p.link_value || p.name);
+        var badgeHtml = p.badge_text 
+            ? '<div style="margin-top:.4rem;display:inline-block;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#000;padding:.2rem .5rem;border-radius:6px;font-size:.7rem;font-weight:700;letter-spacing:.3px">' + p.badge_text + '</div>'
+            : '';
         
         return '<div style="background:var(--card);padding:1rem;border-radius:12px;border:1px solid var(--border);' + 
                (isActive ? '' : 'opacity:.5') + '">' +
@@ -18339,6 +18349,7 @@ function _partner_render() {
                 '<div style="flex:1">' +
                     '<div style="font-weight:700;font-size:1rem">' + (p.name || 'Sans nom') + '</div>' +
                     '<div style="font-size:.8rem;color:var(--text-muted)">Ordre : ' + (p.display_order || 0) + '</div>' +
+                    badgeHtml +
                 '</div>' +
             '</div>' +
             '<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:.75rem;word-break:break-all">' + linkLabel + '</div>' +
@@ -18389,6 +18400,9 @@ function _partner_openModal(partnerId) {
     document.getElementById('partner-modal-id').value = '';
     document.getElementById('partner-existing-logo-url').value = '';
     document.getElementById('partner-logo-preview').style.display = 'none';
+    // FIX 2026-05-11 : reset badge
+    var badgeInput = document.getElementById('partner-badge');
+    if (badgeInput) badgeInput.value = '';
     _partner_toggleLinkField();
     
     if (partnerId) {
@@ -18406,6 +18420,9 @@ function _partner_openModal(partnerId) {
         document.getElementById('partner-order').value = p.display_order || 0;
         document.getElementById('partner-active').checked = p.is_active !== false;
         document.getElementById('partner-existing-logo-url').value = p.logo_url || '';
+        // FIX 2026-05-11 : précharger badge en édition
+        var badgeInputEdit = document.getElementById('partner-badge');
+        if (badgeInputEdit) badgeInputEdit.value = p.badge_text || '';
         if (p.logo_url) {
             document.getElementById('partner-logo-img').src = p.logo_url;
             document.getElementById('partner-logo-preview').style.display = 'block';
@@ -18567,6 +18584,7 @@ async function _partner_saveModal() {
         }
         
         // Préparer l'objet à sauvegarder
+        var badgeValue = (document.getElementById('partner-badge')?.value || '').trim();
         var payload = {
             name: name,
             logo_url: logoUrl,
@@ -18574,6 +18592,7 @@ async function _partner_saveModal() {
             link_value: linkValue,
             display_order: order,
             is_active: isActive,
+            badge_text: badgeValue || null,
             updated_at: new Date().toISOString()
         };
         
