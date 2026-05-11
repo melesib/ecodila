@@ -37704,23 +37704,28 @@ function renderFeatured() {
     section.style.display = 'block';
 
     // Adapter le label de section selon contenu
+    // ═══ FIX 2026-05-11 : préserver class section-hero-label ═══
     const hasFlash  = featured.some(function(e){ return e.type === 'flash'; });
     const hasBoost  = featured.some(function(e){ return e.type === 'boost'; });
     const hasAuto   = featured.some(function(e){ return e.type === 'auto'; });
     const labelEl   = section.querySelector('.featured-label, .featured-label-flash');
     const titleEl   = section.querySelector('h2');
     if (labelEl && hasFlash && !hasBoost && !hasAuto) {
-        labelEl.className = 'featured-label-flash';
+        labelEl.className = 'featured-label-flash section-hero-label';
         labelEl.textContent = '⚡ Ventes Flash';
         if (titleEl) titleEl.textContent = 'Ventes Flash en cours';
     } else if (labelEl && hasFlash && (hasBoost || hasAuto)) {
-        labelEl.className = 'featured-label';
+        labelEl.className = 'featured-label section-hero-label';
         labelEl.textContent = '⚡ Flash & Sélection';
         if (titleEl) titleEl.textContent = 'Flash & Produits mis en avant';
     } else if (labelEl) {
-        labelEl.className = 'featured-label';
+        labelEl.className = 'featured-label section-hero-label';
         labelEl.textContent = '⭐ Sélection du moment';
         if (titleEl) titleEl.textContent = 'Produits mis en avant';
+    }
+    // Préserver classe section-hero-title sur le h2 si manquante
+    if (titleEl && !titleEl.classList.contains('section-hero-title')) {
+        titleEl.classList.add('section-hero-title');
     }
 
     // ── Limiter le nombre de produits sur connexion très lente ──────
