@@ -37514,26 +37514,40 @@ function renderPartners() {
     
     section.style.display = '';
     grid.innerHTML = list.map(function(p) {
-        var clickHandler;
-        if (p.link_type === 'external' && p.link_value) {
-            // Lien externe : ouvre dans nouvel onglet
-            clickHandler = 'window.open(\'' + p.link_value.replace(/'/g, '%27') + '\', \'_blank\')';
-        } else {
-            // Filtre catalogue par marque
-            var brandFilter = (p.link_value || p.name || '').replace(/'/g, '%27');
-            clickHandler = '_partnerFilterBrand(\'' + brandFilter + '\')';
+        // FIX 2026-05-11 : échapper TOUS les caractères dangereux pour HTML attribute
+        function _escAttr(s) {
+            return String(s || '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+        function _escJsString(s) {
+            return String(s || '')
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r');
         }
         
-        // FIX 2026-05-11 : badge commercial sous le logo
+        var clickHandler;
+        if (p.link_type === 'external' && p.link_value) {
+            clickHandler = "window.open('" + _escJsString(p.link_value) + "', '_blank')";
+        } else {
+            var brandFilter = p.link_value || p.name || '';
+            clickHandler = "_partnerFilterBrand('" + _escJsString(brandFilter) + "')";
+        }
+        
         var badgeHtml = p.badge_text 
-            ? '<div class="partner-item-badge">' + p.badge_text + '</div>'
+            ? '<div class="partner-item-badge">' + _escAttr(p.badge_text) + '</div>'
             : '';
         
         return '<div class="partner-item-wrap">' +
-            '<div class="partner-item" onclick="' + clickHandler + '" title="' + 
-               (p.name || '').replace(/"/g, '&quot;') + '">' +
-                '<img src="' + (p.logo_url || '') + '" alt="' + (p.name || '').replace(/"/g, '&quot;') + '" loading="lazy">' +
-                '<div class="partner-item-label">' + (p.name || '') + '</div>' +
+            '<div class="partner-item" onclick="' + _escAttr(clickHandler) + '" title="' + _escAttr(p.name) + '">' +
+                '<img src="' + _escAttr(p.logo_url) + '" alt="' + _escAttr(p.name) + '" loading="lazy">' +
+                '<div class="partner-item-label">' + _escAttr(p.name) + '</div>' +
             '</div>' +
             badgeHtml +
         '</div>';
