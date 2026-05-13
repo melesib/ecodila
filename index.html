@@ -37607,22 +37607,16 @@ function _partnerFilterBrand(brand) {
     
     // ═══ FIX 2026-05-13 #partners-filter ═══
     // Utiliser le VRAI système de filtre du catalogue par marque
-    // IMPORTANT : showPage déclenche son propre _applyFilters qui consomme
-    // le filtre, donc on doit le réappliquer APRÈS la navigation.
+    // FIX 2 : Ne PAS remplir la barre de recherche (sinon le filtre persiste
+    // quand l'utilisateur navigue ailleurs et revient au catalogue).
     
     try {
-        // 1. Remplir la barre de recherche (visuel UX)
-        var searchInput = document.getElementById('global-search');
-        if (searchInput) {
-            searchInput.value = brand;
-        }
-        
-        // 2. Naviguer vers le catalogue
+        // 1. Naviguer vers le catalogue
         if (typeof showPage === 'function') {
             showPage('catalogue');
         }
         
-        // 3. APRÈS la navigation : activer le filtre marque + re-render
+        // 2. APRÈS la navigation : activer le filtre marque + re-render
         setTimeout(function() {
             try {
                 // Set le filtre juste avant l'apply
@@ -37638,7 +37632,7 @@ function _partnerFilterBrand(brand) {
                 console.warn('[Partners] Filter render error:', e);
             }
             
-            // 4. Scroll vers le catalogue
+            // 3. Scroll vers le catalogue
             var catalogueSection = document.getElementById('page-catalogue') ||
                                   document.getElementById('catalogue-grid');
             if (catalogueSection) {
