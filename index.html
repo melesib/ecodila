@@ -5294,35 +5294,33 @@ nav {
 /* ═══ FIN #partners-backmarket ═══ */
 
 /* ═══ FIX 2026-05-13 #card-partner-badge ═══ */
-/* Badge partenaire en COIN TOP-RIGHT de la card */
-/* Position absolute → zéro impact sur la hauteur des cards */
+/* Badge partenaire SOUS le prix, sans ajouter de gap supplémentaire */
 .card-partner-badge {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    background: rgba(45,106,79,0.94);
-    color: #fff;
-    font-size: .42rem;
-    font-weight: 700;
-    letter-spacing: .25px;
-    padding: .12rem .4rem;
-    border-radius: 100px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: #ecfdf5;
+    color: #166534;
+    font-size: .5rem;
+    font-weight: 600;
+    letter-spacing: .15px;
+    padding: .15rem .45rem;
+    border-radius: 10px;
     line-height: 1.2;
-    max-width: 70%;
+    margin: 0 auto;
+    max-width: 100%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    z-index: 3;
-    pointer-events: none;
-    text-transform: uppercase;
+    text-align: center;
+    align-self: center;
 }
 .card-partner-badge:empty {
     display: none !important;
 }
-/* La featured-card est position:relative par défaut grâce à ribbon, mais ceinture+bretelles */
-.featured-card { position: relative; }
 @media (max-width: 480px) {
-    .card-partner-badge { font-size: .38rem; padding: .1rem .35rem; top: 3px; right: 3px; }
+    .card-partner-badge { font-size: .44rem; padding: .12rem .35rem; }
 }
 /* ═══ FIN #card-partner-badge ═══ */
 
@@ -15955,7 +15953,6 @@ function getPartnerBadgeHTML(item) {
     var match = null;
     for (var i = 0; i < partners.length; i++) {
         var p = partners[i];
-        // is_active doit être true (pas falsy)
         if (p.is_active === false) continue;
         var pname = String(p.name || '').toLowerCase().trim();
         if (pname === brand) { match = p; break; }
@@ -15963,13 +15960,11 @@ function getPartnerBadgeHTML(item) {
     
     if (!match || !match.badge_text) return '';
     
-    // Nettoyer les émojis pour cohérence visuelle
-    var txt = String(match.badge_text)
-        .replace(/[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{2600}-\u{27BF}]/gu, '')
-        .trim();
+    // GARDER les émojis (demandé par l'utilisateur)
+    var txt = String(match.badge_text).trim();
     if (!txt) return '';
     
-    // Échapper HTML
+    // Échapper HTML (mais préserver les émojis qui ne sont pas du HTML)
     var safeTxt = txt
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -17725,7 +17720,6 @@ function _doRenderCatalogue(items){
           </div>
         `) : `<span class="card-img-emoji">${CE[item.cat]||'📦'}</span>`}
         ${(()=>{ const boostLbl = _isBoostLive(item) ? _boostLabelHtml(item) : ''; const lblHtml = boostLbl ? '' : renderLabelsHTML(item,1); return (boostLbl||lblHtml) ? `<div class="card-labels">${boostLbl}${lblHtml}</div>` : ''; })()}
-        ${getPartnerBadgeHTML(item)}
       </div>
       <div class="card-body">
         <div class="card-cat">${(_catEmojis[(item.cat||item.categorie||'')]||'📦')} ${item.cat || item.categorie || 'Produit'}</div>
@@ -17760,6 +17754,7 @@ function _doRenderCatalogue(items){
         <div class="card-footer">
           <div class="card-price">${(function(){var ps=[item.prixNeuf,item.prixOccasion,item.prixReconditionne].filter(function(v){return v>0;});var lo=ps.length?Math.min.apply(null,ps):(item.prix||0);return (ps.length>1?'dès ':'')+ lo.toLocaleString('fr-FR');})()} FCFA</div>
           <div class="price-nego" aria-label="Prix négociable ou troc possible"><span class="msg msg-nego"><span class="nego-full">Négociable</span></span><span class="msg msg-troc"><span class="nego-full">Troc possible</span></span></div>
+          ${getPartnerBadgeHTML(item)}
           <div class="card-actions">
             <button class="cab btn-offer" title="Proposer mon prix" onclick="event.stopPropagation();if(!userLoggedIn&&!utilisateurConnecte){actionEnAttente='offre';produitEnAttente='${item.id}';showToast('🔒 Connectez-vous pour négocier');demanderAuthentification();return;}openOfferModal('${item.id}')"><span>💰</span><span class="cab-lbl">Négocier</span></button>
             <button class="cab btn-ach" onclick="event.stopPropagation();if(!userLoggedIn&&!utilisateurConnecte){actionEnAttente='acheter';produitEnAttente='${item.id}';showToast('🔒 Connectez-vous pour acheter');demanderAuthentification();return;}selectedProductForBuy='${item.id}';showPage('acheter');prefillBuyForm('${item.id}')"><span>💳</span><span class="cab-lbl">Acheter</span></button>
@@ -37983,7 +37978,6 @@ function renderFeatured() {
              onclick="_openFeaturedModal('${item.id}', this)"
              style="cursor:pointer;transition:transform .12s,opacity .12s">
             ${ribbonHtml}
-            ${getPartnerBadgeHTML(item)}
             ${imgSrc
                 ? `<div class="featured-card-img-wrapper"><span class="skeleton-label">⏳ Chargement</span><img src="${imgSrc}" class="featured-card-img" loading="eager" fetchpriority="high" decoding="async" alt="${nom}" data-retry="0" onload="window._featImgLoaded(this)" onerror="window._featImgError(this, '${imgSrc.replace(/'/g, '&#39;')}')"></div>`
                 : `<div class="featured-card-img-placeholder">${CE[item.cat]||'📦'}</div>`}
@@ -37992,6 +37986,7 @@ function renderFeatured() {
                 <div class="featured-card-name">${(item.model||item.modele||item.nom||'Produit')}</div>
                 ${ (item.screen||item.memory||item.ram) ? '<div style="font-size:.42rem;color:#8892a6;margin-top:.1rem">'+(item.screen?'📱 '+item.screen:'')+(item.screen&&(item.memory||item.ram)?' • ':'')+(item.memory?'💾 '+item.memory:'')+(item.ram?' — 🧠 '+item.ram:'')+'</div>' : '' }
                 <div class="featured-card-price">${(function(){var ps=[item.prixNeuf,item.prixOccasion,item.prixReconditionne].filter(function(v){return v>0;});var lo=ps.length?Math.min.apply(null,ps):(item.prix||0);return (ps.length>1?'dès ':'')+ lo.toLocaleString('fr-FR');})()} FCFA</div>
+                ${getPartnerBadgeHTML(item)}
                 ${extraHtml}
             </div>
         </div>`;
