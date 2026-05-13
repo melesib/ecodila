@@ -5182,82 +5182,135 @@ nav {
     .section-hero-title { font-size:.95rem !important; }
 }
 
+/* ═══ FIX 2026-05-13 #partners-premium ═══ */
 .partners-section {
-    padding:.8rem 0 1rem;
-    border-bottom:1px solid rgba(255,255,255,.04);
+    padding: 1.5rem 0 2rem;
+    background: var(--cream, #f6f4f0);
+    border-bottom: 1px solid rgba(13,13,13,.04);
+}
+.partners-section .section-header {
+    text-align: center;
+    margin-bottom: 1.5rem !important;
 }
 .partners-grid {
-    display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;
-    gap:.8rem;padding:.4rem 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 180px));
+    gap: 1rem;
+    justify-content: center;
+    padding: 0 1rem;
+    max-width: 800px;
+    margin: 0 auto;
 }
+/* Card partenaire Premium */
 .partner-item-wrap {
-    display:flex;flex-direction:column;align-items:center;gap:.3rem;
+    position: relative;
 }
 .partner-item {
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    width:90px;height:90px;
-    background:#fff;border:2px solid rgba(255,255,255,.08);
-    border-radius:14px;padding:.6rem;
-    cursor:pointer;text-decoration:none;
-    transition:transform .25s cubic-bezier(.25,.8,.25,1),
-               box-shadow .25s,border-color .25s;
-    position:relative;overflow:hidden;
-    animation:partnerCardIn .5s cubic-bezier(.22,.68,0,1.15) both;
-}
-@keyframes partnerCardIn {
-    from{opacity:0;transform:translateY(20px) scale(.85)}
-    to{opacity:1;transform:translateY(0) scale(1)}
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 1px solid rgba(45,106,79,.15);
+    border-radius: 14px;
+    padding: 1.1rem .8rem 1rem;
+    cursor: pointer;
+    text-decoration: none;
+    position: relative;
+    overflow: visible;
+    min-height: 140px;
+    transition: border-color .2s ease;
 }
 .partner-item:hover {
-    transform:translateY(-5px) scale(1.06);
-    box-shadow:0 12px 30px rgba(82,183,136,.35);
-    border-color:rgba(82,183,136,.6);
+    border-color: #52b788;
 }
 .partner-item img {
-    max-width:100%;max-height:100%;
-    object-fit:contain;
-    transition:transform .25s ease;
+    max-width: 90px;
+    max-height: 60px;
+    object-fit: contain;
+    margin-bottom: .6rem;
+    transition: transform .2s ease;
 }
-.partner-item:hover img { transform:scale(1.1); }
+.partner-item:hover img {
+    transform: scale(1.05);
+}
 .partner-item-label {
-    position:absolute;bottom:-30px;left:0;right:0;
-    background:rgba(45,106,79,.95);color:#fff;
-    font-size:.6rem;font-weight:700;letter-spacing:.4px;
-    padding:.18rem .3rem;text-transform:uppercase;
-    transition:bottom .25s ease;
+    font-size: .75rem;
+    font-weight: 600;
+    color: #0d0d0d;
+    letter-spacing: .3px;
+    text-align: center;
+    text-transform: uppercase;
+    margin-top: .2rem;
 }
-.partner-item:hover .partner-item-label { bottom:0; }
 
-/* Badge commercial sous le logo */
+/* Badge "Livraison gratuite" sous le logo */
 .partner-item-badge {
-    display:inline-block;
-    background:linear-gradient(135deg,#f59e0b,#fbbf24);
-    color:#000;
-    font-size:.55rem;font-weight:800;letter-spacing:.3px;
-    padding:.18rem .45rem;border-radius:8px;
-    text-align:center;
-    max-width:110px;
-    line-height:1.25;
-    box-shadow:0 2px 8px rgba(245,158,11,.35);
-    animation:partnerBadgeIn .6s ease both .3s;
+    display: inline-block;
+    background: #fff7ed;
+    color: #c2410c;
+    font-size: .65rem;
+    font-weight: 600;
+    letter-spacing: .2px;
+    padding: .25rem .6rem;
+    border-radius: 8px;
+    text-align: center;
+    line-height: 1.2;
+    border: 1px solid rgba(194,65,12,.15);
+    margin-top: .5rem;
+    white-space: nowrap;
 }
-@keyframes partnerBadgeIn {
-    from{opacity:0;transform:translateY(-5px) scale(.8)}
-    to{opacity:1;transform:translateY(0) scale(1)}
+
+/* Badge "N produits" en coin haut-droit (NEW) */
+.partner-item-count {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #2d6a4f;
+    color: #fff;
+    font-size: .6rem;
+    font-weight: 700;
+    padding: .2rem .5rem;
+    border-radius: 10px;
+    letter-spacing: .3px;
+    z-index: 2;
+    box-shadow: 0 1px 3px rgba(0,0,0,.1);
 }
 
 /* Responsive mobile */
 @media (max-width: 768px) {
-    .partners-grid { gap:.6rem; }
-    .partner-item { width:72px;height:72px;padding:.45rem; }
-    .partner-item-label { font-size:.52rem; }
-    .partner-item-badge { font-size:.5rem;max-width:90px;padding:.15rem .35rem; }
+    .partners-section { padding: 1rem 0 1.5rem; }
+    .partners-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 150px));
+        gap: .8rem;
+    }
+    .partner-item {
+        min-height: 120px;
+        padding: .9rem .6rem .8rem;
+    }
+    .partner-item img {
+        max-width: 75px;
+        max-height: 50px;
+    }
+    .partner-item-label { font-size: .7rem; }
+    .partner-item-badge { font-size: .6rem; padding: .2rem .5rem; }
+    .partner-item-count { font-size: .55rem; padding: .15rem .4rem; }
 }
 @media (max-width: 480px) {
-    .partners-section { padding:.6rem 0 .8rem; }
-    .partner-item { width:60px;height:60px;padding:.35rem; }
-    .partner-item-badge { font-size:.45rem;max-width:70px; }
+    .partners-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: .7rem;
+    }
+    .partner-item {
+        min-height: 110px;
+        padding: .8rem .5rem;
+    }
+    .partner-item img {
+        max-width: 65px;
+        max-height: 45px;
+    }
 }
+/* ═══ FIN #partners-premium ═══ */
 
 /* ═══════════════════════════════════════════
    NAVIGATION MOBILE — Bottom bar + Back button
@@ -37513,6 +37566,19 @@ function renderPartners() {
     }
     
     section.style.display = '';
+    
+    // ═══ FIX 2026-05-13 #partners-premium ═══
+    // Compter les produits par marque pour afficher le badge "N produits"
+    var productCount = {};
+    try {
+        var products = window._productsCache || [];
+        products.forEach(function(p) {
+            if (!p || p.is_active === false) return;
+            var brand = String(p.marque || p.brand || '').toLowerCase().trim();
+            if (brand) productCount[brand] = (productCount[brand] || 0) + 1;
+        });
+    } catch(e) {}
+    
     grid.innerHTML = list.map(function(p) {
         // FIX 2026-05-11 : échapper TOUS les caractères dangereux pour HTML attribute
         function _escAttr(s) {
@@ -37540,18 +37606,27 @@ function renderPartners() {
             clickHandler = "_partnerFilterBrand('" + _escJsString(brandFilter) + "')";
         }
         
+        // Compter produits pour cette marque
+        var brandKey = String(p.name || '').toLowerCase().trim();
+        var count = productCount[brandKey] || 0;
+        var countHtml = (count > 0)
+            ? '<div class="partner-item-count">' + count + ' PROD.</div>'
+            : '';
+        
         var badgeHtml = p.badge_text 
             ? '<div class="partner-item-badge">' + _escAttr(p.badge_text) + '</div>'
             : '';
         
         return '<div class="partner-item-wrap">' +
+            countHtml +
             '<div class="partner-item" onclick="' + _escAttr(clickHandler) + '" title="' + _escAttr(p.name) + '">' +
                 '<img src="' + _escAttr(p.logo_url) + '" alt="' + _escAttr(p.name) + '" loading="lazy">' +
                 '<div class="partner-item-label">' + _escAttr(p.name) + '</div>' +
+                badgeHtml +
             '</div>' +
-            badgeHtml +
         '</div>';
     }).join('');
+    // ═══ FIN #partners-premium ═══
 }
 
 /**
