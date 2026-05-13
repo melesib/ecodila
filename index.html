@@ -37607,43 +37607,44 @@ function _partnerFilterBrand(brand) {
     
     // ═══ FIX 2026-05-13 #partners-filter ═══
     // Utiliser le VRAI système de filtre du catalogue par marque
-    // (au lieu de la recherche globale qui montre tout)
+    // IMPORTANT : showPage déclenche son propre _applyFilters qui consomme
+    // le filtre, donc on doit le réappliquer APRÈS la navigation.
     
     try {
-        // 1. Activer le filtre marque du catalogue
-        window._promoBrandFilter = String(brand);
-        
-        // 2. Optionnel : remplir aussi la barre de recherche pour visuel (UX)
+        // 1. Remplir la barre de recherche (visuel UX)
         var searchInput = document.getElementById('global-search');
         if (searchInput) {
             searchInput.value = brand;
         }
         
-        // 3. Naviguer vers le catalogue
+        // 2. Naviguer vers le catalogue
         if (typeof showPage === 'function') {
             showPage('catalogue');
         }
         
-        // 4. Re-render le catalogue avec le filtre appliqué
+        // 3. APRÈS la navigation : activer le filtre marque + re-render
         setTimeout(function() {
             try {
+                // Set le filtre juste avant l'apply
+                window._promoBrandFilter = String(brand);
+                
+                // Re-render le catalogue avec le filtre actif
                 if (typeof _applyFilters === 'function') {
-                    var filtered = _applyFilters();
-                    if (typeof renderCatalogue === 'function') {
-                        renderCatalogue(filtered);
-                    }
+                    _applyFilters();
                 }
-            } catch(e) { console.warn('[Partners] Filter render error:', e); }
+                
+                console.log('[Partners] ✅ Filtre marque appliqué:', brand);
+            } catch(e) {
+                console.warn('[Partners] Filter render error:', e);
+            }
             
-            // 5. Scroll vers le catalogue
+            // 4. Scroll vers le catalogue
             var catalogueSection = document.getElementById('page-catalogue') ||
                                   document.getElementById('catalogue-grid');
             if (catalogueSection) {
                 catalogueSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
-        }, 100);
-        
-        console.log('[Partners] Filtre marque appliqué:', brand);
+        }, 200);
     } catch(e) {
         console.error('[Partners] Erreur filtre marque:', e);
     }
