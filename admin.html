@@ -56908,7 +56908,22 @@ window.flCalculer = function(villeId, catNom, montant){
 };
 
 /* flRenderChip: affichage BO (toujours) */
-window.flRenderChip = function(villeId, catNom, montant){
+/* FIX 2026-05-13 #respect-saved-frais
+   4e param optionnel : objet commande/troc/négo. Si fraisLivraison défini,
+   utilise CETTE valeur (respect livraison gratuite partenaire). */
+window.flRenderChip = function(villeId, catNom, montant, savedObj){
+    // PRIORITÉ : utiliser le frais enregistré si disponible
+    if (savedObj && typeof savedObj === 'object' && savedObj.fraisLivraison !== undefined && savedObj.fraisLivraison !== null) {
+        var savedFrais = Number(savedObj.fraisLivraison);
+        if (!isNaN(savedFrais)) {
+            var savedDelai = savedObj.delaiLivraison || '';
+            if (savedFrais === 0) {
+                return '<span class="fl-frais-chip fl-chip-gratuit">&#x1F69A; Livraison gratuite</span>';
+            }
+            return '<span class="fl-frais-chip">&#x1F69A; '+savedFrais.toLocaleString('fr-FR')+' FCFA'+(savedDelai?' &middot; '+savedDelai:'')+' </span>';
+        }
+    }
+    // Fallback : recalcul (anciennes commandes sans fraisLivraison)
     var r = window.flCalculer(villeId||'', catNom||'', montant||0);
     if(!r.frais && !r.gratuit) return '';
     if(r.gratuit) return '<span class="fl-frais-chip fl-chip-gratuit">&#x1F69A; Livraison gratuite</span>';
@@ -57256,7 +57271,7 @@ window.addEventListener('load', function(){
                     var mono=row.querySelector('[style*="Space Mono"]'); if(!mono) return;
                     var oid=mono.textContent.replace('#','').trim();
                     var ord=orders.find(function(o){return String(o.id)===oid;}); if(!ord) return;
-                    var chip=window.flRenderChip(ord.villeId||ord.ville||'',ord.categorie||ord.cat||'',ord.total||0);
+                    var chip=window.flRenderChip(ord.villeId||ord.ville||'',ord.categorie||ord.cat||'',ord.total||0,ord);
                     if(!chip) return;
                     if(row.cells[4]) row.cells[4].insertAdjacentHTML('beforeend','<br>'+chip);
                 });
@@ -57273,7 +57288,7 @@ window.addEventListener('load', function(){
                         var mono=row.querySelector('[style*="Space Mono"]'); if(!mono) return;
                         var tid=mono.textContent.replace('#','').trim();
                         var troc=trocs.find(function(t){return String(t.id)===tid;}); if(!troc) return;
-                        var chip=window.flRenderChip(troc.villeId||troc.ville||'',troc.categorie||troc.cat||'',troc.valEst||0);
+                        var chip=window.flRenderChip(troc.villeId||troc.ville||'',troc.categorie||troc.cat||'',troc.valEst||0,troc);
                         if(!chip) return;
                         if(row.cells[3]) row.cells[3].insertAdjacentHTML('beforeend','<br>'+chip);
                     });
@@ -57292,7 +57307,7 @@ window.addEventListener('load', function(){
                         var mono=row.querySelector('[style*="Space Mono"]'); if(!mono) return;
                         var nid=mono.textContent.replace('#','').trim();
                         var neg=negos.find(function(n){return String(n.id)===nid;}); if(!neg) return;
-                        var chip=window.flRenderChip(neg.villeId||neg.ville||'',neg.categorie||neg.cat||'',neg.montantAccepte||neg.prixPropose||0);
+                        var chip=window.flRenderChip(neg.villeId||neg.ville||'',neg.categorie||neg.cat||'',neg.montantAccepte||neg.prixPropose||0,neg);
                         if(!chip) return;
                         if(row.cells[3]) row.cells[3].insertAdjacentHTML('beforeend','<br>'+chip);
                     });
