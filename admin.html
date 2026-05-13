@@ -27762,6 +27762,12 @@ function updateProduct() {
     product.prixNeuf = pVN; product.prixOccasion = pVO; product.prixReconditionne = pVR;
     product.prixAchatNeuf = pAN; product.prixAchatOccasion = pAO; product.prixAchatReconditionne = pAR;
     product.stock = stock;
+    // FIX 2026-05-13 #auto-reactivate-on-stock
+    // Si on rajoute du stock (>0) et que le produit était désactivé, on le réactive
+    if (stock > 0 && product.is_active === false) {
+        product.is_active = true;
+        showNotification('✅ Produit réactivé automatiquement (stock ajouté)', 'success');
+    }
     product.qualite = state;
     product.description = description || null;
     product.labels = _readLabelsFromForm();
