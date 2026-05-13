@@ -5182,29 +5182,30 @@ nav {
     .section-hero-title { font-size:.95rem !important; }
 }
 
-/* ═══ FIX 2026-05-13 #partners-refined ═══ */
-/* Version SOBRE et AFFINÉE — proche de l'ancien mais plus beau */
+/* ═══ FIX 2026-05-13 #partners-compact ═══ */
+/* Version COMPACTE : badge rond top + livraison sur logo */
 .partners-section {
-    padding: 1.5rem 0 2rem;
+    padding: 1rem 0 1.2rem;
     border-bottom: 1px solid rgba(13,13,13,.04);
 }
 .partners-section .section-header {
     text-align: center;
-    margin-bottom: 1.2rem !important;
+    margin-bottom: .8rem !important;
 }
 .partners-grid {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     align-items: flex-start;
-    gap: 1.2rem;
-    padding: .5rem 0;
+    gap: 1rem;
+    padding: .3rem 0;
 }
 .partner-item-wrap {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: .55rem;
+    gap: 0;
+    padding-top: 12px; /* Espace pour le badge rond qui dépasse */
 }
 .partner-item {
     display: flex;
@@ -5236,7 +5237,7 @@ nav {
 .partner-item:hover img {
     transform: scale(1.06);
 }
-/* Label nom marque caché par défaut, apparaît au hover */
+/* Label nom marque au hover */
 .partner-item-label {
     position: absolute;
     bottom: 0;
@@ -5257,39 +5258,62 @@ nav {
     transform: translateY(0);
 }
 
-/* Badge "Livraison gratuite" SOUS la card, AFFINÉ */
+/* Badge livraison gratuite SUR le logo (fond transparent) */
 .partner-item-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: .25rem;
-    background: #fff7ed;
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,.85);
+    backdrop-filter: blur(2px);
     color: #c2410c;
-    font-size: .6rem;
-    font-weight: 600;
-    letter-spacing: .25px;
-    padding: .28rem .65rem;
-    border-radius: 20px;
+    font-size: .48rem;
+    font-weight: 700;
+    letter-spacing: .2px;
+    padding: .12rem .4rem;
+    border-radius: 8px;
     text-align: center;
-    line-height: 1.2;
-    border: 1px solid rgba(194,65,12,.18);
-    max-width: 130px;
+    line-height: 1.1;
     white-space: nowrap;
+    z-index: 1;
+    pointer-events: none;
 }
 
-/* Responsive mobile */
+/* Badge rond "N" en haut de la card */
+.partner-item-count {
+    position: absolute;
+    top: 0;
+    right: 4px;
+    background: #2d6a4f;
+    color: #fff;
+    font-size: .65rem;
+    font-weight: 700;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-    .partners-section { padding: 1.2rem 0 1.5rem; }
-    .partners-grid { gap: 1rem; }
+    .partners-section { padding: .8rem 0 1rem; }
+    .partners-grid { gap: .9rem; }
     .partner-item { width: 88px; height: 88px; padding: .7rem; }
     .partner-item-label { font-size: .54rem; }
-    .partner-item-badge { font-size: .55rem; padding: .22rem .55rem; }
+    .partner-item-badge { font-size: .44rem; padding: .1rem .35rem; }
+    .partner-item-count { min-width: 20px; height: 20px; font-size: .6rem; }
 }
 @media (max-width: 480px) {
-    .partners-section { padding: 1rem 0 1.3rem; }
     .partner-item { width: 78px; height: 78px; padding: .6rem; border-radius: 14px; }
-    .partner-item-badge { font-size: .52rem; padding: .2rem .5rem; max-width: 110px; }
+    .partner-item-badge { font-size: .42rem; padding: .08rem .3rem; }
+    .partner-item-count { min-width: 18px; height: 18px; font-size: .55rem; }
 }
-/* ═══ FIN #partners-refined ═══ */
+/* ═══ FIN #partners-compact ═══ */
 
 /* ═══════════════════════════════════════════
    NAVIGATION MOBILE — Bottom bar + Back button
@@ -37545,8 +37569,20 @@ function renderPartners() {
     }
     
     section.style.display = '';
+    
+    // ═══ FIX 2026-05-13 #partners-compact ═══
+    // Compter produits par marque pour badge rond
+    var productCount = {};
+    try {
+        var products = window._productsCache || [];
+        products.forEach(function(p) {
+            if (!p || p.is_active === false) return;
+            var brand = String(p.marque || p.brand || '').toLowerCase().trim();
+            if (brand) productCount[brand] = (productCount[brand] || 0) + 1;
+        });
+    } catch(e) {}
+    
     grid.innerHTML = list.map(function(p) {
-        // FIX 2026-05-11 : échapper TOUS les caractères dangereux pour HTML attribute
         function _escAttr(s) {
             return String(s || '')
                 .replace(/&/g, '&amp;')
@@ -37572,18 +37608,37 @@ function renderPartners() {
             clickHandler = "_partnerFilterBrand('" + _escJsString(brandFilter) + "')";
         }
         
-        var badgeHtml = p.badge_text 
-            ? '<div class="partner-item-badge">' + _escAttr(p.badge_text) + '</div>'
+        // Badge rond "N" en haut de la card
+        var brandKey = String(p.name || '').toLowerCase().trim();
+        var count = productCount[brandKey] || 0;
+        var countHtml = (count > 0)
+            ? '<div class="partner-item-count" title="' + count + ' produits">' + count + '</div>'
+            : '';
+        
+        // Badge livraison SUR le logo (en bas, fond semi-transparent)
+        // On garde le texte court : juste "Livraison gratuite" (sans emoji)
+        var badgeText = '';
+        if (p.badge_text) {
+            // Nettoyer le texte : retirer émojis et garder court
+            badgeText = String(p.badge_text)
+                .replace(/[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{2600}-\u{27BF}]/gu, '')
+                .trim();
+            if (badgeText.length > 18) badgeText = badgeText.substring(0, 18);
+        }
+        var badgeHtml = badgeText
+            ? '<div class="partner-item-badge">' + _escAttr(badgeText) + '</div>'
             : '';
         
         return '<div class="partner-item-wrap">' +
             '<div class="partner-item" onclick="' + _escAttr(clickHandler) + '" title="' + _escAttr(p.name) + '">' +
+                countHtml +
                 '<img src="' + _escAttr(p.logo_url) + '" alt="' + _escAttr(p.name) + '" loading="lazy">' +
+                badgeHtml +
                 '<div class="partner-item-label">' + _escAttr(p.name) + '</div>' +
             '</div>' +
-            badgeHtml +
         '</div>';
     }).join('');
+    // ═══ FIN #partners-compact ═══
 }
 
 /**
