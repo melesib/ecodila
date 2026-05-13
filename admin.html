@@ -19366,6 +19366,8 @@ function reactivateProductFromBO(productId){
         var p = (adminData.products || []).find(function(x){ return String(x.id) === String(productId); });
         if(p){
             p.status = 'active';
+            // FIX 2026-05-13 #reactivate-supabase : aussi remettre is_active à true
+            p.is_active = true;
             delete p.disabledAt;
             delete p.disabledReason;
         }
@@ -19376,6 +19378,7 @@ function reactivateProductFromBO(productId){
                 raw.forEach(function(rp){
                     if(rp && String(rp.id) === String(productId)){
                         rp.status = 'active';
+                        rp.is_active = true;
                         delete rp.disabledAt;
                         delete rp.disabledReason;
                     }
@@ -19392,6 +19395,17 @@ function reactivateProductFromBO(productId){
             }
             window._sbWrite && window._sbWrite('ecodila_product_stats', stats);
         } catch(e){}
+        // FIX 2026-05-13 #reactivate-supabase : sync Supabase (table products)
+        try {
+            if (window._sb) {
+                window._sb.from('products')
+                    .update({ is_active: true, updated_at: new Date().toISOString() })
+                    .eq('id', productId)
+                    .then(function(r){
+                        if (r.error) console.warn('[reactivate] Supabase err:', r.error.message);
+                    });
+            }
+        } catch(e) { console.warn('[reactivate] Supabase exception:', e); }
         showToast && showToast('✅ Produit réactivé');
         renderProducts(); // re-render pour retirer le grisage
     } catch(e){
