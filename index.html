@@ -37605,41 +37605,49 @@ function renderPartners() {
 function _partnerFilterBrand(brand) {
     if (!brand) return;
     
-    // 1. Mettre la marque dans la barre de recherche globale
-    var searchInput = document.getElementById('global-search');
-    if (searchInput) {
-        searchInput.value = brand;
-        searchInput.focus();
-        // Déclencher les events que la recherche écoute
-        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-        searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-        searchInput.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Enter' }));
-        
-        // Lancer la recherche globale si la fonction existe
-        try {
-            if (typeof globalSearch === 'function') {
-                globalSearch();
-            } else if (typeof performSearch === 'function') {
-                performSearch(brand);
-            }
-        } catch(e) { console.warn('[Partners] Search trigger error:', e); }
-    } else {
-        console.warn('[Partners] Barre de recherche introuvable');
-    }
+    // ═══ FIX 2026-05-13 #partners-filter ═══
+    // Utiliser le VRAI système de filtre du catalogue par marque
+    // (au lieu de la recherche globale qui montre tout)
     
-    // 2. Naviguer vers le catalogue (si pas déjà dessus)
     try {
-        if (typeof showPage === 'function') showPage('catalogue');
-    } catch(e) { /* ok */ }
-    
-    // 3. Scroll vers le catalogue
-    setTimeout(function() {
-        var catalogueSection = document.getElementById('page-catalogue') ||
-                              document.getElementById('catalogue-grid');
-        if (catalogueSection) {
-            catalogueSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // 1. Activer le filtre marque du catalogue
+        window._promoBrandFilter = String(brand);
+        
+        // 2. Optionnel : remplir aussi la barre de recherche pour visuel (UX)
+        var searchInput = document.getElementById('global-search');
+        if (searchInput) {
+            searchInput.value = brand;
         }
-    }, 200);
+        
+        // 3. Naviguer vers le catalogue
+        if (typeof showPage === 'function') {
+            showPage('catalogue');
+        }
+        
+        // 4. Re-render le catalogue avec le filtre appliqué
+        setTimeout(function() {
+            try {
+                if (typeof _applyFilters === 'function') {
+                    var filtered = _applyFilters();
+                    if (typeof renderCatalogue === 'function') {
+                        renderCatalogue(filtered);
+                    }
+                }
+            } catch(e) { console.warn('[Partners] Filter render error:', e); }
+            
+            // 5. Scroll vers le catalogue
+            var catalogueSection = document.getElementById('page-catalogue') ||
+                                  document.getElementById('catalogue-grid');
+            if (catalogueSection) {
+                catalogueSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
+        
+        console.log('[Partners] Filtre marque appliqué:', brand);
+    } catch(e) {
+        console.error('[Partners] Erreur filtre marque:', e);
+    }
+    // ═══ FIN #partners-filter ═══
 }
 
 /**
