@@ -13311,6 +13311,15 @@ window.admMgr = {
                 </label>
             </div>
             
+            <!-- FIX 2026-05-13 #partner-free-shipping -->
+            <div class="form-group form-group-full">
+                <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+                    <input type="checkbox" id="partner-free-shipping" style="width:18px;height:18px;cursor:pointer">
+                    <span>🚚 Livraison gratuite pour cette marque</span>
+                </label>
+                <div style="font-size:.75rem;color:var(--text-muted);margin-top:.3rem;margin-left:1.6rem">💡 Toutes les commandes de produits de cette marque auront 0 FCFA de frais de livraison</div>
+            </div>
+            
             <input type="hidden" id="partner-modal-id">
             <input type="hidden" id="partner-existing-logo-url">
         </div>
@@ -18408,6 +18417,9 @@ function _partner_openModal(partnerId) {
     // FIX 2026-05-11 : reset badge
     var badgeInput = document.getElementById('partner-badge');
     if (badgeInput) badgeInput.value = '';
+    // FIX 2026-05-13 #partner-free-shipping : reset toggle
+    var freeShipReset = document.getElementById('partner-free-shipping');
+    if (freeShipReset) freeShipReset.checked = false;
     _partner_toggleLinkField();
     
     if (partnerId) {
@@ -18428,6 +18440,9 @@ function _partner_openModal(partnerId) {
         // FIX 2026-05-11 : précharger badge en édition
         var badgeInputEdit = document.getElementById('partner-badge');
         if (badgeInputEdit) badgeInputEdit.value = p.badge_text || '';
+        // FIX 2026-05-13 #partner-free-shipping : précharger toggle
+        var freeShipEdit = document.getElementById('partner-free-shipping');
+        if (freeShipEdit) freeShipEdit.checked = (p.free_shipping === true);
         if (p.logo_url) {
             document.getElementById('partner-logo-img').src = p.logo_url;
             document.getElementById('partner-logo-preview').style.display = 'block';
@@ -18590,6 +18605,8 @@ async function _partner_saveModal() {
         
         // Préparer l'objet à sauvegarder
         var badgeValue = (document.getElementById('partner-badge')?.value || '').trim();
+        // FIX 2026-05-13 #partner-free-shipping
+        var freeShipChecked = !!(document.getElementById('partner-free-shipping')?.checked);
         var payload = {
             name: name,
             logo_url: logoUrl,
@@ -18598,6 +18615,7 @@ async function _partner_saveModal() {
             display_order: order,
             is_active: isActive,
             badge_text: badgeValue || null,
+            free_shipping: freeShipChecked,
             updated_at: new Date().toISOString()
         };
         
