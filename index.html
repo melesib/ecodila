@@ -616,12 +616,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 
 .cbadge{position:absolute;top:4px;right:4px;font-size:.42rem;font-weight:700;padding:.1rem .28rem;border-radius:100px;text-transform:uppercase;letter-spacing:.3px}
 .bneuf{background:#d1fae5;color:#065f46}.bocc{background:#fef3c7;color:#92400e}.brec{background:#e0e7ff;color:#3730a3}
-.card-body{padding:.3rem .35rem .35rem;display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+.card-body{padding:.3rem .35rem .35rem}
 .card-cat{font-size:.48rem;color:var(--gray);font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-bottom:1px}
 .card-brand{display:inline-block;padding:.1rem .35rem;border-radius:20px;font-size:.45rem;font-weight:700;color:#fff;background:#1a1a1a;margin-bottom:.2rem;letter-spacing:.3px;text-transform:uppercase}
 .card-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.62rem;margin-bottom:.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card-detail{font-size:.5rem;color:var(--gray);margin-bottom:.2rem;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.card-footer{display:flex;flex-direction:column;gap:.15rem;flex:1 1 auto;justify-content:flex-end}
+.card-footer{display:flex;flex-direction:column;gap:.15rem}
 .card-price{font-family:'Syne',sans-serif;font-weight:700;font-size:.62rem;color:var(--green);white-space:nowrap;text-align:center;font-feature-settings:'tnum' 1, 'zero' 1, 'ss01' 1;font-variant-numeric:tabular-nums slashed-zero;letter-spacing:-.1px}
 
 /* ── Badge "Négociable" / "Troc possible" sous le prix ─────
@@ -5294,7 +5294,7 @@ nav {
 /* ═══ FIN #partners-backmarket ═══ */
 
 /* ═══ FIX 2026-05-13 #card-partner-badge ═══ */
-/* Badge partenaire SOUS le prix, sans ajouter de gap supplémentaire */
+/* Badge partenaire SOUS le prix, avec placeholder pour uniformiser hauteur */
 .card-partner-badge {
     display: inline-flex;
     align-items: center;
@@ -5316,8 +5316,13 @@ nav {
     text-align: center;
     align-self: center;
 }
-.card-partner-badge:empty {
-    display: none !important;
+/* Placeholder : prend la même place mais invisible (uniformise les cards) */
+.card-partner-badge--placeholder {
+    background: transparent !important;
+    color: transparent !important;
+    pointer-events: none;
+    user-select: none;
+    visibility: hidden;
 }
 @media (max-width: 480px) {
     .card-partner-badge { font-size: .44rem; padding: .12rem .35rem; }
@@ -15939,15 +15944,17 @@ function _computeAutoLabels() {
 
 // Retourne les labels actifs d'un produit (manuels + automatiques)
 // ═══ FIX 2026-05-13 #card-partner-badge ═══
-// Récupère le badge HTML d'un partenaire actif pour une marque donnée
-// Retourne '' si pas de partenaire actif pour cette marque, ou pas de badge_text
+// Toujours retourner un élément (visible ou placeholder invisible)
+// pour que TOUTES les cards aient la même hauteur dans le grid stretch
 function getPartnerBadgeHTML(item) {
-    if (!item) return '';
+    var placeholder = '<div class="card-partner-badge card-partner-badge--placeholder" aria-hidden="true">​</div>';
+    
+    if (!item) return placeholder;
     var brand = String(item.marque || item.brand || '').toLowerCase().trim();
-    if (!brand) return '';
+    if (!brand) return placeholder;
     
     var partners = window._partnersCache || [];
-    if (!partners.length) return '';
+    if (!partners.length) return placeholder;
     
     // Trouver le partenaire ACTIF pour cette marque
     var match = null;
@@ -15958,13 +15965,13 @@ function getPartnerBadgeHTML(item) {
         if (pname === brand) { match = p; break; }
     }
     
-    if (!match || !match.badge_text) return '';
+    if (!match || !match.badge_text) return placeholder;
     
-    // GARDER les émojis (demandé par l'utilisateur)
+    // GARDER les émojis
     var txt = String(match.badge_text).trim();
-    if (!txt) return '';
+    if (!txt) return placeholder;
     
-    // Échapper HTML (mais préserver les émojis qui ne sont pas du HTML)
+    // Échapper HTML
     var safeTxt = txt
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
