@@ -5293,6 +5293,31 @@ nav {
 }
 /* ═══ FIN #partners-backmarket ═══ */
 
+/* ═══ FIX 2026-05-13 #card-partner-badge ═══ */
+/* Badge partenaire sur les cards produit (catalogue + featured + recherche) */
+.card-partner-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #ecfdf5;
+    color: #166534;
+    font-size: .58rem;
+    font-weight: 500;
+    letter-spacing: .15px;
+    padding: .2rem .55rem;
+    border-radius: 10px;
+    line-height: 1.2;
+    margin: .35rem 0 .25rem;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+@media (max-width: 480px) {
+    .card-partner-badge { font-size: .52rem; padding: .18rem .5rem; }
+}
+/* ═══ FIN #card-partner-badge ═══ */
+
 /* ═══════════════════════════════════════════
    NAVIGATION MOBILE — Bottom bar + Back button
    ═══════════════════════════════════════════ */
@@ -15907,6 +15932,46 @@ function _computeAutoLabels() {
 }
 
 // Retourne les labels actifs d'un produit (manuels + automatiques)
+// ═══ FIX 2026-05-13 #card-partner-badge ═══
+// Récupère le badge HTML d'un partenaire actif pour une marque donnée
+// Retourne '' si pas de partenaire actif pour cette marque, ou pas de badge_text
+function getPartnerBadgeHTML(item) {
+    if (!item) return '';
+    var brand = String(item.marque || item.brand || '').toLowerCase().trim();
+    if (!brand) return '';
+    
+    var partners = window._partnersCache || [];
+    if (!partners.length) return '';
+    
+    // Trouver le partenaire ACTIF pour cette marque
+    var match = null;
+    for (var i = 0; i < partners.length; i++) {
+        var p = partners[i];
+        // is_active doit être true (pas falsy)
+        if (p.is_active === false) continue;
+        var pname = String(p.name || '').toLowerCase().trim();
+        if (pname === brand) { match = p; break; }
+    }
+    
+    if (!match || !match.badge_text) return '';
+    
+    // Nettoyer les émojis pour cohérence visuelle
+    var txt = String(match.badge_text)
+        .replace(/[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{2600}-\u{27BF}]/gu, '')
+        .trim();
+    if (!txt) return '';
+    
+    // Échapper HTML
+    var safeTxt = txt
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    
+    return '<div class="card-partner-badge">' + safeTxt + '</div>';
+}
+// ═══ FIN #card-partner-badge ═══
+
 function getActiveLabels(item) {
     if (!item) return [];
     var manualLabels = (item.labels && Array.isArray(item.labels)) ? item.labels : [];
@@ -17686,6 +17751,7 @@ function _doRenderCatalogue(items){
         <div class="card-footer">
           <div class="card-price">${(function(){var ps=[item.prixNeuf,item.prixOccasion,item.prixReconditionne].filter(function(v){return v>0;});var lo=ps.length?Math.min.apply(null,ps):(item.prix||0);return (ps.length>1?'dès ':'')+ lo.toLocaleString('fr-FR');})()} FCFA</div>
           <div class="price-nego" aria-label="Prix négociable ou troc possible"><span class="msg msg-nego"><span class="nego-full">Négociable</span></span><span class="msg msg-troc"><span class="nego-full">Troc possible</span></span></div>
+          ${getPartnerBadgeHTML(item)}
           <div class="card-actions">
             <button class="cab btn-offer" title="Proposer mon prix" onclick="event.stopPropagation();if(!userLoggedIn&&!utilisateurConnecte){actionEnAttente='offre';produitEnAttente='${item.id}';showToast('🔒 Connectez-vous pour négocier');demanderAuthentification();return;}openOfferModal('${item.id}')"><span>💰</span><span class="cab-lbl">Négocier</span></button>
             <button class="cab btn-ach" onclick="event.stopPropagation();if(!userLoggedIn&&!utilisateurConnecte){actionEnAttente='acheter';produitEnAttente='${item.id}';showToast('🔒 Connectez-vous pour acheter');demanderAuthentification();return;}selectedProductForBuy='${item.id}';showPage('acheter');prefillBuyForm('${item.id}')"><span>💳</span><span class="cab-lbl">Acheter</span></button>
@@ -37917,6 +37983,7 @@ function renderFeatured() {
                 <div class="featured-card-name">${(item.model||item.modele||item.nom||'Produit')}</div>
                 ${ (item.screen||item.memory||item.ram) ? '<div style="font-size:.42rem;color:#8892a6;margin-top:.1rem">'+(item.screen?'📱 '+item.screen:'')+(item.screen&&(item.memory||item.ram)?' • ':'')+(item.memory?'💾 '+item.memory:'')+(item.ram?' — 🧠 '+item.ram:'')+'</div>' : '' }
                 <div class="featured-card-price">${(function(){var ps=[item.prixNeuf,item.prixOccasion,item.prixReconditionne].filter(function(v){return v>0;});var lo=ps.length?Math.min.apply(null,ps):(item.prix||0);return (ps.length>1?'dès ':'')+ lo.toLocaleString('fr-FR');})()} FCFA</div>
+                ${getPartnerBadgeHTML(item)}
                 ${extraHtml}
             </div>
         </div>`;
