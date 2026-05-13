@@ -16858,9 +16858,14 @@ function showPage(name){
   if(name === 'catalogue'){
     _closeOverlayPage();
     if(window.scrollY > 100) window.scrollTo(0,0);
-    // Re-render seulement si pas de vrais produits affichés
+    // FIX 2026-05-13 #catalogue-nav-refresh
+    // Re-render TOUJOURS quand on clique "Catalogue" depuis la nav
+    // (sinon le filtre marque d'un partenaire reste actif)
     var _cg = document.getElementById('catalogueGrid');
-    if(_cg && !_cg.querySelector('.card') && products && products.length){
+    if(_cg && products && products.length){
+      // Reset des filtres temporaires (marque partenaire)
+      window._promoBrandFilter = null;
+      window._promoFilter = null;
       if(typeof _applyFilters === 'function') _applyFilters();
     }
     _trackAction('page', { page: name, label: '🏠 Catalogue' });
