@@ -13780,8 +13780,14 @@ async function _logoutGoogle() {
 window.addEventListener('DOMContentLoaded', function() {
     // Petit délai pour laisser Supabase s'initialiser
     setTimeout(async function() {
-        var googleAdmin = await _googleAuthCheck();
-        if (googleAdmin) {
+        try {
+            var googleAdmin = await _googleAuthCheck();
+            if (!googleAdmin) {
+                // Pas de session Google valide → laisser le flow auth classique tourner
+                console.log('[Google OAuth] Pas de session Google active, flow normal');
+                return;
+            }
+            
             // Admin authentifié via Google
             console.log('[Google OAuth] 🎉 Connexion Google réussie pour ' + googleAdmin.email);
             
@@ -13793,14 +13799,35 @@ window.addEventListener('DOMContentLoaded', function() {
                 if (googleAdmin.avatar) sessionStorage.setItem('current_admin_avatar', googleAdmin.avatar);
             } catch(e) {}
             
-            // Cacher l'écran d'auth et montrer le BO
+            // FIX 2026-05-13 : utiliser les VRAIS sélecteurs de admin.html
+            // Cacher l'écran d'auth
             var authPage = document.getElementById('auth-page');
-            var dashboard = document.getElementById('dashboard') || document.querySelector('.main-content');
             if (authPage) authPage.style.display = 'none';
-            if (dashboard) dashboard.style.display = 'block';
             
-            // Notification de bienvenue
+            // Afficher le BO (main.main-content)
+            var mainContent = document.querySelector('main.main-content');
+            if (mainContent) mainContent.style.display = '';
+            
+            // Aussi : déclencher le flow normal de login admin si possible
+            // (pour que toutes les vérifications classiques tournent)
+            try {
+                if (typeof window.afterLoginSuccess === 'function') {
+                    window.afterLoginSuccess({
+                        email: googleAdmin.email,
+                        id: googleAdmin.email,
+                        loginVia: 'google'
+                    });
+                } else if (typeof window.loginSuccess === 'function') {
+                    window.loginSuccess(googleAdmin.email);
+                }
+            } catch(e) {
+                console.warn('[Google OAuth] Impossible de déclencher afterLoginSuccess:', e);
+            }
+            
             console.log('Bienvenue ' + googleAdmin.email + ' !');
+        } catch(e) {
+            console.error('[Google OAuth] Erreur DOMContentLoaded:', e);
+            // En cas d'erreur, NE PAS toucher à l'UI pour ne pas casser la page
         }
     }, 500);
 });
