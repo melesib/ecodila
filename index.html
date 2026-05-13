@@ -25750,7 +25750,7 @@ function _submitOfferContinue(prix, nom, tel){
   const _offFraisLiv = _offFraisBox && _offFraisBox.dataset.frais !== undefined
     ? Number(_offFraisBox.dataset.frais) || 0
     : ((typeof window.flCalculer === 'function' && _offVilleId)
-        ? (window.flCalculer(_offVilleId, currentOfferItem.cat || currentOfferItem.categorie || 'Autre', prix).frais || 0)
+        ? (window.flCalculer(_offVilleId, currentOfferItem.cat || currentOfferItem.categorie || 'Autre', prix, currentOfferItem.marque || currentOfferItem.brand).frais || 0)
         : 0);
   const _offDelaiLiv = (_offFraisBox && _offFraisBox.dataset.delai) || '';
 
@@ -28942,7 +28942,7 @@ function submitBuy(){
   var _buyFraisLiv  = _buyFraisBox && _buyFraisBox.dataset.frais !== undefined
     ? Number(_buyFraisBox.dataset.frais) || 0
     : ((typeof window.flCalculer === 'function' && _buyVilleId)
-        ? (window.flCalculer(_buyVilleId, p ? (p.cat||p.categorie||'Autre') : 'Autre', 0).frais || 0)
+        ? (window.flCalculer(_buyVilleId, p ? (p.cat||p.categorie||'Autre') : 'Autre', 0, p ? (p.marque||p.brand) : '').frais || 0)
         : 0);
   var _buyDelaiLiv  = (_buyFraisBox && _buyFraisBox.dataset.delai) || '';
 
@@ -41454,7 +41454,10 @@ function flSiteVillesActives(){
 }
 
 /* ─── Calculer frais (calcul local depuis la config Supabase) ─── */
-function flSiteCalculer(villeId, categorie, montant){
+/* ═══ FIX 2026-05-13 #free-shipping-partner ═══
+   Ajout du paramètre `marque` : si la marque est un partenaire actif
+   avec free_shipping=true, alors livraison = 0 FCFA (override total). */
+function flSiteCalculer(villeId, categorie, montant, marque){
     // Calcul local depuis la config
     var d = flSiteLoad();
     var villes = Array.isArray(d.villes) ? d.villes : [];
@@ -41470,8 +41473,44 @@ function flSiteCalculer(villeId, categorie, montant){
         catNom = categorie;
         frais = frais + catFrais;
     }
+    
+    // ═══ Override : Partenaire avec livraison gratuite ═══
+    var partnerFreeShip = false;
+    if (marque) {
+        try {
+            var partners = window._partnersCache || [];
+            var brandLower = String(marque).toLowerCase().trim();
+            for (var i = 0; i < partners.length; i++) {
+                var p = partners[i];
+                if (p.is_active === false) continue;
+                if (p.free_shipping !== true) continue;
+                var pname = String(p.name || '').toLowerCase().trim();
+                if (pname === brandLower) {
+                    partnerFreeShip = true;
+                    break;
+                }
+            }
+        } catch(e) { /* fallback : pas de partenaire, calcul normal */ }
+    }
+    
+    if (partnerFreeShip) {
+        return { 
+            frais: 0, 
+            gratuit: true, 
+            delai: ville.delai || '', 
+            villeNom: ville.nom || '', 
+            villeId: villeId, 
+            catFrais: catFrais, 
+            catNom: catNom, 
+            baseFrais: frais,
+            partnerFreeShip: true,
+            partnerMarque: marque
+        };
+    }
+    
     return { frais: gratuit?0:frais, gratuit:gratuit, delai:ville.delai||'', villeNom:ville.nom||'', villeId:villeId, catFrais:catFrais, catNom:catNom, baseFrais: typeof ville.frais === 'number' ? ville.frais : (d.defaultFee||1000) };
 }
+/* ═══ FIN #free-shipping-partner ═══ */
 
 /* ─── Lire le flag siteVisible du BO ─── */
 function flSiteIsVisible(){
@@ -41487,7 +41526,7 @@ window.flSiteCalculer = flSiteCalculer;
 window.flCalculer = flSiteCalculer;
 
 /* ─── Afficher la boîte frais (ou la masquer si siteVisible=false) ─── */
-function flSiteRenderBox(boxId, hintId, villeId, categorie, montant){
+function flSiteRenderBox(boxId, hintId, villeId, categorie, montant, marque){
     var box  = document.getElementById(boxId);
     var hint = document.getElementById(hintId);
     if(!box) return;
@@ -41498,7 +41537,8 @@ function flSiteRenderBox(boxId, hintId, villeId, categorie, montant){
         return;
     }
 
-    var res = flSiteCalculer(villeId, categorie || 'Autre', montant || 0);
+    // ═══ FIX 2026-05-13 #free-shipping-partner : passer la marque ═══
+    var res = flSiteCalculer(villeId, categorie || 'Autre', montant || 0, marque);
 
     // ── Si siteVisible = false : frais cachés, boîte masquée ──
     if(!flSiteIsVisible()){
@@ -41519,12 +41559,16 @@ function flSiteRenderBox(boxId, hintId, villeId, categorie, montant){
     box.dataset.villeNom = res.villeNom || '';
 
     if(res.gratuit || res.frais === 0){
+        var partnerLabel = res.partnerFreeShip 
+            ? '<div style="font-size:.62rem;color:#166534;margin-top:.2rem;font-weight:600">🎁 Offerte par ' + (res.partnerMarque || 'notre partenaire') + '</div>' 
+            : '';
         box.innerHTML = '<div class="liv-fee-box gratuit">'
             + '<div class="liv-fee-icon">🎁</div>'
             + '<div class="liv-fee-info">'
             + '<div class="liv-fee-label">Livraison</div>'
             + '<div class="liv-fee-val gratuit">GRATUITE</div>'
             + (res.delai ? '<div class="liv-fee-delai">⏱ Délai estimé : ' + res.delai + '</div>' : '')
+            + partnerLabel
             + '</div>'
             + '<div style="font-size:1.5rem;opacity:.7">✅</div>'
             + '</div>';
@@ -41588,21 +41632,33 @@ window._siteUpdateFraisBox = function(prefix){
     var hintId      = prefix + '-liv-hint';
     var sel = document.getElementById(villeSelId);
     var villeId = sel ? sel.value : '';
-    // Déterminer catégorie et montant selon le contexte
+    // Déterminer catégorie, montant et marque selon le contexte
     var categorie = 'Autre';
     var montant   = 0;
+    var marque    = '';
     if(prefix === 'buy'){
         var p = window._currentBuyProduct;
-        if(p){ categorie = p.cat || p.categorie || 'Autre'; montant = p.prix || 0; }
+        if(p){ 
+            categorie = p.cat || p.categorie || 'Autre'; 
+            montant = p.prix || 0; 
+            marque = p.marque || p.brand || '';
+        }
     } else if(prefix === 't'){
         var tc = document.getElementById('tc');
         if(tc) categorie = tc.value || 'Autre';
         var tbase = document.getElementById('tbase');
         if(tbase) montant = parseFloat(tbase.value) || 0;
+        // FIX 2026-05-13 : marque du produit lié dans le troc
+        var tProd = window._currentTrocProduct;
+        if(tProd) marque = tProd.marque || tProd.brand || '';
     } else if(prefix === 'offer'){
-        if(window.currentOfferItem){ categorie = window.currentOfferItem.cat || window.currentOfferItem.categorie || 'Autre'; montant = window.currentOfferItem.prix || 0; }
+        if(window.currentOfferItem){ 
+            categorie = window.currentOfferItem.cat || window.currentOfferItem.categorie || 'Autre'; 
+            montant = window.currentOfferItem.prix || 0; 
+            marque = window.currentOfferItem.marque || window.currentOfferItem.brand || '';
+        }
     }
-    flSiteRenderBox(boxId, hintId, villeId, categorie, montant);
+    flSiteRenderBox(boxId, hintId, villeId, categorie, montant, marque);
 };
 
 /* ─── Initialiser tous les selects ─── */
