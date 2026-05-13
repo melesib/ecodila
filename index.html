@@ -262,7 +262,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 #price-thumb:active{cursor:grabbing!important}
 #price-tip{pointer-events:none;z-index:5;white-space:nowrap;transition:left .1s ease,opacity .2s}
 .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.35rem;padding-bottom:5rem}
-.card{background:white;border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;contain:layout style paint}
+.card{background:white;border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;contain:layout style paint;display:flex;flex-direction:column}
 /* skeleton — défini plus bas ligne ~741 (une seule source de vérité) */
 @keyframes _etatFlash{0%{transform:scale(1)}50%{transform:scale(1.08);filter:brightness(1.3)}100%{transform:scale(1)}}
 .card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);transform:translateY(-1px)}
@@ -616,12 +616,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--black);disp
 
 .cbadge{position:absolute;top:4px;right:4px;font-size:.42rem;font-weight:700;padding:.1rem .28rem;border-radius:100px;text-transform:uppercase;letter-spacing:.3px}
 .bneuf{background:#d1fae5;color:#065f46}.bocc{background:#fef3c7;color:#92400e}.brec{background:#e0e7ff;color:#3730a3}
-.card-body{padding:.3rem .35rem .35rem}
+.card-body{padding:.3rem .35rem .35rem;display:flex;flex-direction:column;flex:1 1 auto}
 .card-cat{font-size:.48rem;color:var(--gray);font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-bottom:1px}
 .card-brand{display:inline-block;padding:.1rem .35rem;border-radius:20px;font-size:.45rem;font-weight:700;color:#fff;background:#1a1a1a;margin-bottom:.2rem;letter-spacing:.3px;text-transform:uppercase}
 .card-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.62rem;margin-bottom:.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card-detail{font-size:.5rem;color:var(--gray);margin-bottom:.2rem;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.card-footer{display:flex;flex-direction:column;gap:.15rem}
+.card-footer{display:flex;flex-direction:column;gap:.15rem;margin-top:auto}
 .card-price{font-family:'Syne',sans-serif;font-weight:700;font-size:.62rem;color:var(--green);white-space:nowrap;text-align:center;font-feature-settings:'tnum' 1, 'zero' 1, 'ss01' 1;font-variant-numeric:tabular-nums slashed-zero;letter-spacing:-.1px}
 
 /* ── Badge "Négociable" / "Troc possible" sous le prix ─────
