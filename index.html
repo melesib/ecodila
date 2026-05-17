@@ -13524,16 +13524,20 @@ function renderNotifications(){
     var adminOnlyTypes = ['chat-escalade', 'admin-alert', 'admin', 'sos', 'escalade', 'reset-password'];
     if(n.type && adminOnlyTypes.indexOf(n.type) > -1) return false;
 
-    // Type personnel → DOIT matcher le client connecté
+    // Type personnel avec destinataire explicite → vérifier match
     if(n.type && _personalTypes.indexOf(n.type) > -1){
-      if(!_moi) return false;
-      // Match par userId
-      if(n.userId && _moiId && n.userId === _moiId) return true;
-      // Match par téléphone (8 derniers chiffres)
-      var nTel = (n.clientTel||n.tel||'').replace(/[^0-9]/g,'').slice(-8);
-      if(nTel.length >= 6 && _moiTel8.length >= 6 && nTel === _moiTel8) return true;
-      // Pas de match → pas pour moi
-      return false;
+      if(n.userId || n.clientTel || n.tel){
+        if(!_moi) return false;
+        // Match par userId
+        if(n.userId && _moiId && n.userId === _moiId) return true;
+        // Match par téléphone (8 derniers chiffres)
+        var nTel = (n.clientTel||n.tel||'').replace(/[^0-9]/g,'').slice(-8);
+        if(nTel.length >= 6 && _moiTel8.length >= 6 && nTel === _moiTel8) return true;
+        // A un destinataire mais ne correspond pas → pas pour moi
+        return false;
+      }
+      // Pas de destinataire explicite → notification générée localement, visible si connecté
+      return !!_moi;
     }
 
     // Autres notifications avec cible explicite
@@ -15593,34 +15597,24 @@ function afficherNotifications(){
         if(n.cible === 'admin') return false;
         var _adminOnlyTypes2 = ['chat-escalade', 'admin-alert', 'admin', 'sos', 'escalade', 'reset-password'];
         if(n.type && _adminOnlyTypes2.indexOf(n.type) > -1) return false;
-        // Notifications personnelles → vérifier clientTel
-        if(n.clientTel){
-            if(!_myTel8) return false;
-            var nTel8 = n.clientTel.replace(/\s/g,'').slice(-8);
-            if(nTel8 !== _myTel8) return false;
-        } else if(n.type && _personalTypes2.indexOf(n.type) > -1){
-            return false; // pas de tel → pas mon notif
+        // Notifications personnelles → vérifier clientTel ou userId si présents
+        if(n.clientTel || n.userId){
+            if(!_myTel8 && !utilisateurConnecte) return false;
+            // Match par userId
+            var _uid = utilisateurConnecte ? (utilisateurConnecte.id||'') : '';
+            if(n.userId && _uid && n.userId === _uid) return true;
+            // Match par téléphone
+            if(n.clientTel){
+                var nTel8 = n.clientTel.replace(/\s/g,'').slice(-8);
+                if(nTel8.length >= 6 && _myTel8.length >= 6 && nTel8 === _myTel8) return true;
+            }
+            // A un destinataire explicite mais ne correspond pas → pas pour moi
+            return false;
         }
+        // Pas de destinataire explicite + type personnel → visible par le client connecté
+        // (notification générale de type commande/proposition sans tel = générée localement)
         // Masquer Perte
         if(n.type === 'retour' && n.titre && n.titre.indexOf('Perte') > -1) return false;
-
-        // ⭐ FILTRE ORPHELIN : si la notif référence une entité (commande/troc/offre)
-        // qui n'existe plus, on l'exclut.
-        // Utilise les VRAIES colonnes Supabase : commandeId, offreId, trocId, ref
-        if(n.type && _personalTypes2.indexOf(n.type) > -1){
-            var refIds = [n.commandeId, n.offreId, n.trocId, n.ref, n.itemId, n.item_id].filter(Boolean);
-            if(refIds.length){
-                var anyValid = refIds.some(function(id){ return validIds.has(String(id)); });
-                if(!anyValid) return false;
-            } else {
-                // Fallback : extraire l'ID du message
-                var msg = (n.message || n.contenu || n.titre || '');
-                var match = msg.match(/(CMD|TROC|OFFER|OFF|PROP|NEG|COM)-[\w-]+/i);
-                if(match && match[0] && !validIds.has(match[0])){
-                    return false;
-                }
-            }
-        }
         return true;
     });
     if(!clientNotifs.length){
