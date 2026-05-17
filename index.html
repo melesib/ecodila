@@ -14497,6 +14497,15 @@ function chargerProfil(){
             var _IDS=new Set(_P.map(function(x){return x.id;}));
             offers=_P.concat(_O.filter(function(x){return !_IDS.has(x.id);}));
         }catch(ex){}
+        // FIX 2026-05-17 #notif-profil : sync notifications Supabase → localStorage avant affichage
+        try{
+            var _sbNotifs = (window._d && window._d.notifications) || [];
+            if(_sbNotifs && _sbNotifs.length > 0){
+                window._sbWrite('ecodila_notifications', _sbNotifs);
+                notifications = _sbNotifs;
+                userNotifications = _sbNotifs;
+            }
+        }catch(ex){}
         _ecoNotifLoad();
         _afficherProfilSuite();
     }
@@ -14520,6 +14529,12 @@ function chargerProfil(){
                     window._d.propositions = results[3].data || window._d.propositions;
                     window._d.notifications = results[4].data || window._d.notifications;
                     window._d.conversations = results[5].data || window._d.conversations;
+                    // FIX 2026-05-17 #notif-profil : sync immédiate vers localStorage
+                    if(results[4].data && results[4].data.length > 0){
+                        window._sbWrite('ecodila_notifications', results[4].data);
+                        notifications    = results[4].data;
+                        userNotifications = results[4].data;
+                    }
                 }
             } catch(e){ console.warn('[Profil] refresh _d:', e); }
             _rafraichirProfil();
