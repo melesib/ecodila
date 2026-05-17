@@ -25963,8 +25963,10 @@ function _submitOfferContinue(prix, nom, tel){
   // ── Remise coupon offre ───────────────────────────────────────────────
   const _offCouponCode   = window._offerCouponCode   || '';
   const _offCouponRemise = window._offerCouponRemise  || 0;
-  // prix par unité négocié × quantité - remise coupon
-  const prixFinalOffer   = _offCouponRemise > 0 ? Math.max(0, (prix * _offerQtyFinal) - _offCouponRemise) : (prix * _offerQtyFinal);
+  // FIX 2026-05-17 #nego-qty-bo : prixPropose = prix UNITAIRE (pas le total)
+  // Le total (unitaire × quantité) est stocké dans "total"
+  const prixFinalOffer   = _offCouponRemise > 0 ? Math.max(0, prix - _offCouponRemise) : prix;
+  const prixTotalOffer   = prixFinalOffer * _offerQtyFinal;
   const diff = prixFinalOffer - prixOfficiel;
   const diffPct = prixOfficiel > 0 ? Math.round((diff / prixOfficiel) * 100) : 0;
 
@@ -25986,6 +25988,7 @@ function _submitOfferContinue(prix, nom, tel){
     prixUnitaire: prix,
     prixOfficiel,
     prixPropose: prixFinalOffer,
+    total: prixTotalOffer,
     prixSaisi:   prix,
     couponCode:  _offCouponCode   || null,
     couponRemise:_offCouponRemise || 0,
@@ -26052,7 +26055,7 @@ function _submitOfferContinue(prix, nom, tel){
         console.warn('[Offer] upsert error → retry minimal:', r.error.message);
         var SAFE_FIELDS = ['id','clientNom','clientTel','clientEmail','produit','appareil','marque','modele',
           'prix','prixPropose','prixOfficiel','total','statut','date','origine','userId','refCode',
-          'couponCode','couponRemise','message','msg','etat','cat','needsAdvisor'];
+          'couponCode','couponRemise','message','msg','etat','cat','needsAdvisor','quantite','prixSaisi'];
         var minimal = {};
         SAFE_FIELDS.forEach(function(f){ if(offerForDB[f] !== undefined) minimal[f] = offerForDB[f]; });
         return _wrap(_sb.from('offers').upsert(minimal, {onConflict:'id'}), 'offers-upsert-min').then(function(r2){
@@ -26087,7 +26090,7 @@ function _submitOfferContinue(prix, nom, tel){
         console.warn('[Proposition] upsert error → retry minimal:', r.error.message);
         var SAFE_FIELDS_P = ['id','clientNom','clientTel','clientEmail','produit','appareil','marque','modele',
           'prix','prixPropose','prixOfficiel','total','statut','date','origine','userId','refCode',
-          'couponCode','couponRemise','message','msg','etat','cat'];
+          'couponCode','couponRemise','message','msg','etat','cat','quantite','prixSaisi'];
         var minimalP = {};
         SAFE_FIELDS_P.forEach(function(f){ if(offerForDB[f] !== undefined) minimalP[f] = offerForDB[f]; });
         return _wrap(_sb.from('propositions').upsert(minimalP, {onConflict:'id'}), 'propositions-upsert-min').then(function(r2){
