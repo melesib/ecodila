@@ -12635,16 +12635,16 @@ window.admMgr = {
                             <tr>
                                 <th>ID</th>
                                 <th>Type</th>
-                                <th>Origine</th>
                                 <th>Produit</th>
                                 <th>Client</th>
                                 <th>Date</th>
-                                <th style="color:#a78bfa">🔢 Qté / P.Unit</th>
-                                <th>Vente Total</th>
-                                <th>PA Total</th>
+                                <th style="color:#a78bfa;text-align:center">🔢 Qté</th>
+                                <th style="color:#4da3ff">Prix Unit.</th>
+                                <th style="color:#4da3ff">Vente Total</th>
+                                <th style="color:#ffaa00">PA Unit.</th>
+                                <th style="color:#ffaa00">PA Total</th>
                                 <th style="color:#818cf8">🚚 Transport</th>
                                 <th style="color:#e879f9">🤝 Commission</th>
-                                <th style="color:var(--text-muted)">Profit Brut</th>
                                 <th>Profit Net</th>
                                 <th>Marge %</th>
                                 <th>Statut</th>
@@ -42561,35 +42561,45 @@ window.pnlRenderTxTable = function(){
     var next=document.getElementById('pnl-tx-next'); if(next) next.disabled=_pnl.txPage>=pages;
 
     if(!slice.length){ _pnlSet('pnl-tx-tbody',_pnlNoData(14)); return; }
-    var TYPE_LBL={commande:'📦 Commande',troc:'🔄 Troc',negociation:'💰 Négociation'};
+    var TYPE_LBL={commande:'📦 Commande',troc:'🔄 Troc',negociation:'💰 Négo'};
     var TYPE_CLS={commande:'pnl-type-order',troc:'pnl-type-troc',negociation:'pnl-type-nego'};
     _pnlSet('pnl-tx-tbody', slice.map(function(t){
         var d=_pnlParseDate(t.date);
         var ds=d?d.toLocaleDateString('fr-FR'):(t.date||'—');
-        var hpa=t.prixAchat!=null;
-        var mc=!hpa?'pnl-mb-na':t.marge<0?'pnl-mb-neg':t.marge<10?'pnl-mb-med':'pnl-mb-pos';
-        var commCell = t.commission>0
-            ? '<span style="color:#e879f9;font-weight:700">−'+_pnlFmt(t.commission)+' F</span>'
-              +(t.parrainNom?'<br><small style="font-size:.6rem;color:var(--text-muted)" title="'+t.parrainCode+'">🤝 '+t.parrainNom+'</small>':'')
+        var qty    = Number(t.quantite||1);
+        var pUnit  = Number(t.prixUnitaire||0);
+        var paUnit = t.paUnitaire!=null ? Number(t.paUnitaire) : null;
+        // Vente total = qty × prix unitaire (ou montant stocké)
+        var venteTotal = pUnit>0 ? qty*pUnit : Number(t.montant||0);
+        // PA total = qty × PA unitaire
+        var paTotal = paUnit!=null ? qty*paUnit : t.prixAchat!=null ? Number(t.prixAchat) : null;
+        var hpa = paTotal != null;
+        // Profit = (qty × prix unit) - (qty × PA unit) - transport - commission
+        var fraisLiv = Number(t.fraisLivraison||0);
+        var commission = Number(t.commission||0);
+        var profit = hpa ? venteTotal - paTotal - fraisLiv - commission : null;
+        var marge  = (paTotal!=null && paTotal>0) ? (profit/paTotal*100) : null;
+        var mc = !hpa?'pnl-mb-na':marge<0?'pnl-mb-neg':marge<10?'pnl-mb-med':'pnl-mb-pos';
+        var commCell = commission>0
+            ? '<span style="color:#e879f9;font-weight:700">−'+_pnlFmt(commission)+' F</span>'
+              +(t.parrainNom?'<br><small style="font-size:.6rem;color:var(--text-muted)">🤝 '+t.parrainNom+'</small>':'')
             : '<span style="color:var(--text-muted);font-size:.72rem">—</span>';
-        var profitBrut = (hpa && t.commission>0) ? t.profit+t.commission : null;
         return '<tr>'
-            +'<td class="pnl-mono" style="color:var(--text-muted);font-size:.72rem">'+String(t.id).slice(0,12)+'</td>'
+            +'<td class="pnl-mono" style="color:var(--text-muted);font-size:.7rem">'+String(t.id).slice(0,14)+'</td>'
             +'<td><span class="pnl-type-chip '+TYPE_CLS[t.type]+'">'+(TYPE_LBL[t.type]||t.type)+'</span></td>'
-            +'<td style="font-size:.72rem">'+(t.origine==='troc'?'<span style="color:#10b981;font-weight:700">🔄 Troc</span>':t.origine==='fournisseur'?'<span style="color:#60a5fa;font-weight:700">🏭 Fourn.</span>':'<span style="color:var(--text-muted)">—</span>')+'</td>'
             +'<td style="font-size:.82rem"><strong>'+t.produit+'</strong>'+(t.etat?'<br><span style="font-size:.58rem;font-weight:700;padding:.05rem .3rem;border-radius:100px;'+(t.etat==='Neuf'?'background:rgba(34,197,94,.12);color:#15803d;border:1px solid rgba(34,197,94,.3)':t.etat==='Occasion'?'background:rgba(217,119,6,.1);color:#92400e;border:1px solid rgba(217,119,6,.3)':'background:rgba(124,58,237,.1);color:#5b21b6;border:1px solid rgba(124,58,237,.3)')+'">'+(t.etat==='Neuf'?'✨':t.etat==='Occasion'?'👐':'♻️')+' '+t.etat+'</span>':'')+'</td>'
             +'<td style="font-size:.75rem;color:var(--text-muted)">'+t.client+'</td>'
             +'<td class="pnl-mono" style="font-size:.72rem;color:var(--text-muted)">'+ds+'</td>'
-            +'<td class="pnl-mono" style="font-size:.78rem;color:#a78bfa">'+(t.quantite>1?'<strong>×'+t.quantite+'</strong><br>':'')+(t.prixUnitaire>0?_pnlFmt(t.prixUnitaire)+' F/u':'<span style="color:var(--text-muted)">—</span>')+'</td>'
-            +'<td class="pnl-mono" style="color:#4da3ff">'+_pnlFmt(t.montant)+' F</td>'
-            +'<td class="pnl-mono" style="color:#ffaa00">'+(hpa?_pnlFmt(t.prixAchat)+' F'+(t.quantite>1&&t.paUnitaire?'<br><small style="font-size:.62rem;color:var(--text-muted)">'+_pnlFmt(t.paUnitaire)+' F/u</small>':''):'<span class="pnl-mb-na">—</span>')+'</td>'
-            +'<td class="pnl-mono" style="color:#818cf8">'+((t.fraisLivraison||0)>0?'−'+_pnlFmt(t.fraisLivraison)+' F'+(t.villeNom?'<br><small style="font-size:.62rem;color:var(--text-muted)">'+t.villeNom+'</small>':''):'<span class="pnl-mb-na">—</span>')+'</td>'
+            +'<td class="pnl-mono" style="text-align:center;font-weight:800;color:#a78bfa;font-size:.95rem">'+qty+'</td>'
+            +'<td class="pnl-mono" style="color:#4da3ff">'+(pUnit>0?_pnlFmt(pUnit)+' F':'<span style="color:var(--text-muted)">—</span>')+'</td>'
+            +'<td class="pnl-mono" style="color:#4da3ff;font-weight:700">'+_pnlFmt(venteTotal)+' F</td>'
+            +'<td class="pnl-mono" style="color:#ffaa00">'+(paUnit!=null?_pnlFmt(paUnit)+' F':'<span class="pnl-mb-na">—</span>')+'</td>'
+            +'<td class="pnl-mono" style="color:#ffaa00;font-weight:700">'+(hpa?_pnlFmt(paTotal)+' F':'<span class="pnl-mb-na">—</span>')+'</td>'
+            +'<td class="pnl-mono" style="color:#818cf8">'+((fraisLiv)>0?'−'+_pnlFmt(fraisLiv)+' F'+(t.villeNom?'<br><small style="font-size:.62rem;color:var(--text-muted)">'+t.villeNom+'</small>':''):'<span class="pnl-mb-na">—</span>')+'</td>'
             +'<td>'+commCell+'</td>'
-            +'<td class="pnl-mono" style="color:var(--text-muted);font-size:.75rem">'+
-                (profitBrut!=null?'<span style="text-decoration:line-through">'+(profitBrut>=0?'+':'')+_pnlFmt(profitBrut)+' F</span>':'<span class="pnl-mb-na">—</span>')+'</td>'
-            +'<td class="'+(hpa?(t.profit>=0?'pnl-val-pos':'pnl-val-neg'):'')+'">'+
-                (hpa?(t.profit>=0?'+':'')+_pnlFmt(t.profit)+' F':'<span class="pnl-mb-na">—</span>')+'</td>'
-            +'<td><span class="'+mc+'">'+(hpa?_pnlFmtPct(t.marge):'—')+'</span></td>'
+            +'<td class="'+(hpa?(profit>=0?'pnl-val-pos':'pnl-val-neg'):'')+'">'+
+                (hpa?(profit>=0?'+':'')+_pnlFmt(profit)+' F':'<span class="pnl-mb-na">—</span>')+'</td>'
+            +'<td><span class="'+mc+'">'+(hpa?_pnlFmtPct(marge):'—')+'</span></td>'
             +'<td style="font-size:.75rem">'+t.statut+'</td>'
             +'</tr>';
     }).join(''));
