@@ -25919,11 +25919,13 @@ function submitOffer(){
 }
 
 function _submitOfferContinue(prix, nom, tel){
+  console.log('🔴 _submitOfferContinue DEBUT - prix:', prix, 'currentOfferItem:', currentOfferItem?.id, '_currentOfferProduct:', window._currentOfferProduct?.id);
   // FIX 2026-05-17 #offer-qty : fallback si currentOfferItem vide
   if(!currentOfferItem || !currentOfferItem.id) {
     if(window._currentOfferProduct) currentOfferItem = window._currentOfferProduct;
-    else return;
+    else { console.log('🔴 RETOUR EARLY - les 2 vides'); return; }
   }
+  console.log('🟢 CHECK OK - negoState sera submitted - currentOfferItem:', currentOfferItem?.id);
   // 🆕 Marquer l'état comme "submitted" pour empêcher le tracking d'abandon
   // quand le modal se ferme après soumission réussie
   window._negoState = 'submitted';
