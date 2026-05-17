@@ -18936,7 +18936,8 @@ function openOfferModal(productId) {
     // FIX 2026-05-17 #offer-qty : mémoriser le produit complet (comme _currentBuyProduct)
     window._currentOfferProductId = product.id;
     window._currentOfferProduct = product;
-    window._offerQty = 1; // reset quantité à chaque ouverture
+    window._offerQty = 1;   // reset quantité à chaque ouverture
+    window._negoQty  = 1;   // reset quantité récap étape 2
 
     // Reset état précédent
     window._modalSelectedEtat = '';
@@ -19304,13 +19305,37 @@ function openOfferModal(productId) {
             <!-- ═══════════════════════════════════════════════════════════ -->
             <div id="offer-section-info" style="display:none;padding:.7rem .9rem .5rem">
 
-                <!-- 💰 Récap prix proposé (résumé compact, en haut) -->
-                <div style="background:linear-gradient(135deg,#2d6a4f,#1b4332);color:#fff;padding:.6rem .8rem;border-radius:10px;margin-bottom:.7rem;display:flex;justify-content:space-between;align-items:center">
-                    <div>
-                        <div style="font-size:.62rem;opacity:.85;font-weight:600;text-transform:uppercase;letter-spacing:.4px">Ton prix proposé</div>
-                        <div id="offer-step2-recap-name" style="font-size:.78rem;font-weight:600;opacity:.95;margin-top:.1rem">${nomProduit}</div>
+                <!-- 💰 Récap complet FIX 2026-05-17 #nego-qty-recap -->
+                <div style="background:linear-gradient(135deg,#1b4332,#2d6a4f);color:#fff;border-radius:12px;margin-bottom:.8rem;overflow:hidden">
+                  <!-- Titre -->
+                  <div style="padding:.5rem .8rem .3rem;font-size:.6rem;opacity:.8;font-weight:700;text-transform:uppercase;letter-spacing:.5px">📋 Récapitulatif de ta commande</div>
+                  <!-- Produit -->
+                  <div id="offer-step2-recap-name" style="padding:0 .8rem .4rem;font-size:.78rem;font-weight:600;opacity:.9"></div>
+                  <!-- Grille prix -->
+                  <div style="background:rgba(0,0,0,.2);padding:.6rem .8rem;display:flex;flex-direction:column;gap:.4rem">
+                    <!-- Prix unitaire -->
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <span style="font-size:.72rem;opacity:.8">Prix unitaire négocié</span>
+                      <span id="offer-recap-unit-price" style="font-size:.85rem;font-weight:700;font-family:'Space Mono',monospace">— FCFA</span>
                     </div>
-                    <div id="offer-step2-recap-price" style="font-size:1.2rem;font-weight:900;font-family:'Space Mono',monospace">— FCFA</div>
+                    <!-- Sélecteur quantité -->
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <span style="font-size:.72rem;opacity:.8">Quantité</span>
+                      <div style="display:flex;align-items:center;gap:.5rem">
+                        <button type="button" onclick="_negoQtyChange(-1)" id="nego-qty-minus" style="width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+                        <span id="nego-qty-display" style="font-size:1rem;font-weight:800;min-width:1.5rem;text-align:center">1</span>
+                        <button type="button" onclick="_negoQtyChange(+1)" id="nego-qty-plus" style="width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.2);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+                        <span id="nego-qty-stock" style="font-size:.65rem;opacity:.7"></span>
+                      </div>
+                    </div>
+                    <!-- Séparateur -->
+                    <div style="border-top:1px solid rgba(255,255,255,.15);margin:.1rem 0"></div>
+                    <!-- Total -->
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <span style="font-size:.78rem;font-weight:700">Total</span>
+                      <span id="offer-step2-recap-price" style="font-size:1.15rem;font-weight:900;font-family:'Space Mono',monospace">— FCFA</span>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- 👤 Infos client -->
@@ -19349,7 +19374,7 @@ function openOfferModal(productId) {
             <!-- Annuler retiré : la croix ✕ en haut ouvre le modal de confirmation 3 options -->
             <div id="offer-footer-step2" style="display:none;position:sticky;bottom:0;background:#fff;border-top:1px solid #e5e7eb;padding:.55rem .9rem;gap:.5rem;box-shadow:0 -4px 12px rgba(0,0,0,.04)">
                 <button type="button" onclick="_offerBackToStep1()" style="flex:0 0 auto;padding:.7rem .9rem;border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer;font-weight:700;font-size:.84rem;color:#6b7280;font-family:inherit">← Retour</button>
-                <button id="offer-submit-btn" type="button" onclick="submitOffer()" style="flex:1;padding:.7rem;border:none;border-radius:8px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;cursor:pointer;font-weight:800;font-size:.92rem;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:.35rem">Suivant <span id="offer-submit-btn-text">— ✓ Envoyer</span></button>
+                <button id="offer-submit-btn" type="button" onclick="_negoConfirmerCommande()" style="flex:1;padding:.7rem;border:none;border-radius:8px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;cursor:pointer;font-weight:800;font-size:.92rem;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:.35rem">✅ Confirmer ma commande</button>
             </div>
         </div>
     `;
@@ -21852,15 +21877,29 @@ window._offerGoToStep2 = function(){
 
   // Mettre à jour le récap dans la section 2
   var recapPrice = document.getElementById('offer-step2-recap-price');
-  if(recapPrice){
-    // FIX 2026-05-17 #offer-qty : afficher prix total (unitaire × quantité)
-    var _recapQty = window._offerQty || 1;
-    var _recapTotal = prix * _recapQty;
-    recapPrice.textContent = _recapTotal.toLocaleString('fr-FR') + ' FCFA';
-    if(_recapQty > 1){
-      recapPrice.title = _recapQty + ' × ' + Number(prix).toLocaleString('fr-FR') + ' FCFA';
-    }
-  }
+  var recapUnit  = document.getElementById('offer-recap-unit-price');
+  var recapName  = document.getElementById('offer-step2-recap-name');
+  // FIX 2026-05-17 #nego-qty-recap : initialiser récap quantité
+  var _qtyFinal  = window._negoQty || 1;
+  var _stock     = (window._currentOfferProduct || currentOfferItem || {}).stock || 99;
+  // Borner la quantité au stock
+  if (_qtyFinal > _stock) { _qtyFinal = _stock; window._negoQty = _qtyFinal; }
+  // Afficher prix unitaire
+  if (recapUnit) recapUnit.textContent = Number(prix).toLocaleString('fr-FR') + ' FCFA';
+  // Afficher total
+  if (recapPrice) recapPrice.textContent = (prix * _qtyFinal).toLocaleString('fr-FR') + ' FCFA';
+  // Afficher stock dispo
+  var stockEl = document.getElementById('nego-qty-stock');
+  if (stockEl) stockEl.textContent = 'sur ' + _stock + ' dispo';
+  // Initialiser sélecteur
+  var _qtyDisp  = document.getElementById('nego-qty-display');
+  var _qtyMinus = document.getElementById('nego-qty-minus');
+  var _qtyPlus  = document.getElementById('nego-qty-plus');
+  if (_qtyDisp)  _qtyDisp.textContent = _qtyFinal;
+  if (_qtyMinus) _qtyMinus.disabled   = _qtyFinal <= 1;
+  if (_qtyPlus)  _qtyPlus.disabled    = _qtyFinal >= _stock;
+  // Stocker le prix unitaire pour le calcul final
+  window._negoPrixUnitaire = prix;
 
   // Switch d'affichage
   var sec1 = document.getElementById('offer-section-nego');
@@ -25572,6 +25611,45 @@ window._offerSendToAdvisors = function(){
 };
 
 // FIX 2026-05-17 #offer-qty : gestion sélecteur quantité négociation
+// FIX 2026-05-17 #nego-qty-recap : sélecteur quantité étape 2 négociation
+function _negoQtyChange(delta) {
+  var prod   = window._currentOfferProduct || currentOfferItem || {};
+  var stock  = prod.stock || 99;
+  var current = window._negoQty || 1;
+  var newQty  = Math.min(stock, Math.max(1, current + delta));
+  window._negoQty = newQty;
+
+  var prix   = window._negoPrixUnitaire || parseFloat(document.getElementById('offer-price-input')?.value || 0);
+
+  var _qtyDisp  = document.getElementById('nego-qty-display');
+  var _qtyMinus = document.getElementById('nego-qty-minus');
+  var _qtyPlus  = document.getElementById('nego-qty-plus');
+  var _total    = document.getElementById('offer-step2-recap-price');
+
+  if (_qtyDisp)  _qtyDisp.textContent  = newQty;
+  if (_qtyMinus) _qtyMinus.disabled    = newQty <= 1;
+  if (_qtyPlus)  _qtyPlus.disabled     = newQty >= stock;
+  if (_total && prix > 0) _total.textContent = (prix * newQty).toLocaleString('fr-FR') + ' FCFA';
+}
+
+// FIX 2026-05-17 #nego-qty-recap : bouton confirmer commande négociation
+function _negoConfirmerCommande() {
+  // Stocker la quantité choisie pour submitOffer
+  window._offerQty = window._negoQty || 1;
+
+  // Désactiver le bouton pendant le traitement
+  var btn = document.getElementById('offer-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ En cours...'; }
+
+  // Appeler submitOffer normalement (inchangé)
+  try {
+    submitOffer();
+  } catch(e) {
+    console.error('[negoConfirmer] Erreur:', e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmer ma commande'; }
+  }
+}
+
 function offerQtyChange(delta) {
   var max = window._offerQtyMax || 1;
   var current = window._offerQty || 1;
@@ -25876,8 +25954,8 @@ function _submitOfferContinue(prix, nom, tel){
     + (currentOfferItem.spec ? ' ' + currentOfferItem.spec : '');
   const prixOfficiel = window._offerPrixRef || currentOfferItem.prix || 0;
   const etatChoisi = window._offerEtatFinal || currentOfferItem.qualite || 'Neuf';
-  // FIX 2026-05-17 #offer-qty : quantité choisie après négociation
-  const _offerQtyFinal = window._offerQty || 1;
+  // FIX 2026-05-17 #nego-qty-recap : quantité choisie dans l'étape 2
+  const _offerQtyFinal = window._negoQty || window._offerQty || 1;
   // ── Remise coupon offre ───────────────────────────────────────────────
   const _offCouponCode   = window._offerCouponCode   || '';
   const _offCouponRemise = window._offerCouponRemise  || 0;
