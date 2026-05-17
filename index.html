@@ -7869,7 +7869,11 @@ window._sbWrite = function(k,v) {
       /* Exclure les champs internes (_waLog, _softDeleted, etc.) */
       /* Notifications : colonnes autorisées seulement */
       if(t === 'notifications'){
-        var _nc = {}; ['id','type','titre','message','corps','oldStatut','newStatut','statut','parrainCode','parrainId','userId','tel','email','date','dateISO','lu','source','cible','created_at'].forEach(function(col){ if(item[col] !== undefined) _nc[col] = item[col]; });
+        var _nc = {};
+        var _notifCols = ['id','type','titre','message','corps','oldStatut','newStatut','statut','parrainCode','parrainId','userId','tel','email','date','dateISO','lu','source','cible','created_at'];
+        _notifCols.forEach(function(col){ if(item[col] !== undefined) _nc[col] = item[col]; });
+        // FIX 2026-05-17 #notif-tel : mapper clientTel → tel pour Supabase
+        if(!_nc.tel && item.clientTel) _nc.tel = item.clientTel;
         return _nc;
       }
       /* 🆕 Conversations : whitelist des colonnes existantes dans le schéma Supabase
@@ -13524,20 +13528,21 @@ function renderNotifications(){
     var adminOnlyTypes = ['chat-escalade', 'admin-alert', 'admin', 'sos', 'escalade', 'reset-password'];
     if(n.type && adminOnlyTypes.indexOf(n.type) > -1) return false;
 
-    // Type personnel avec destinataire explicite → vérifier match
+    // Type personnel → match strict par tel ou userId
     if(n.type && _personalTypes.indexOf(n.type) > -1){
-      if(n.userId || n.clientTel || n.tel){
-        if(!_moi) return false;
-        // Match par userId
-        if(n.userId && _moiId && n.userId === _moiId) return true;
-        // Match par téléphone (8 derniers chiffres)
-        var nTel = (n.clientTel||n.tel||'').replace(/[^0-9]/g,'').slice(-8);
-        if(nTel.length >= 6 && _moiTel8.length >= 6 && nTel === _moiTel8) return true;
-        // A un destinataire mais ne correspond pas → pas pour moi
-        return false;
-      }
-      // Pas de destinataire explicite → notification générée localement, visible si connecté
-      return !!_moi;
+      if(!_moi) return false;
+      var _moiId2 = _moi ? (_moi.id||'') : '';
+      var _nTelRaw2 = (n.clientTel||n.tel||'');
+      var _nTel82   = _nTelRaw2.replace(/[^0-9]/g,'').slice(-8);
+      var _nUserId2 = n.userId||'';
+      // Match par userId
+      if(_nUserId2 && _moiId2 && _nUserId2 === _moiId2) return true;
+      // Match par téléphone
+      if(_nTel82.length >= 6 && _moiTel8.length >= 6 && _nTel82 === _moiTel8) return true;
+      // Sans identifiant → masquer pour sécurité
+      if(!_nTelRaw2 && !_nUserId2) return false;
+      // Identifiant présent mais ne correspond pas → pas pour moi
+      return false;
     }
 
     // Autres notifications avec cible explicite
@@ -13827,37 +13832,27 @@ function updateNotificationsBadge(){
     if(n.cible === 'admin') return false;
     var _adminOnlyTypes = ['chat-escalade', 'admin-alert', 'admin', 'sos', 'escalade', 'reset-password'];
     if(n.type && _adminOnlyTypes.indexOf(n.type) > -1) return false;
-    // Notifications personnelles → vérifier clientTel ou userId
-    var matchedPersonnal = false;
-    if(n.userId || n.clientTel || n.tel){
-      if(!_myTel8b && !utilisateurConnecte) return false;
-      // Match userId
-      if(n.userId && utilisateurConnecte && n.userId === utilisateurConnecte.id) matchedPersonnal = true;
-      // Match tel
-      var nTel8 = (n.clientTel||n.tel||'').replace(/\s/g,'').slice(-8);
-      if(nTel8.length >= 6 && _myTel8b.length >= 6 && nTel8 === _myTel8b) matchedPersonnal = true;
-      if(!matchedPersonnal) return false;
-    } else if(n.type && _personalTypes1.indexOf(n.type) > -1){
-      return false; // pas de tel → pas mon notif
+    // Notifications personnelles → match strict par tel ou userId
+    var _nTelRaw3 = (n.clientTel||n.tel||'');
+    var _nTel83   = _nTelRaw3.replace(/\s/g,'').slice(-8);
+    var _nUid3    = n.userId||'';
+    var _meUid3   = utilisateurConnecte ? (utilisateurConnecte.id||'') : '';
+
+    if(n.type && _personalTypes1.indexOf(n.type) > -1){
+      if(!utilisateurConnecte) return false;
+      if(_nUid3 && _meUid3 && _nUid3 === _meUid3) return true;
+      if(_nTel83.length >= 6 && _myTel8b.length >= 6 && _nTel83 === _myTel8b) return true;
+      if(!_nTelRaw3 && !_nUid3) return false; // sans identifiant → masquer
+      return false;
+    }
+    // Autres notifs avec destinataire explicite
+    if(_nTelRaw3 || _nUid3){
+      if(!utilisateurConnecte) return false;
+      if(_nUid3 && _meUid3 && _nUid3 === _meUid3) return true;
+      if(_nTel83.length >= 6 && _myTel8b.length >= 6 && _nTel83 === _myTel8b) return true;
+      return false;
     }
     if(n.type === 'retour' && n.titre && n.titre.indexOf('Perte') > -1) return false;
-
-    // ⭐ FILTRE ORPHELIN : si la notif référence une entité (commande/troc/offre)
-    // qui n'existe plus, on l'exclut.
-    // Utilise les VRAIES colonnes Supabase : commandeId, offreId, trocId, ref
-    if(n.type && _personalTypes1.indexOf(n.type) > -1){
-      var refIds = [n.commandeId, n.offreId, n.trocId, n.ref, n.itemId, n.item_id].filter(Boolean);
-      // Si la notif a une réf et que cette réf n'existe plus → orpheline
-      if(refIds.length){
-        var anyValid = refIds.some(function(id){ return validIds.has(String(id)); });
-        if(!anyValid) return false;
-      } else {
-        // Fallback : extraire l'ID du message (ex: "Commande CMD-12345 expédiée")
-        var msg = (n.message || n.contenu || n.titre || '');
-        var match = msg.match(/(CMD|TROC|OFFER|OFF|PROP|NEG|COM)-[\w-]+/i);
-        if(match && match[0] && !validIds.has(match[0])) return false;
-      }
-    }
     return true;
   });
   const nonLues = clientNotifs.filter(n => !n.lu).length;
@@ -15547,8 +15542,10 @@ function _ecoNotif(type, titre, message, oldSt, newSt, itemId){
     var notif={id:'N-'+Date.now(),type:type,titre:titre,message:message,corps:message,
                oldStatut:oldSt||null,newStatut:newSt||null,
                clientTel:_cTel,
-               itemId:extractedId,        // ⭐ pour permettre la suppression cascade
-               item_id:extractedId,       // alias snake_case pour cohérence Supabase
+               tel:_cTel,          // FIX 2026-05-17 #notif-tel : tel = colonne Supabase
+               userId: (utilisateurConnecte ? (utilisateurConnecte.id||null) : null),
+               itemId:extractedId,
+               item_id:extractedId,
                date:new Date().toLocaleString('fr-FR'),dateISO:new Date().toISOString(),lu:false};
     notifications.unshift(notif);
     if(notifications.length>250) notifications.length=250;
@@ -15597,22 +15594,23 @@ function afficherNotifications(){
         if(n.cible === 'admin') return false;
         var _adminOnlyTypes2 = ['chat-escalade', 'admin-alert', 'admin', 'sos', 'escalade', 'reset-password'];
         if(n.type && _adminOnlyTypes2.indexOf(n.type) > -1) return false;
-        // Notifications personnelles → vérifier clientTel ou userId si présents
-        if(n.clientTel || n.userId){
-            if(!_myTel8 && !utilisateurConnecte) return false;
+        // Notifications personnelles → vérifier match strict
+        var _nTelRaw = (n.clientTel||n.tel||'');
+        var _nTel8   = _nTelRaw.replace(/\s/g,'').slice(-8);
+        var _nUserId = n.userId || '';
+
+        if(n.type && _personalTypes2.indexOf(n.type) > -1){
+            if(!utilisateurConnecte) return false;
+            var _uid2 = utilisateurConnecte ? (utilisateurConnecte.id||'') : '';
             // Match par userId
-            var _uid = utilisateurConnecte ? (utilisateurConnecte.id||'') : '';
-            if(n.userId && _uid && n.userId === _uid) return true;
-            // Match par téléphone
-            if(n.clientTel){
-                var nTel8 = n.clientTel.replace(/\s/g,'').slice(-8);
-                if(nTel8.length >= 6 && _myTel8.length >= 6 && nTel8 === _myTel8) return true;
-            }
-            // A un destinataire explicite mais ne correspond pas → pas pour moi
+            if(_nUserId && _uid2 && _nUserId === _uid2) return true;
+            // Match par téléphone (8 derniers chiffres)
+            if(_nTel8.length >= 6 && _myTel8.length >= 6 && _nTel8 === _myTel8) return true;
+            // Aucun identifiant → notif sans propriétaire : masquer pour sécurité
+            if(!_nTelRaw && !_nUserId) return false;
+            // A un identifiant mais ne correspond pas → pas pour moi
             return false;
         }
-        // Pas de destinataire explicite + type personnel → visible par le client connecté
-        // (notification générale de type commande/proposition sans tel = générée localement)
         // Masquer Perte
         if(n.type === 'retour' && n.titre && n.titre.indexOf('Perte') > -1) return false;
         return true;
