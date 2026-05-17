@@ -18933,6 +18933,8 @@ function openOfferModal(productId) {
 
     // Stocker le produit actuel pour l'offre
     currentOfferItem = product;
+    // FIX 2026-05-17 #offer-qty : mémoriser l'ID pour le sélecteur quantité
+    window._currentOfferProductId = product.id;
 
     // Reset état précédent
     window._modalSelectedEtat = '';
@@ -24160,8 +24162,35 @@ window._negoUpdateNextBtn = function(){
     if (!qtyWrap) {
       // Créer le sélecteur quantité
       var p = window.currentOfferItem || window._currentBuyProduct;
-      var stockMax = (p && typeof p.stock === 'number' && p.stock > 0) ? p.stock : 1;
-      window._offerQty = 1;
+      // Chercher le stock dans products[] si absent dans currentOfferItem
+      var stockMax = 1;
+      // Méthode 1 : depuis currentOfferItem direct
+      if (p && typeof p.stock === 'number' && p.stock > 0) {
+        stockMax = p.stock;
+      } else {
+        // Méthode 2 : ID depuis l'URL ou le DOM + lookup dans products[]
+        var _prodId = (p && p.id) || null;
+        // Chercher l'ID dans le DOM si pas dans currentOfferItem
+        if (!_prodId) {
+          var _specEl = document.getElementById('bspec');
+          if (_specEl && _specEl.value) _prodId = _specEl.value;
+        }
+        if (!_prodId) {
+          var _offerProdEl = document.querySelector('[data-product-id]');
+          if (_offerProdEl) _prodId = _offerProdEl.dataset.productId;
+        }
+        // Chercher dans window._currentBuyProduct ou window._lastOpenedProductId
+        if (!_prodId && window._currentBuyProduct) _prodId = window._currentBuyProduct.id;
+        if (!_prodId && window._lastOpenedProductId) _prodId = window._lastOpenedProductId;
+        if (!_prodId && window._currentOfferProductId) _prodId = window._currentOfferProductId;
+        // Lookup dans products[]
+        if (_prodId && typeof products !== 'undefined') {
+          var _prodRef = products.find(function(x){ return String(x.id) === String(_prodId); });
+          if (_prodRef && typeof _prodRef.stock === 'number' && _prodRef.stock > 0) {
+            stockMax = _prodRef.stock;
+          }
+        }
+      }      window._offerQty = 1;
       window._offerQtyMax = stockMax;
       var prixNego = window._negoAcceptedPrice || (p ? p.prix : 0) || 0;
       var insertAfter = document.getElementById('offer-savings-box') || document.getElementById('offer-recap-box');
