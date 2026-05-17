@@ -25836,7 +25836,11 @@ function submitOffer(){
 }
 
 function _submitOfferContinue(prix, nom, tel){
-  if(!currentOfferItem) return;
+  // FIX 2026-05-17 #offer-qty : fallback si currentOfferItem vide
+  if(!currentOfferItem || !currentOfferItem.id) {
+    if(window._currentOfferProduct) currentOfferItem = window._currentOfferProduct;
+    else return;
+  }
   // 🆕 Marquer l'état comme "submitted" pour empêcher le tracking d'abandon
   // quand le modal se ferme après soumission réussie
   window._negoState = 'submitted';
