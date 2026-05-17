@@ -21852,7 +21852,13 @@ window._offerGoToStep2 = function(){
   // Mettre à jour le récap dans la section 2
   var recapPrice = document.getElementById('offer-step2-recap-price');
   if(recapPrice){
-    recapPrice.textContent = Number(prix).toLocaleString('fr-FR') + ' FCFA';
+    // FIX 2026-05-17 #offer-qty : afficher prix total (unitaire × quantité)
+    var _recapQty = window._offerQty || 1;
+    var _recapTotal = prix * _recapQty;
+    recapPrice.textContent = _recapTotal.toLocaleString('fr-FR') + ' FCFA';
+    if(_recapQty > 1){
+      recapPrice.title = _recapQty + ' × ' + Number(prix).toLocaleString('fr-FR') + ' FCFA';
+    }
   }
 
   // Switch d'affichage
@@ -25592,7 +25598,11 @@ function submitOffer(){
   const nom=document.getElementById('offer-nom').value.trim();
   const tel=document.getElementById('offer-tel').value.trim();
   const prix=parseFloat(document.getElementById('offer-price-input').value);
-  if(!currentOfferItem)return;
+  // FIX 2026-05-17 #offer-qty : fallback si currentOfferItem vide
+  if(!currentOfferItem || !currentOfferItem.id) {
+    if(window._currentOfferProduct) currentOfferItem = window._currentOfferProduct;
+    else return;
+  }
 
   // ── Validation état obligatoire ──
   if(!window._offerEtatFinal){
