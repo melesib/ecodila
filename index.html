@@ -18936,6 +18936,7 @@ function openOfferModal(productId) {
     // FIX 2026-05-17 #offer-qty : mémoriser le produit complet (comme _currentBuyProduct)
     window._currentOfferProductId = product.id;
     window._currentOfferProduct = product;
+    window._offerQty = 1; // reset quantité à chaque ouverture
 
     // Reset état précédent
     window._modalSelectedEtat = '';
@@ -19911,7 +19912,7 @@ function _offerPrixAchat(item, etat){
 // État de session : roue + bonus actifs
 window._offerWheelBonusPc  = 0;       // % bonus gagné par la roue (0-5)
 window._offerWheelUsed     = false;   // a déjà tourné dans cette session ?
-    window._offerQty = 1;             // FIX 2026-05-17 #offer-qty : reset quantité
+window._offerQty           = 1;       // FIX 2026-05-17 #offer-qty : quantité choisie après négo
 window._offerWheelUnlocked = false;   // LIDA a-t-elle proposé le jeu ?
 window._offerInsistCount   = 0;       // nb d'insistances en zone rouge/orange dans la modal courante
 window._offerActiveBonuses = [];      // liste des bonus cliqués [{key, pc}]
@@ -24176,8 +24177,12 @@ window._negoUpdateNextBtn = function(){
       } else if (window._currentOfferProductId && typeof products !== 'undefined') {
         var _pr = products.find(function(x){ return String(x.id) === String(window._currentOfferProductId); });
         if (_pr && typeof _pr.stock === 'number' && _pr.stock > 0) stockMax = _pr.stock;
-      }      window._offerQty = 1;
-      window._offerQtyMax = stockMax;
+      }
+      // Reset quantité seulement à la première création (pas si déjà modifiée)
+      if (!window._offerQtyMax || window._offerQtyMax !== stockMax) {
+        window._offerQty = 1;
+        window._offerQtyMax = stockMax;
+      }
       var prixNego = window._negoAcceptedPrice || (p ? p.prix : 0) || 0;
       var insertAfter = document.getElementById('offer-savings-box') || document.getElementById('offer-recap-box');
       if (insertAfter) {
