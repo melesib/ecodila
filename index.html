@@ -8791,6 +8791,23 @@ setTimeout(_pStart,3000);
         <div class="fst">💬 Message</div>
         <div class="form-row s1"><div class="fg"><label>Remarque / Question <span style="color:var(--gray);font-weight:400;font-size:.75rem">(optionnel)</span></label><textarea rows="2" id="buy-msg" placeholder="Ex : Livraison possible ? Questions sur l'état ?"></textarea></div></div>
 
+        <!-- ── Quantité achat FIX 2026-05-17 ── -->
+        <div class="fst">📦 Quantité</div>
+        <div id="buy-qty-wrap" style="background:linear-gradient(135deg,rgba(45,106,79,.06),rgba(82,183,136,.04));border:1.5px solid rgba(82,183,136,.25);border-radius:10px;padding:.85rem .9rem;margin-bottom:.7rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+            <div style="display:flex;align-items:center;gap:.75rem">
+              <button type="button" onclick="buyQtyChange(-1)" id="buy-qty-minus" style="width:36px;height:36px;border-radius:50%;border:1.5px solid var(--green);background:transparent;color:var(--green);font-size:1.2rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+              <span id="buy-qty-display" style="font-size:1.4rem;font-weight:800;color:var(--black);min-width:2rem;text-align:center">1</span>
+              <button type="button" onclick="buyQtyChange(+1)" id="buy-qty-plus" style="width:36px;height:36px;border-radius:50%;border:1.5px solid var(--green);background:var(--green);color:white;font-size:1.2rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+              <span id="buy-qty-stock-info" style="font-size:.75rem;color:var(--gray)">sur — disponibles</span>
+            </div>
+            <div id="buy-qty-total-wrap" style="text-align:right">
+              <div style="font-size:.65rem;color:var(--gray);margin-bottom:.1rem">Total</div>
+              <div id="buy-qty-total" style="font-size:1.1rem;font-weight:800;color:var(--green)">—</div>
+            </div>
+          </div>
+        </div>
+
         <!-- ── Coupon achat ── -->
         <div id="buy-coupon-wrap" style="display:none;margin:0 0 .7rem;background:linear-gradient(135deg,rgba(45,106,79,.06),rgba(82,183,136,.04));border:1.5px solid rgba(82,183,136,.25);border-radius:10px;padding:.85rem .9rem">
           <div style="font-size:.7rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.55rem">🎟️ Code promo</div>
@@ -19891,6 +19908,7 @@ function _offerPrixAchat(item, etat){
 // État de session : roue + bonus actifs
 window._offerWheelBonusPc  = 0;       // % bonus gagné par la roue (0-5)
 window._offerWheelUsed     = false;   // a déjà tourné dans cette session ?
+    window._offerQty = 1;             // FIX 2026-05-17 #offer-qty : reset quantité
 window._offerWheelUnlocked = false;   // LIDA a-t-elle proposé le jeu ?
 window._offerInsistCount   = 0;       // nb d'insistances en zone rouge/orange dans la modal courante
 window._offerActiveBonuses = [];      // liste des bonus cliqués [{key, pc}]
@@ -24137,10 +24155,52 @@ window._negoUpdateNextBtn = function(){
     btn.disabled = false;
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
+    // FIX 2026-05-17 #offer-qty : afficher sélecteur quantité après acceptation prix
+    var qtyWrap = document.getElementById('offer-qty-wrap');
+    if (!qtyWrap) {
+      // Créer le sélecteur quantité
+      var p = window.currentOfferItem || window._currentBuyProduct;
+      var stockMax = (p && typeof p.stock === 'number' && p.stock > 0) ? p.stock : 1;
+      window._offerQty = 1;
+      window._offerQtyMax = stockMax;
+      var prixNego = window._negoAcceptedPrice || (p ? p.prix : 0) || 0;
+      var insertAfter = document.getElementById('offer-savings-box') || document.getElementById('offer-recap-box');
+      if (insertAfter) {
+        var div = document.createElement('div');
+        div.id = 'offer-qty-wrap';
+        div.style.cssText = 'margin-top:.5rem;background:linear-gradient(135deg,rgba(45,106,79,.06),rgba(82,183,136,.04));border:1.5px solid rgba(82,183,136,.25);border-radius:10px;padding:.85rem .9rem';
+        div.innerHTML = '<div style="font-size:.7rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.55rem">📦 Quantité souhaitée</div>'
+          + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">'
+          +   '<div style="display:flex;align-items:center;gap:.75rem">'
+          +     '<button type="button" onclick="offerQtyChange(-1)" id="offer-qty-minus" disabled style="width:36px;height:36px;border-radius:50%;border:1.5px solid var(--green);background:transparent;color:var(--green);font-size:1.2rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>'
+          +     '<span id="offer-qty-display" style="font-size:1.4rem;font-weight:800;min-width:2rem;text-align:center">1</span>'
+          +     '<button type="button" onclick="offerQtyChange(+1)" id="offer-qty-plus" '+(stockMax<=1?'disabled':'')+' style="width:36px;height:36px;border-radius:50%;border:1.5px solid var(--green);background:var(--green);color:white;font-size:1.2rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>'
+          +     '<span style="font-size:.75rem;color:var(--gray)">sur '+stockMax+' disponible'+(stockMax>1?'s':'')+'</span>'
+          +   '</div>'
+          +   '<div style="text-align:right">'
+          +     '<div style="font-size:.65rem;color:var(--gray);margin-bottom:.1rem">Total négocié</div>'
+          +     '<div id="offer-qty-total" style="font-size:1.1rem;font-weight:800;color:var(--green)">'+(prixNego > 0 ? prixNego.toLocaleString('fr-FR')+' FCFA' : '—')+'</div>'
+          +   '</div>'
+          + '</div>';
+        insertAfter.parentNode.insertBefore(div, insertAfter.nextSibling);
+      }
+    } else {
+      // Mettre à jour le prix si déjà affiché
+      var prixNego2 = window._negoAcceptedPrice || 0;
+      var offerTotal = document.getElementById('offer-qty-total');
+      var offerQty2 = window._offerQty || 1;
+      if (offerTotal && prixNego2 > 0) {
+        offerTotal.textContent = (prixNego2 * offerQty2).toLocaleString('fr-FR') + ' FCFA';
+      }
+      qtyWrap.style.display = '';
+    }
   } else {
     btn.disabled = true;
     btn.style.opacity = '0.5';
     btn.style.cursor = 'not-allowed';
+    // Cacher le sélecteur quantité si le prix n'est plus accepté
+    var qtyWrapHide = document.getElementById('offer-qty-wrap');
+    if (qtyWrapHide) qtyWrapHide.style.display = 'none';
   }
 };
 
@@ -25491,6 +25551,29 @@ window._offerSendToAdvisors = function(){
   }, 800);
 };
 
+// FIX 2026-05-17 #offer-qty : gestion sélecteur quantité négociation
+function offerQtyChange(delta) {
+  var max = window._offerQtyMax || 1;
+  var current = window._offerQty || 1;
+  var newQty = Math.min(max, Math.max(1, current + delta));
+  window._offerQty = newQty;
+
+  var _display = document.getElementById('offer-qty-display');
+  var _total = document.getElementById('offer-qty-total');
+  var _minus = document.getElementById('offer-qty-minus');
+  var _plus = document.getElementById('offer-qty-plus');
+
+  if (_display) _display.textContent = newQty;
+  if (_minus) _minus.disabled = newQty <= 1;
+  if (_plus) _plus.disabled = newQty >= max;
+
+  var prixNego = window._negoAcceptedPrice || 0;
+  if (_total && prixNego > 0) {
+    var total = prixNego * newQty;
+    _total.textContent = total.toLocaleString('fr-FR') + ' FCFA';
+  }
+}
+
 function submitOffer(){
   _clearAbandonTimer();
   if(!verifierAuthentificationAvantCommande()){
@@ -25765,10 +25848,13 @@ function _submitOfferContinue(prix, nom, tel){
     + (currentOfferItem.spec ? ' ' + currentOfferItem.spec : '');
   const prixOfficiel = window._offerPrixRef || currentOfferItem.prix || 0;
   const etatChoisi = window._offerEtatFinal || currentOfferItem.qualite || 'Neuf';
+  // FIX 2026-05-17 #offer-qty : quantité choisie après négociation
+  const _offerQtyFinal = window._offerQty || 1;
   // ── Remise coupon offre ───────────────────────────────────────────────
   const _offCouponCode   = window._offerCouponCode   || '';
   const _offCouponRemise = window._offerCouponRemise  || 0;
-  const prixFinalOffer   = _offCouponRemise > 0 ? Math.max(0, prix - _offCouponRemise) : prix;
+  // prix par unité négocié × quantité - remise coupon
+  const prixFinalOffer   = _offCouponRemise > 0 ? Math.max(0, (prix * _offerQtyFinal) - _offCouponRemise) : (prix * _offerQtyFinal);
   const diff = prixFinalOffer - prixOfficiel;
   const diffPct = prixOfficiel > 0 ? Math.round((diff / prixOfficiel) * 100) : 0;
 
@@ -25786,6 +25872,8 @@ function _submitOfferContinue(prix, nom, tel){
     spec: currentOfferItem.spec || '',
     qualite: currentOfferItem.qualite || '',
     etat: etatChoisi,
+    quantite: _offerQtyFinal,
+    prixUnitaire: prix,
     prixOfficiel,
     prixPropose: prixFinalOffer,
     prixSaisi:   prix,
@@ -25927,7 +26015,7 @@ function _submitOfferContinue(prix, nom, tel){
     window._sbWrite('ecodila_propositions', propStock); window._pProp=null;
 
     // ── Décrémenter le stock du produit concerné par la négociation ────
-    if (currentOfferItem && currentOfferItem.id) _decrementStock(currentOfferItem.id);
+    if (currentOfferItem && currentOfferItem.id) _decrementStock(currentOfferItem.id, window._offerQty || 1);
   }
 
   if (_offCouponCode && typeof recordCouponUse === 'function') {
@@ -26911,6 +26999,21 @@ function prefillBuyForm(productId){
 
   // ── Stocker le produit pour submitBuy ──
   window._currentBuyProduct = p;
+  // FIX 2026-05-17 #buy-qty : initialiser le sélecteur quantité
+  window._buyQty = 1;
+  var _stockMax = (typeof stock === 'number' && stock > 0) ? stock : 1;
+  window._buyQtyMax = _stockMax;
+  var _qtyDisplay = document.getElementById('buy-qty-display');
+  var _qtyInfo = document.getElementById('buy-qty-stock-info');
+  var _qtyTotal = document.getElementById('buy-qty-total');
+  var _qtyMinus = document.getElementById('buy-qty-minus');
+  var _qtyPlus = document.getElementById('buy-qty-plus');
+  if (_qtyDisplay) _qtyDisplay.textContent = '1';
+  if (_qtyInfo) _qtyInfo.textContent = 'sur ' + _stockMax + ' disponible' + (_stockMax > 1 ? 's' : '');
+  var _prixUnit = (typeof p.prix === 'number' && p.prix > 0) ? p.prix : 0;
+  if (_qtyTotal) _qtyTotal.textContent = _prixUnit > 0 ? _prixUnit.toLocaleString('fr-FR') + ' FCFA' : '—';
+  if (_qtyMinus) _qtyMinus.disabled = true;
+  if (_qtyPlus) _qtyPlus.disabled = _stockMax <= 1;
   currentModalId = p.id;
 
   // ── Pré-remplir infos client ──
@@ -28612,8 +28715,10 @@ function _buyGalleryNav(dir) {
   _buyGalleryShow(idx);
 }
 
-function _decrementStock(productId) {
+function _decrementStock(productId, qty) {
     if (!productId) return;
+    // FIX 2026-05-17 #buy-qty : décrémenter par la quantité choisie
+    var decrement = (typeof qty === 'number' && qty > 0) ? qty : 1;
     try {
         // 1. Lire le catalogue admin (cache local)
         const raw = window._sbRead('ecodila_admin_products');
@@ -28629,8 +28734,8 @@ function _decrementStock(productId) {
             console.warn('⚠️ _decrementStock: stock déjà à 0 pour', productId);
             return;
         }
-        // 2. Décrémenter en MÉMOIRE (cache local)
-        const newStock = before - 1;
+        // 2. Décrémenter en MÉMOIRE (cache local) par la quantité
+        const newStock = Math.max(0, before - decrement);
         prods[idx].stock = newStock;
 
         // 🆕 Si stock atteint 0 → marquer immédiatement comme inactive
@@ -28909,6 +29014,37 @@ function _submitProductRequest(){
   document.querySelectorAll('input[name="req-etat"]').forEach(function(r){r.checked=false;});
 }
 
+// FIX 2026-05-17 #buy-qty : gestion sélecteur quantité achat
+function buyQtyChange(delta) {
+  var max = window._buyQtyMax || 1;
+  var current = window._buyQty || 1;
+  var newQty = Math.min(max, Math.max(1, current + delta));
+  window._buyQty = newQty;
+
+  // Mettre à jour l'affichage
+  var _qtyDisplay = document.getElementById('buy-qty-display');
+  var _qtyTotal = document.getElementById('buy-qty-total');
+  var _qtyMinus = document.getElementById('buy-qty-minus');
+  var _qtyPlus = document.getElementById('buy-qty-plus');
+
+  if (_qtyDisplay) _qtyDisplay.textContent = newQty;
+
+  // Recalculer le prix total
+  var p = window._currentBuyProduct;
+  if (p && _qtyTotal) {
+    var prixUnit = p.prix || 0;
+    var total = prixUnit * newQty;
+    _qtyTotal.textContent = total > 0 ? total.toLocaleString('fr-FR') + ' FCFA' : '—';
+    if (newQty > 1) {
+      _qtyTotal.title = newQty + ' × ' + prixUnit.toLocaleString('fr-FR') + ' FCFA';
+    }
+  }
+
+  // Activer/désactiver boutons
+  if (_qtyMinus) _qtyMinus.disabled = newQty <= 1;
+  if (_qtyPlus) _qtyPlus.disabled = newQty >= max;
+}
+
 function submitBuy(){
   if(!userLoggedIn && !utilisateurConnecte){
     var _bp = window._currentBuyProduct;
@@ -28962,7 +29098,9 @@ function submitBuy(){
   var _appliedCode   = window._buyCouponCode || window._siteCouponCode   || '';
   var _appliedRemise = window._buyCouponRemise || window._siteCouponRemise  || 0;
   var _appliedCoupon = window._siteCouponObj     || null;
-  var prixFinal = prix;
+  // FIX 2026-05-17 #buy-qty : prix final = prix unitaire × quantité - remise
+  var _buyQtyFinal = window._buyQty || 1;
+  var prixFinal = prix * _buyQtyFinal;
   if(_appliedCode && _appliedRemise > 0) prixFinal = Math.max(0, prixFinal - _appliedRemise);
 
   var timestamp  = Date.now();
@@ -28983,7 +29121,7 @@ function submitBuy(){
     modele:       modele,
     specifications: specification,
     spec:           specification,
-    quantite:      1,
+    quantite:      window._buyQty || 1,
     prix:          prix,
     prixCatalogue: prix,
     prixPropose:   prix,
@@ -29105,7 +29243,7 @@ function submitBuy(){
     })();
 
     // Décrémenter stock
-    if(typeof _decrementStock === 'function') _decrementStock(p.id);
+    if(typeof _decrementStock === 'function') _decrementStock(p.id, window._buyQty || 1);
 
     // Coupon
     if(_appliedCode && typeof recordCouponUse === 'function'){
