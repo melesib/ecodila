@@ -10604,6 +10604,8 @@ window._sbReload = async function() {
           <option value="rejete">❌ Refusés</option>
         </select>
         <button onclick="window._sbReload().then(function(){prDealsRender();showToast('🔄 Deals actualisés');}).catch(function(){showToast('⚠️ Erreur');})" style="padding:.4rem .7rem;background:var(--primary);color:#000;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer">🔄 Rafraîchir</button>
+        <!-- FIX 2026-05-17 #purge-deals-superadmin -->
+        <button id="pr-deals-purge-btn" onclick="prDealsPurgeAll()" style="display:none;padding:.4rem .7rem;background:rgba(239,68,68,.15);color:#ef4444;border:1.5px solid rgba(239,68,68,.4);border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer" title="Super Admin uniquement">🗑 Purger tous les deals</button>
       </div>
     </div>
     <!-- KPI deals -->
@@ -47996,7 +47998,7 @@ function tab(name) {
   else if(name==='fraude')      renderFraude();
   else if(name==='comptes')     renderComptes();
   else if(name==='activites')   prActRender();
-        else if(name==='deals')      prDealsRender();
+        else if(name==='deals')      { prDealsRender(); var _pb = document.getElementById('pr-deals-purge-btn'); if(_pb && typeof naIsSuperAdmin==='function' && naIsSuperAdmin()) _pb.style.display='inline-flex'; }
   else if(name==='challenges') { if(typeof prChallengesRender==='function') prChallengesRender(); }
   else if(name==='concours')   { if(typeof _concoursRenderPage==='function') _concoursRenderPage(); }
   else if(name==='config')     setTimeout(function(){ if(typeof loadConfigPanel==='function') loadConfigPanel(); }, 60);
@@ -48383,6 +48385,37 @@ function prDealUpdate(id){
 }
 window.prDealsRender = prDealsRender;
 window.prDealUpdate  = prDealUpdate;
+
+// FIX 2026-05-17 #purge-deals-superadmin
+// Afficher le bouton purge uniquement pour les Super Admin
+(function _prDealsInitPurgeBtn(){
+  var btn = document.getElementById('pr-deals-purge-btn');
+  if (btn && typeof naIsSuperAdmin === 'function' && naIsSuperAdmin()) {
+    btn.style.display = 'inline-flex';
+  }
+})();
+
+// Fonction de purge des deals (Super Admin uniquement)
+window.prDealsPurgeAll = function() {
+  if (typeof naIsSuperAdmin !== 'function' || !naIsSuperAdmin()) {
+    showToast('❌ Accès refusé — Super Admin uniquement');
+    return;
+  }
+  var deals = prDealsGet();
+  if (!deals || deals.length === 0) {
+    showToast('ℹ️ Aucun deal à supprimer');
+    return;
+  }
+  if (!confirm('🗑 SUPPRESSION DÉFINITIVE\n\nVous allez supprimer ' + deals.length + ' deal(s).\n\nCette action est IRRÉVERSIBLE. Continuer ?')) return;
+  if (prompt('⚠️ Confirmation finale\n\nPour confirmer, tapez : SUPPRIMER DEALS') !== 'SUPPRIMER DEALS') {
+    showToast('Annulé');
+    return;
+  }
+  // Vider les deals
+  prDealsSet([]);
+  prDealsRender();
+  showToast('✅ ' + deals.length + ' deal(s) supprimé(s) définitivement');
+};
 
 /* Auto-refresh quand onglet deals ouvert + nouvelles demandes parrainage depuis le site */
 window._ecoBC.listen(function(ev){
