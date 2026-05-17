@@ -12718,11 +12718,14 @@ window.admMgr = {
                             <tr>
                                 <th>Produit</th>
                                 <th>Type</th>
-                                <th>Montant Vente</th>
-                                <th>Prix Achat</th>
-                                <th>Perte / Faible profit</th>
-                                <th>Marge %</th>
                                 <th>Client</th>
+                                <th style="text-align:center;color:#a78bfa">🔢 Qté</th>
+                                <th style="color:#4da3ff">Prix Unit.</th>
+                                <th style="color:#4da3ff">Vente Total</th>
+                                <th style="color:#ffaa00">PA Unit.</th>
+                                <th style="color:#ffaa00">PA Total</th>
+                                <th>Profit</th>
+                                <th>Marge %</th>
                                 <th>Date</th>
                             </tr>
                         </thead>
@@ -42250,20 +42253,36 @@ function _pnlRenderKPIs(){
         }
     } else if(badge){ badge.innerHTML=''; }
 
-    var alertItems = tx.filter(function(t){ return t.profit!=null&&(t.profit<0||(t.marge!=null&&t.marge<10)); });
+    var alertItems = tx.filter(function(t){
+        var qty=Number(t.quantite||1), pu=Number(t.prixUnitaire||0), pau=t.paUnitaire!=null?Number(t.paUnitaire):null;
+        var vente=pu>0?qty*pu:Number(t.montant||0);
+        var pa=pau!=null?qty*pau:(t.prixAchat!=null?Number(t.prixAchat):null);
+        if(pa==null) return false;
+        var p=vente-pa-Number(t.fraisLivraison||0)-Number(t.commission||0);
+        var m=pa>0?(p/pa*100):null;
+        return p<0||(m!=null&&m<10);
+    });
     var banner = document.getElementById('pnl-alert-banner');
     if(banner){
         if(alertItems.length>0){
             banner.style.display='flex';
             var top5 = alertItems.slice(0,5);
             _pnlSet('pnl-alert-list', top5.map(function(t){
+                var qty=Number(t.quantite||1), pu=Number(t.prixUnitaire||0), pau=t.paUnitaire!=null?Number(t.paUnitaire):null;
+                var vente=pu>0?qty*pu:Number(t.montant||0);
+                var pa=pau!=null?qty*pau:(t.prixAchat!=null?Number(t.prixAchat):null);
+                var profit=pa!=null?vente-pa-Number(t.fraisLivraison||0)-Number(t.commission||0):null;
+                var marge=pa!=null&&pa>0?(profit/pa*100):null;
                 return '<span style="display:inline-block;margin-right:1rem">'
                     +(t.type==='commande'?'📦':t.type==='troc'?'🔄':'💰')
                     +' <strong style="color:var(--text)">'+t.produit+'</strong>'
-                    +' — Vente : <strong>'+_pnlFmt(t.montant)+' FCFA</strong>'
-                    +' | PA : <strong>'+_pnlFmt(t.prixAchat)+' FCFA</strong>'
+                    +(qty>1?' <span style="color:#a78bfa">×'+qty+'</span>':'')
+                    +' — Vente : <strong>'+_pnlFmt(vente)+' FCFA</strong>'
+                    +(pu>0?' ('+_pnlFmt(pu)+' F/u)':'')
+                    +' | PA : <strong>'+_pnlFmt(pa)+' FCFA</strong>'
+                    +(pau!=null&&qty>1?' ('+_pnlFmt(pau)+' F/u)':'')
                     +(t.commission>0?' | Comm : <strong style="color:#e879f9">-'+_pnlFmt(t.commission)+' FCFA</strong>':'')
-                    +' | <span style="color:var(--danger)">'+(t.profit<0?'Perte':'Faible')+' : '+_pnlFmt(t.profit)+' FCFA ('+_pnlFmtPct(t.marge)+')</span>'
+                    +' | <span style="color:var(--danger)">'+(profit<0?'Perte':'Faible')+' : '+_pnlFmt(profit)+' FCFA ('+_pnlFmtPct(marge)+')</span>'
                     +'</span>';
             }).join('<br>')+(alertItems.length>5?'<br><em style="font-size:.72rem">+ '+(alertItems.length-5)+' autres…</em>':''));
         } else {
@@ -42346,12 +42365,21 @@ function _pnlRenderBreakdown(){
     var html=types.map(function(type){
         var tx=_pnl.filteredTx.filter(function(t){return t.type===type;});
         var txPA=tx.filter(function(t){return t.prixAchat!=null;});
-        var ca=tx.reduce(function(s,t){return s+t.montant;},0);
-        var cout=txPA.reduce(function(s,t){return s+(t.prixAchat||0);},0);
-        var totalComm=tx.reduce(function(s,t){return s+(t.commission||0);},0);
-        var profitBrut=txPA.reduce(function(s,t){return s+(t.profit!=null?t.profit+(t.commission||0):0);},0);
-        var profit=txPA.reduce(function(s,t){return s+(t.profit||0);},0);
+        // Totaux
+        var totalUnites = tx.reduce(function(s,t){return s+Number(t.quantite||1);},0);
+        var ca=tx.reduce(function(s,t){return s+Number(t.montant||0);},0);
+        var cout=txPA.reduce(function(s,t){return s+Number(t.prixAchat||0);},0);
+        var totalComm=tx.reduce(function(s,t){return s+Number(t.commission||0);},0);
+        var profit=txPA.reduce(function(s,t){
+            var q=Number(t.quantite||1), pu=Number(t.prixUnitaire||0), pau=t.paUnitaire!=null?Number(t.paUnitaire):null;
+            var vente=pu>0?q*pu:Number(t.montant||0);
+            var pa=pau!=null?q*pau:Number(t.prixAchat||0);
+            return s+(vente-pa-Number(t.fraisLivraison||0)-Number(t.commission||0));
+        },0);
         var marge=txPA.length?(txPA.reduce(function(s,t){return s+(t.marge||0);},0)/txPA.length):null;
+        // Moyennes unitaires
+        var avgPrixUnit = totalUnites>0&&ca>0 ? ca/totalUnites : null;
+        var avgPAUnit   = totalUnites>0&&cout>0 ? cout/totalUnites : null;
         var mc=marge==null?'rgba(136,146,166,.1)':marge<0?'rgba(255,68,102,.1)':'rgba(0,255,136,.1)';
         var tc=marge==null?'var(--text-muted)':marge<0?'var(--danger)':'var(--success)';
         var nbParrain=tx.filter(function(t){return !!t.parrainCode;}).length;
@@ -42359,12 +42387,13 @@ function _pnlRenderBreakdown(){
             +'<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem">'
             +'<span style="font-size:1.2rem">'+icons[type]+'</span>'
             +'<div><div style="font-size:.84rem;font-weight:700">'+lbls[type]+'</div>'
-            +'<div style="font-size:.7rem;color:var(--text-muted)">'+tx.length+' tx · '+stats[type]+'</div></div></div>'
+            +'<div style="font-size:.7rem;color:var(--text-muted)">'+tx.length+' transaction'+(tx.length>1?'s':'')+' · '+totalUnites+' unité'+(totalUnites>1?'s':'')+' · '+stats[type]+'</div></div></div>'
             +'<div class="pnl-bk-stat"><span class="pnl-bk-k">Chiffre d\'affaires</span><span class="pnl-bk-v" style="color:#4da3ff">'+_pnlFmt(ca)+' F</span></div>'
-            +'<div class="pnl-bk-stat"><span class="pnl-bk-k">Coût d\'achat</span><span class="pnl-bk-v" style="color:#ffaa00">'+(txPA.length?_pnlFmt(cout)+' F':'—')+'</span></div>'
+            +(avgPrixUnit!=null?'<div class="pnl-bk-stat"><span class="pnl-bk-k" style="font-size:.7rem;color:var(--text-muted)">↳ Prix moyen/unité</span><span class="pnl-bk-v" style="color:#4da3ff;font-size:.75rem">'+_pnlFmt(avgPrixUnit)+' F/u</span></div>':'')
+            +'<div class="pnl-bk-stat"><span class="pnl-bk-k">Coût d\'achat total</span><span class="pnl-bk-v" style="color:#ffaa00">'+(txPA.length?_pnlFmt(cout)+' F':'—')+'</span></div>'
+            +(avgPAUnit!=null?'<div class="pnl-bk-stat"><span class="pnl-bk-k" style="font-size:.7rem;color:var(--text-muted)">↳ PA moyen/unité</span><span class="pnl-bk-v" style="color:#ffaa00;font-size:.75rem">'+_pnlFmt(avgPAUnit)+' F/u</span></div>':'')
             +(totalComm>0?'<div class="pnl-bk-stat"><span class="pnl-bk-k">🤝 Commissions</span><span class="pnl-bk-v" style="color:#e879f9">−'+_pnlFmt(totalComm)+' F <span style="font-size:.6rem;opacity:.7">('+nbParrain+' via parrain)</span></span></div>':'')
-            +(txPA.length&&totalComm>0?'<div class="pnl-bk-stat"><span class="pnl-bk-k" style="color:var(--text-muted);font-size:.72rem">Profit brut</span><span class="pnl-bk-v" style="color:var(--text-muted);font-size:.75rem">'+(profitBrut>=0?'+':'')+_pnlFmt(profitBrut)+' F</span></div>':'')
-            +'<div class="pnl-bk-stat"><span class="pnl-bk-k" style="font-weight:700">Profit net</span><span class="pnl-bk-v" style="color:'+(txPA.length?(profit>=0?'var(--success)':'var(--danger)'):'var(--text-muted)')+'">'+(txPA.length?(profit>=0?'+':'')+_pnlFmt(profit)+' F':'—')+'</span></div>'
+            +'<div class="pnl-bk-stat" style="border-top:1px solid var(--border);padding-top:.5rem;margin-top:.3rem"><span class="pnl-bk-k" style="font-weight:700">Profit net</span><span class="pnl-bk-v" style="color:'+(txPA.length?(profit>=0?'var(--success)':'var(--danger)'):'var(--text-muted)')+';font-weight:700">'+(txPA.length?(profit>=0?'+':'')+_pnlFmt(profit)+' F':'—')+'</span></div>'
             +'<div class="pnl-bk-stat"><span class="pnl-bk-k">Avec prix d\'achat</span><span class="pnl-bk-v">'+txPA.length+' / '+tx.length+'</span></div>'
             +'<div class="pnl-bk-marge" style="background:'+mc+';color:'+tc+'">'
             +(marge!=null?'Marge moy. : '+_pnlFmtPct(marge):'Prix d\'achat non renseigné')+'</div></div>';
@@ -42663,24 +42692,44 @@ window.pnlExportTx = function(format){
 
 /* ── LOW MARGIN TABLE ── */
 function _pnlRenderLowMargin(){
-    var low=_pnl.filteredTx.filter(function(t){ return t.prixAchat!=null&&(t.profit<0||(t.marge!=null&&t.marge<10)); });
+    var low=_pnl.filteredTx.filter(function(t){
+        var qty=Number(t.quantite||1), pu=Number(t.prixUnitaire||0), pau=t.paUnitaire!=null?Number(t.paUnitaire):null;
+        var vente=pu>0?qty*pu:Number(t.montant||0);
+        var pa=pau!=null?qty*pau:(t.prixAchat!=null?Number(t.prixAchat):null);
+        if(pa==null) return false;
+        var profit=vente-pa-Number(t.fraisLivraison||0)-Number(t.commission||0);
+        var marge=pa>0?(profit/pa*100):null;
+        return profit<0||(marge!=null&&marge<10);
+    });
     _pnlSet('pnl-low-count','('+low.length+')');
     if(!low.length){
-        _pnlSet('pnl-low-tbody','<tr><td colspan="8"><div class="pnl-no-data"><div class="pnl-no-data-icon">✅</div><div>Aucun produit à risque — toutes les transactions avec prix d\'achat sont rentables.</div></div></td></tr>');
+        _pnlSet('pnl-low-tbody','<tr><td colspan="11"><div class="pnl-no-data"><div class="pnl-no-data-icon">✅</div><div>Aucun produit à risque — toutes les transactions avec prix d\'achat sont rentables.</div></div></td></tr>');
         return;
     }
-    var TI={commande:'📦',troc:'🔄',negociation:'💰'};
+    var TI={commande:'📦 Cmd',troc:'🔄 Troc',negociation:'💰 Négo'};
+    var TC={commande:'pnl-type-order',troc:'pnl-type-troc',negociation:'pnl-type-nego'};
     _pnlSet('pnl-low-tbody', low.slice(0,60).map(function(t){
         var d=_pnlParseDate(t.date); var ds=d?d.toLocaleDateString('fr-FR'):(t.date||'—');
-        var isLoss=t.profit<0;
+        var qty    = Number(t.quantite||1);
+        var pUnit  = Number(t.prixUnitaire||0);
+        var paUnit = t.paUnitaire!=null?Number(t.paUnitaire):null;
+        var vente  = pUnit>0?qty*pUnit:Number(t.montant||0);
+        var paTotal= paUnit!=null?qty*paUnit:(t.prixAchat!=null?Number(t.prixAchat):null);
+        var profit = paTotal!=null?vente-paTotal-Number(t.fraisLivraison||0)-Number(t.commission||0):null;
+        var marge  = (paTotal!=null&&paTotal>0)?(profit/paTotal*100):null;
+        var isLoss = profit!=null&&profit<0;
         return '<tr>'
-            +'<td><strong>'+t.produit+'</strong></td>'
-            +'<td style="font-size:.78rem">'+(TI[t.type]||'')+' '+t.type+'</td>'
-            +'<td class="pnl-mono" style="color:#4da3ff">'+_pnlFmt(t.montant)+' F</td>'
-            +'<td class="pnl-mono" style="color:#ffaa00">'+_pnlFmt(t.prixAchat)+' F</td>'
-            +'<td class="'+(isLoss?'pnl-val-neg':'')+'"><strong>'+(isLoss?'':'+')+''+_pnlFmt(t.profit)+' F</strong></td>'
-            +'<td><span class="'+(isLoss?'pnl-mb-neg':'pnl-mb-med')+'">'+_pnlFmtPct(t.marge)+'</span></td>'
+            +'<td><strong>'+t.produit+'</strong>'+(t.etat?'<br><span style="font-size:.6rem;color:var(--text-muted)">'+t.etat+'</span>':'')+'</td>'
+            +'<td><span class="pnl-type-chip '+(TC[t.type]||'')+'">'+(TI[t.type]||t.type)+'</span></td>'
             +'<td style="font-size:.75rem;color:var(--text-muted)">'+t.client+'</td>'
+            +'<td class="pnl-mono" style="text-align:center;font-weight:800;color:#a78bfa">'+qty+'</td>'
+            +'<td class="pnl-mono" style="color:#4da3ff">'+(pUnit>0?_pnlFmt(pUnit)+' F':'<span style="color:var(--text-muted)">—</span>')+'</td>'
+            +'<td class="pnl-mono" style="color:#4da3ff;font-weight:700">'+_pnlFmt(vente)+' F</td>'
+            +'<td class="pnl-mono" style="color:#ffaa00">'+(paUnit!=null?_pnlFmt(paUnit)+' F':'<span class="pnl-mb-na">—</span>')+'</td>'
+            +'<td class="pnl-mono" style="color:#ffaa00;font-weight:700">'+(paTotal!=null?_pnlFmt(paTotal)+' F':'<span class="pnl-mb-na">—</span>')+'</td>'
+            +'<td class="'+(isLoss?'pnl-val-neg':profit>=0?'pnl-val-pos':'')+'">'+
+                (profit!=null?(isLoss?'':'+')+''+_pnlFmt(profit)+' F':'—')+'</td>'
+            +'<td><span class="'+(isLoss?'pnl-mb-neg':'pnl-mb-med')+'">'+(marge!=null?_pnlFmtPct(marge):'—')+'</span></td>'
             +'<td class="pnl-mono" style="font-size:.72rem;color:var(--text-muted)">'+ds+'</td>'
             +'</tr>';
     }).join(''));
