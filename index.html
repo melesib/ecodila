@@ -23139,7 +23139,7 @@ window._negoStart = function(){
     _negoAddMsg(msg, 'bot', { buttons: btns });
     // Afficher l'input prix d'emblée (le client peut taper directement sans cliquer)
     _negoShowPriceInput(true);
-  }, 700);
+  }, 350);
 };
 
 // 📝 Le client soumet un prix
@@ -23231,7 +23231,7 @@ window._negoSubmitPrice = function(){
 
   // Bot "réfléchit" : 1.2 à 2.5 secondes (random)
   window._negoState = 'bot_thinking';
-  var thinkTime = 1200 + Math.floor(Math.random() * 1300);
+  var thinkTime = 600 + Math.floor(Math.random() * 500);
 
   // Petit message d'attente pendant la réflexion (random)
   var thinkingMsgs = [
@@ -23247,7 +23247,7 @@ window._negoSubmitPrice = function(){
   var thinkMsg = thinkingMsgs[Math.floor(Math.random() * thinkingMsgs.length)];
 
   var typing = _negoShowTyping();
-  // Phase 1 : afficher le message "je réfléchis" après 600ms
+  // Phase 1 : afficher le message "je réfléchis" après 300ms
   setTimeout(function(){
     _negoHideTyping();
     _negoAddMsg(thinkMsg, 'bot');
@@ -23257,9 +23257,9 @@ window._negoSubmitPrice = function(){
     setTimeout(function(){
       _negoHideTyping();
       _negoProcessClientPrice(clientPrice, prixMinAcceptable, prixAchat, refPrix, previousClientPrice);
-    }, thinkTime - 600);
+    }, thinkTime - 300);
 
-  }, 600);
+  }, 300);
 };
 
 // 🧠 Traite le prix proposé par le client et choisit la stratégie du bot
