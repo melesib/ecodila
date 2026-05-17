@@ -29612,6 +29612,14 @@ function displayNegociations() {
                         <div style="font-size:.65rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;margin-bottom:.3rem">Prix proposé</div>
                         <div style="font-weight:800;font-size:.95rem;color:${diffColor};font-family:'Space Mono',monospace">${prixProp.toLocaleString('fr-FR')} <span style="font-size:.7rem">FCFA</span></div>
                     </div>
+                    ${n.quantite && n.quantite > 1 ? `
+                    <div style="padding:.65rem;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px;text-align:center;grid-column:1/-1">
+                        <div style="font-size:.65rem;color:#6366f1;font-weight:700;text-transform:uppercase;margin-bottom:.3rem">🔢 Quantité négociée</div>
+                        <div style="font-weight:800;font-size:.95rem;color:#6366f1;font-family:'Space Mono',monospace">
+                            ${Number(n.quantite)} × ${(n.prixSaisi||prixProp).toLocaleString('fr-FR')} FCFA/u
+                            = <span style="color:#fff">${((n.quantite)*(n.prixSaisi||prixProp)).toLocaleString('fr-FR')} FCFA</span>
+                        </div>
+                    </div>` : ''}
                     ${n.contreProposition ? `
                     <div style="padding:.65rem;background:var(--background);border-radius:8px;text-align:center">
                         <div style="font-size:.65rem;color:#8b5cf6;font-weight:700;text-transform:uppercase;margin-bottom:.3rem">Contre-prop.</div>
