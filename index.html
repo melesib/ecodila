@@ -14714,12 +14714,15 @@ function _genRecu(c){
         var w=window.open('','_blank','width=680,height=820');
         var nom=c.appareil||c.produits||((c.marque||'')+' '+(c.modele||'')).trim()||'Article';
         var total=Number(c.total||c.montant||c.prix||0);
+        var qty = Number(c.quantite||1);
+        var prixUnit = Number(c.prix||0);
+        var prixTotal = qty > 1 ? qty * prixUnit : total || prixUnit;
         var coup=c.couponCode?('<tr><td colspan="3" style="color:#16a34a;font-size:.8rem">🏷 '+c.couponCode+'</td><td style="color:#16a34a">−'+Number(c.couponRemise||0).toLocaleString('fr-FR')+' FCFA</td></tr>'):'';
         w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu '+c.id+'</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;padding:1rem;max-width:600px;margin:auto;color:#1a1a1a}.logo{font-size:1.6rem;font-weight:900;color:#2d6a4f}table{width:100%;border-collapse:collapse;margin:.5rem 0}th{background:#f0fdf4;padding:.45rem;text-align:left;font-size:.95rem;color:#166534;font-weight:700}td{padding:.4rem;border-bottom:1px solid #f5f5f5;font-size:.95rem}.total{font-weight:700;font-size:1.15rem;color:#2d6a4f}@media print{button{display:none}}@media(max-width:480px){body{padding:.75rem}th,td{padding:.5rem .35rem}.logo{font-size:1.5rem}}</style></head><body>'
         +'<div style="display:flex;justify-content:space-between;border-bottom:3px solid #2d6a4f;padding-bottom:1rem;margin-bottom:1.5rem"><div><p class="logo">EcoDila</p><small>Reçu de commande</small></div><div style="text-align:right"><strong>'+c.id+'</strong><br><small>'+c.date+'</small></div></div>'
-        +'<table><thead><tr><th>Produit</th><th>Qté</th><th>Prix</th><th>Total</th></tr></thead><tbody>'
-        +'<tr><td>'+nom+'</td><td>1</td><td>'+Number(c.prix||0).toLocaleString('fr-FR')+' FCFA</td><td>'+Number(c.prix||0).toLocaleString('fr-FR')+' FCFA</td></tr>'+coup
-        +'<tr class="total"><td colspan="3" style="text-align:right;padding-right:.5rem">Total</td><td>'+total.toLocaleString('fr-FR')+' FCFA</td></tr>'
+        +'<table><thead><tr><th>Produit</th><th>Qté</th><th>Prix unit.</th><th>Total</th></tr></thead><tbody>'
+        +'<tr><td>'+nom+'</td><td>'+qty+'</td><td>'+prixUnit.toLocaleString('fr-FR')+' FCFA</td><td>'+prixTotal.toLocaleString('fr-FR')+' FCFA</td></tr>'+coup
+        +'<tr class="total"><td colspan="3" style="text-align:right;padding-right:.5rem">Total</td><td>'+(total||prixTotal).toLocaleString('fr-FR')+' FCFA</td></tr>'
         +'</tbody></table>'
         +'<p style="margin-top:1rem;font-size:.82rem">'+c.nom+(c.tel?' · '+c.tel:'')+(c.email?' · '+c.email:'')+'</p>'
         +(c.statut?'<p style="color:#6b7280;font-size:.78rem">Statut : <strong>'+c.statut+'</strong></p>':'')
@@ -14773,8 +14776,10 @@ function _genRecuProp(o){
         var w=window.open('','_blank','width=680,height=820');
         var nom=o.appareil||((o.marque||'')+' '+(o.modele||'')).trim()||'Appareil';
         var pOff=Number(o.prixOfficiel||o.prix||0);
-        var pPro=Number(o.prixPropose||o.prixSaisi||0);
-        var montantFinal=Number(o.montantAccepte||o.contreProposition||pPro||0);
+        var pPro=Number(o.prixSaisi||o.prixPropose||0);
+        var qty=Number(o.quantite||1);
+        var montantUnitaire=Number(o.montantAccepte||o.contreProposition||pPro||0);
+        var montantFinal=qty>1 ? montantUnitaire*qty : Number(o.total||montantUnitaire);
         var diff=pPro-pOff,pct=pOff>0?Math.abs(Math.round(diff/pOff*100)):0;
         var coup=o.couponCode?('<tr><td colspan="2" style="color:#16a34a;font-size:.8rem;padding:.4rem">🏷 Coupon : '+o.couponCode+'</td><td style="color:#16a34a;padding:.4rem">−'+Number(o.couponRemise||0).toLocaleString('fr-FR')+' FCFA</td></tr>'):'';
         w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu Proposition '+o.id+'</title><meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -14790,13 +14795,13 @@ function _genRecuProp(o){
         +'<div><p class="logo">EcoDila</p><small>Reçu de proposition de prix</small></div>'
         +'<div style="text-align:right"><strong>'+o.id+'</strong><br><small>'+o.date+'</small></div>'
         +'</div>'
-        +'<table><thead><tr><th>Appareil</th><th>Prix catalogue</th><th>Votre offre</th><th>Montant final</th></tr></thead><tbody>'
-        +'<tr><td>'+nom+'</td>'
-        +'<td>'+pOff.toLocaleString('fr-FR')+' FCFA</td>'
+        +'<table><thead><tr><th>Appareil</th><th>Qté</th><th>Prix négocié</th><th>Total</th></tr></thead><tbody>'
+        +'<tr><td>'+nom+(o.etat?' <small>('+o.etat+')</small>':'')+'</td>'
+        +'<td>'+qty+'</td>'
         +'<td>'+pPro.toLocaleString('fr-FR')+' FCFA'+(pOff>0?' <small style="color:'+(diff<0?'#ef4444':'#22c55e')+'">'+pct+'% '+(diff<0?'−':'↑')+'</small>':'')+'</td>'
         +'<td><strong>'+montantFinal.toLocaleString('fr-FR')+' FCFA</strong></td></tr>'
         +coup
-        +'<tr class="total"><td colspan="3" style="text-align:right;padding-right:.5rem">Montant accepté</td>'
+        +'<tr class="total"><td colspan="3" style="text-align:right;padding-right:.5rem">Total</td>'
         +'<td>'+montantFinal.toLocaleString('fr-FR')+' FCFA</td></tr>'
         +'</tbody></table>'
         +'<p style="margin-top:.6rem;font-size:.82rem">'+o.nom+(o.tel?' · '+o.tel:'')+(o.email?' · '+o.email:'')+'</p>'
