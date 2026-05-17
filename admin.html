@@ -15987,6 +15987,7 @@ function loadPeriodOrders(periodOrdersArg) {
         details:  [
             (n.etat||n.qualite) ? `✨ ${n.etat||n.qualite}` : '',
             n.spec    ? `💾 ${n.spec}` : '',
+            n.quantite && n.quantite > 1 ? `🔢 Qté : ${Number(n.quantite)} × ${n.prixSaisi ? Number(n.prixSaisi).toLocaleString('fr-FR') + ' FCFA/u' : (n.prixPropose && n.quantite ? Math.round(n.prixPropose/n.quantite).toLocaleString('fr-FR') + ' FCFA/u' : '')}` : '',
             n.prixOfficiel ? `🏷️ Prix officiel : ${(n.prixOfficiel).toLocaleString('fr-FR')} FCFA` : '',
             n.diffPct  ? `📉 Remise demandée : ${Math.abs(n.diffPct)}%` : '',
             n.contreProposition ? `🔄 Contre-prop : ${(n.contreProposition).toLocaleString('fr-FR')} FCFA` : '',
