@@ -12639,8 +12639,9 @@ window.admMgr = {
                                 <th>Produit</th>
                                 <th>Client</th>
                                 <th>Date</th>
-                                <th>Vente</th>
-                                <th>Prix Achat</th>
+                                <th style="color:#a78bfa">🔢 Qté / P.Unit</th>
+                                <th>Vente Total</th>
+                                <th>PA Total</th>
                                 <th style="color:#818cf8">🚚 Transport</th>
                                 <th style="color:#e879f9">🤝 Commission</th>
                                 <th style="color:var(--text-muted)">Profit Brut</th>
@@ -42056,11 +42057,13 @@ function _pnlBuildTx(){
 
     orders.filter(function(o){ return o.statut==='Livrée'; }).forEach(function(o){
         var nom = o.produits||o.appareil||'—';
-        var montant = o.total||0;
-        var pa = _pnlGetPA(o.produitId, nom, o.etat||o.qualite);
+        var qty = Number(o.quantite||1);
+        var montant = Number(o.total||0) || (Number(o.prix||0) * qty);
+        var paUnit = _pnlGetPA(o.produitId, nom, o.etat||o.qualite);
+        var pa = paUnit != null ? paUnit * qty : null;  // PA total = PA unitaire × quantité
         var fraisLiv = Number(o.fraisLivraison||0);
         var comm = _attachComm(o.id||'');
-        /* Profit net = Vente − PA − Livraison − Commission parrain */
+        /* Profit net = Vente − PA total − Livraison − Commission parrain */
         var profitBrut = pa!=null ? montant-pa-fraisLiv : null;
         var profit = profitBrut!=null ? profitBrut - comm.commission : null;
         var marge  = (pa!=null && pa>0) ? (profit/pa*100) : null;
@@ -42068,6 +42071,7 @@ function _pnlBuildTx(){
             origine:_pnlGetOrigine(o.produitId, nom),
             client: (((o.nom||'')+' '+(o.prenom||'')).trim())||'Anonyme',
             date: o.dateISO||o.dateCreation||o.created_at||o.date||'',
+            quantite: qty, prixUnitaire: Number(o.prix||0), paUnitaire: paUnit,
             montant:montant, prixAchat:pa, profit:profit, marge:marge,
             etat:o.etat||o.qualite||'', statut:'Livrée', categorie:o.categorie||o.cat||'', produitId:o.produitId||null,
             villeId:o.villeId||'', villeNom:o.villeNom||'', commune:o.commune||'',
@@ -42108,10 +42112,15 @@ function _pnlBuildTx(){
 
     negos.filter(function(n){ return n.statut==='Acceptée'; }).forEach(function(n){
         var nom = n.appareil||((n.marque||'')+' '+(n.modele||'')).trim()||'—';
-        var montant = n.montantAccepte||n.contreProposition||n.prixPropose||0;
-        // PA : 1) stocké dans la négo (produit catalogue), 2) lookup par ID, 3) fallback marque+modèle
-        var pa = (n.prixAchat != null && Number(n.prixAchat) > 0) ? Number(n.prixAchat) 
+        var qty = Number(n.quantite||1);
+        // Prix unitaire négocié (prixSaisi ou prixPropose depuis notre fix)
+        var prixUnit = Number(n.prixSaisi||n.prixPropose||0);
+        // Montant total = total stocké OU prix unitaire × quantité OU montantAccepte
+        var montant = Number(n.total||0) || Number(n.montantAccepte||0) || Number(n.contreProposition||0) || (prixUnit * qty);
+        // PA : 1) stocké dans la négo, 2) lookup par ID, 3) fallback marque+modèle — × quantité
+        var paUnit = (n.prixAchat != null && Number(n.prixAchat) > 0) ? Number(n.prixAchat)
                : _pnlGetPA(n.produitId, nom, n.etat||n.qualite) || _pnlGetPA(null, (n.marque||'')+' '+(n.modele||''), n.etat||n.qualite) || null;
+        var pa = paUnit != null ? paUnit * qty : null;  // PA total = PA unitaire × quantité
         var fraisLiv = Number(n.fraisLivraison||0);
         var comm = _attachComm(n.id||'');
         var profitBrut = pa!=null ? montant-pa-fraisLiv : null;
@@ -42121,6 +42130,7 @@ function _pnlBuildTx(){
             origine:_pnlGetOrigine(n.produitId||n.produitLieId, nom),
             client: (((n.nom||'')+' '+(n.prenom||'')).trim())||'Anonyme',
             date: n.dateISO||n.dateCreation||n.created_at||n.date||'',
+            quantite: qty, prixUnitaire: prixUnit, paUnitaire: paUnit,
             montant:montant, prixAchat:pa, profit:profit, marge:marge,
             etat:n.etat||n.qualite||'', statut:'Acceptée', categorie:n.categorie||n.cat||'', produitId:n.produitId||null,
             villeId:n.villeId||'', villeNom:n.villeNom||'', commune:n.commune||'',
@@ -42570,8 +42580,9 @@ window.pnlRenderTxTable = function(){
             +'<td style="font-size:.82rem"><strong>'+t.produit+'</strong>'+(t.etat?'<br><span style="font-size:.58rem;font-weight:700;padding:.05rem .3rem;border-radius:100px;'+(t.etat==='Neuf'?'background:rgba(34,197,94,.12);color:#15803d;border:1px solid rgba(34,197,94,.3)':t.etat==='Occasion'?'background:rgba(217,119,6,.1);color:#92400e;border:1px solid rgba(217,119,6,.3)':'background:rgba(124,58,237,.1);color:#5b21b6;border:1px solid rgba(124,58,237,.3)')+'">'+(t.etat==='Neuf'?'✨':t.etat==='Occasion'?'👐':'♻️')+' '+t.etat+'</span>':'')+'</td>'
             +'<td style="font-size:.75rem;color:var(--text-muted)">'+t.client+'</td>'
             +'<td class="pnl-mono" style="font-size:.72rem;color:var(--text-muted)">'+ds+'</td>'
+            +'<td class="pnl-mono" style="font-size:.78rem;color:#a78bfa">'+(t.quantite>1?'<strong>×'+t.quantite+'</strong><br>':'')+(t.prixUnitaire>0?_pnlFmt(t.prixUnitaire)+' F/u':'<span style="color:var(--text-muted)">—</span>')+'</td>'
             +'<td class="pnl-mono" style="color:#4da3ff">'+_pnlFmt(t.montant)+' F</td>'
-            +'<td class="pnl-mono" style="color:#ffaa00">'+(hpa?_pnlFmt(t.prixAchat)+' F':'<span class="pnl-mb-na">—</span>')+'</td>'
+            +'<td class="pnl-mono" style="color:#ffaa00">'+(hpa?_pnlFmt(t.prixAchat)+' F'+(t.quantite>1&&t.paUnitaire?'<br><small style="font-size:.62rem;color:var(--text-muted)">'+_pnlFmt(t.paUnitaire)+' F/u</small>':''):'<span class="pnl-mb-na">—</span>')+'</td>'
             +'<td class="pnl-mono" style="color:#818cf8">'+((t.fraisLivraison||0)>0?'−'+_pnlFmt(t.fraisLivraison)+' F'+(t.villeNom?'<br><small style="font-size:.62rem;color:var(--text-muted)">'+t.villeNom+'</small>':''):'<span class="pnl-mb-na">—</span>')+'</td>'
             +'<td>'+commCell+'</td>'
             +'<td class="pnl-mono" style="color:var(--text-muted);font-size:.75rem">'+
@@ -42590,14 +42601,15 @@ window.pnlTxPage = function(dir){ _pnl.txPage+=dir; pnlRenderTxTable(); };
 window.pnlExportTx = function(format){
     var tx = _pnlGetActiveTx();
     if(!tx.length){ alert('Aucune transaction à exporter'); return; }
-    var headers = ['ID','Type','Origine','Produit','État','Client','Date','Montant','Prix Achat','Transport','Commission','Profit Net','Marge %','Statut'];
+    var headers = ['ID','Type','Origine','Produit','État','Client','Date','Qté','Prix Unit.','Vente Total','PA Total','PA Unit.','Transport','Commission','Profit Net','Marge %','Statut'];
     var rows = tx.map(function(t){
         var d = _pnlParseDate(t.date);
         var ds = d ? ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear() : (t.date||'');
         var typeL = {commande:'Commande',troc:'Troc',negociation:'Négociation'};
         return [
             t.id, typeL[t.type]||t.type, t.origine||'', t.produit, t.etat||'',
-            t.client, ds, t.montant||0, t.prixAchat!=null?t.prixAchat:'',
+            t.client, ds, t.quantite||1, t.prixUnitaire||0, t.montant||0,
+            t.prixAchat!=null?t.prixAchat:'', t.paUnitaire!=null?t.paUnitaire:'',
             t.fraisLivraison||0, t.commission||0,
             t.profit!=null?t.profit:'', t.marge!=null?Math.round(t.marge*10)/10+'%':'',
             t.statut||''
