@@ -42200,21 +42200,44 @@ window.pnlSetTxType = function(type, el){
 /* ── KPIs ── */
 function _pnlRenderKPIs(){
     var tx   = _pnl.filteredTx;
-    var txPA = tx.filter(function(t){ return t.prixAchat!=null; });
-    var ca      = tx.reduce(function(s,t){ return s+t.montant; }, 0);
-    var cout    = txPA.reduce(function(s,t){ return s+(t.prixAchat||0); }, 0);
     var totalComm = tx.reduce(function(s,t){ return s+(t.commission||0); }, 0);
-    var profitBrut = txPA.reduce(function(s,t){ return s+(t.profit!=null ? t.profit+(t.commission||0) : 0); }, 0);
-    var profit  = txPA.reduce(function(s,t){ return s+(t.profit||0); }, 0);
-    var marge   = txPA.length ? (txPA.reduce(function(s,t){ return s+(t.marge||0); }, 0)/txPA.length) : null;
-    var pertes  = tx.filter(function(t){ return t.profit!=null&&t.profit<0; });
-    var perteMontant = pertes.reduce(function(s,t){ return s+(t.profit||0); }, 0);
     var nbParrain = tx.filter(function(t){ return !!t.parrainCode; }).length;
+
+    // Recalcul cohérent depuis qty × prix unitaire
+    var ca=0, cout=0, profit=0, profitCount=0;
+    tx.forEach(function(t){
+        var q   = Number(t.quantite||1);
+        var pu  = Number(t.prixUnitaire||0);
+        var pau = t.paUnitaire!=null ? Number(t.paUnitaire) : null;
+        var vente = pu>0 ? q*pu : Number(t.montant||0);
+        var pa    = pau!=null ? q*pau : (t.prixAchat!=null ? Number(t.prixAchat) : null);
+        ca += vente;
+        if(pa!=null){
+            cout += pa;
+            profit += vente - pa - Number(t.fraisLivraison||0) - Number(t.commission||0);
+            profitCount++;
+        }
+    });
+    var marge = (profitCount>0 && cout>0) ? (profit/cout*100) : null;
+
+    var pertes = tx.filter(function(t){
+        var q=Number(t.quantite||1), pu=Number(t.prixUnitaire||0), pau=t.paUnitaire!=null?Number(t.paUnitaire):null;
+        var vente=pu>0?q*pu:Number(t.montant||0);
+        var pa=pau!=null?q*pau:(t.prixAchat!=null?Number(t.prixAchat):null);
+        if(pa==null) return false;
+        return (vente-pa-Number(t.fraisLivraison||0)-Number(t.commission||0)) < 0;
+    });
+    var perteMontant = pertes.reduce(function(s,t){
+        var q=Number(t.quantite||1), pu=Number(t.prixUnitaire||0), pau=t.paUnitaire!=null?Number(t.paUnitaire):null;
+        var vente=pu>0?q*pu:Number(t.montant||0);
+        var pa=pau!=null?q*pau:(t.prixAchat!=null?Number(t.prixAchat):null);
+        return s+(vente-pa-Number(t.fraisLivraison||0)-Number(t.commission||0));
+    },0);
 
     _pnlSet('pnl-k-ca',     _pnlFmt(ca)+' <small style="font-size:.55rem;color:var(--text-muted)">FCFA</small>');
     _pnlSet('pnl-k-tx',     tx.length+' transaction'+(tx.length>1?'s':''));
     _pnlSet('pnl-k-cout',   _pnlFmt(cout)+' <small style="font-size:.55rem;color:var(--text-muted)">FCFA</small>');
-    _pnlSet('pnl-k-cout-sub', txPA.length+' / '+tx.length+' avec prix d\'achat');
+    _pnlSet('pnl-k-cout-sub', profitCount+' / '+tx.length+' avec prix d\'achat');
     _pnlSet('pnl-k-profit', _pnlFmt(profit)+' <small style="font-size:.55rem;color:var(--text-muted)">FCFA</small>');
     _pnlSet('pnl-k-marge',  marge!=null ? (marge>=0?'+':'')+marge.toFixed(1)+'%' : '—');
     _pnlSet('pnl-k-pertes', pertes.length);
@@ -42231,7 +42254,7 @@ function _pnlRenderKPIs(){
     var nbHV       = hvComms.length;
     var profitReel = profit - totalHV; /* profit net ventes − charges hors-ventes */
     if(kCommSub){
-      var subTxt = nbParrain+' vente'+(nbParrain>1?'s':'')+' via parrain · brut '+_pnlFmt(profitBrut)+' F';
+      var subTxt = nbParrain+' vente'+(nbParrain>1?'s':'')+' via parrain';
       if(nbHV>0) subTxt += ' · 🎯 '+_pnlFmt(totalHV)+' F challenges';
       kCommSub.textContent = subTxt;
     }
@@ -42244,7 +42267,7 @@ function _pnlRenderKPIs(){
     if(hvSub && nbHV>0) hvSub.textContent = nbHV+' prime'+(nbHV>1?'s':'')+' · profit réel '+_pnlFmt(profitReel)+' F';
     /* Mettre à jour le profit net badge pour refléter la réalité */
     var badge = document.getElementById('pnl-k-profit-badge');
-    if(badge && txPA.length>0){
+    if(badge && profitCount>0){
         badge.innerHTML = profitReel>=0
             ? '<span class="pnl-badge-ok">✓ Bénéficiaire</span>'
             : '<span class="pnl-badge-ko">✗ Déficitaire</span>';
@@ -42299,8 +42322,16 @@ function _pnlRenderCharts(){
         var d=_pnlParseDate(tx.date); if(!d) return;
         var key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
         if(!byMonth[key]) byMonth[key]={ca:0,cout:0,profit:0};
-        byMonth[key].ca+=tx.montant;
-        if(tx.prixAchat!=null){ byMonth[key].cout+=tx.prixAchat; byMonth[key].profit+=(tx.profit||0); }
+        var q   = Number(tx.quantite||1);
+        var pu  = Number(tx.prixUnitaire||0);
+        var pau = tx.paUnitaire!=null ? Number(tx.paUnitaire) : null;
+        var vente = pu>0 ? q*pu : Number(tx.montant||0);
+        var pa    = pau!=null ? q*pau : (tx.prixAchat!=null ? Number(tx.prixAchat) : null);
+        byMonth[key].ca += vente;
+        if(pa!=null){
+            byMonth[key].cout += pa;
+            byMonth[key].profit += vente - pa - Number(tx.fraisLivraison||0) - Number(tx.commission||0);
+        }
     });
     var months=Object.keys(byMonth).sort();
     var MOIS=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
@@ -42332,7 +42363,11 @@ function _pnlRenderCharts(){
 
     var byType={commande:{profit:0},troc:{profit:0},negociation:{profit:0}};
     _pnl.filteredTx.forEach(function(t){
-        if(byType[t.type]&&t.profit!=null) byType[t.type].profit+=t.profit;
+        if(!byType[t.type]) return;
+        var q=Number(t.quantite||1), pu=Number(t.prixUnitaire||0), pau=t.paUnitaire!=null?Number(t.paUnitaire):null;
+        var vente=pu>0?q*pu:Number(t.montant||0);
+        var pa=pau!=null?q*pau:(t.prixAchat!=null?Number(t.prixAchat):null);
+        if(pa!=null) byType[t.type].profit += vente-pa-Number(t.fraisLivraison||0)-Number(t.commission||0);
     });
     if(_pnl.chartTypes){ _pnl.chartTypes.destroy(); _pnl.chartTypes=null; }
     var ctx2=document.getElementById('pnl-chart-types');
@@ -42364,25 +42399,32 @@ function _pnlRenderBreakdown(){
     var stats={commande:'Livrée',troc:'Validé / Terminé',negociation:'Acceptée'};
     var html=types.map(function(type){
         var tx=_pnl.filteredTx.filter(function(t){return t.type===type;});
-        var txPA=tx.filter(function(t){return t.prixAchat!=null;});
-        // Totaux
         var totalUnites = tx.reduce(function(s,t){return s+Number(t.quantite||1);},0);
-        var ca=tx.reduce(function(s,t){return s+Number(t.montant||0);},0);
-        var cout=txPA.reduce(function(s,t){return s+Number(t.prixAchat||0);},0);
-        var totalComm=tx.reduce(function(s,t){return s+Number(t.commission||0);},0);
-        var profit=txPA.reduce(function(s,t){
-            var q=Number(t.quantite||1), pu=Number(t.prixUnitaire||0), pau=t.paUnitaire!=null?Number(t.paUnitaire):null;
-            var vente=pu>0?q*pu:Number(t.montant||0);
-            var pa=pau!=null?q*pau:Number(t.prixAchat||0);
-            return s+(vente-pa-Number(t.fraisLivraison||0)-Number(t.commission||0));
-        },0);
-        var marge=txPA.length?(txPA.reduce(function(s,t){return s+(t.marge||0);},0)/txPA.length):null;
-        // Moyennes unitaires
-        var avgPrixUnit = totalUnites>0&&ca>0 ? ca/totalUnites : null;
-        var avgPAUnit   = totalUnites>0&&cout>0 ? cout/totalUnites : null;
+        var totalComm   = tx.reduce(function(s,t){return s+Number(t.commission||0);},0);
+        var nbParrain   = tx.filter(function(t){return !!t.parrainCode;}).length;
+
+        // Recalcul cohérent CA / Coût / Profit / Marge depuis qty × prix unitaire
+        var ca=0, cout=0, profit=0, profitCount=0;
+        tx.forEach(function(t){
+            var q   = Number(t.quantite||1);
+            var pu  = Number(t.prixUnitaire||0);
+            var pau = t.paUnitaire!=null ? Number(t.paUnitaire) : null;
+            var vente = pu>0 ? q*pu : Number(t.montant||0);
+            var pa    = pau!=null ? q*pau : (t.prixAchat!=null ? Number(t.prixAchat) : null);
+            ca += vente;
+            if(pa!=null){
+                cout += pa;
+                profit += vente - pa - Number(t.fraisLivraison||0) - Number(t.commission||0);
+                profitCount++;
+            }
+        });
+        // Marge globale = profit / coût (cohérent avec les chiffres affichés)
+        var marge = (profitCount>0 && cout>0) ? (profit/cout*100) : null;
+        // Moyenne prix unitaire
+        var avgPrixUnit = totalUnites>0 && ca>0 ? ca/totalUnites : null;
+        var avgPAUnit   = totalUnites>0 && cout>0 ? cout/totalUnites : null;
         var mc=marge==null?'rgba(136,146,166,.1)':marge<0?'rgba(255,68,102,.1)':'rgba(0,255,136,.1)';
         var tc=marge==null?'var(--text-muted)':marge<0?'var(--danger)':'var(--success)';
-        var nbParrain=tx.filter(function(t){return !!t.parrainCode;}).length;
         return '<div class="pnl-bk-card">'
             +'<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem">'
             +'<span style="font-size:1.2rem">'+icons[type]+'</span>'
