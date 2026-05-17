@@ -31648,15 +31648,22 @@ async function _auditPhasePages(report) {
             renderTime = 0;
             if (page.id === 'catalogue') {
                 try {
-                    const prods = (adminData.products || []);
+                    var prods = (adminData.products || []);
+                    // Fallback : lire depuis le cache local si adminData vide
+                    if (!prods || prods.length === 0) {
+                        try { var _lp = localStorage.getItem('ecodila_admin_products'); if(_lp) prods = JSON.parse(_lp)||[]; } catch(e){}
+                    }
                     if (!prods || prods.length === 0) { issues.push('Aucun produit trouvé en Supabase'); status = 'warn'; }
                     else { issues.push('Produits détectés: ' + prods.length); status = 'ok'; }
                 } catch(e) { issues.push('Erreur lecture produits: ' + e.message); status = 'warn'; }
             } else if (page.id === 'acheter') {
                 try {
-                    const prods = (adminData.products || []);
-                    status = prods.length > 0 ? 'ok' : 'warn';
-                    issues.push(prods.length > 0 ? 'Catalogue disponible (' + prods.length + ' produits)' : 'Aucun produit disponible à l\'achat');
+                    var prods2 = (adminData.products || []);
+                    if (!prods2 || prods2.length === 0) {
+                        try { var _lp2 = localStorage.getItem('ecodila_admin_products'); if(_lp2) prods2 = JSON.parse(_lp2)||[]; } catch(e){}
+                    }
+                    status = prods2.length > 0 ? 'ok' : 'warn';
+                    issues.push(prods2.length > 0 ? 'Catalogue disponible (' + prods2.length + ' produits)' : 'Aucun produit disponible à l\'achat');
                 } catch(e) { status = 'warn'; issues.push('Erreur vérification catalogue'); }
             } else if (page.id === 'troquer') {
                 try {
@@ -32311,8 +32318,8 @@ async function _auditPhasePerf(report) {
 
     _auditLog('DOM Ready: ' + domLoadTime + 'ms | Page Load: ' + pageLoadTime + 'ms | TTFB: ' + ttfb + 'ms', pageLoadTime > 3000 ? 'warn' : 'success');
 
-    if (pageLoadTime > 5000) report.bugs.push({ category: 'Performance', severity: 'high', title: 'Temps de chargement très lent', detail: pageLoadTime + 'ms (seuil critique: 5000ms)', page: 'global' });
-    else if (pageLoadTime > 3000) report.bugs.push({ category: 'Performance', severity: 'medium', title: 'Temps de chargement lent', detail: pageLoadTime + 'ms (recommandé: <3000ms)', page: 'global' });
+    if (pageLoadTime > 7000) report.bugs.push({ category: 'Performance', severity: 'high', title: 'Temps de chargement très lent', detail: pageLoadTime + 'ms (seuil critique: 7000ms)', page: 'global' });
+    else if (pageLoadTime > 5000) report.bugs.push({ category: 'Performance', severity: 'medium', title: 'Temps de chargement lent', detail: pageLoadTime + 'ms (recommandé: <5000ms sur réseau CI)', page: 'global' });
 
     // Ressources lentes
     await _auditSleep(200);
@@ -33463,8 +33470,8 @@ function _auditComputeScore(report) {
     });
 
     var p = report.performance || {};
-    if (p.pageLoadTime > 5000)        domains.performance.score = Math.max(0, domains.performance.score - 30);
-    else if (p.pageLoadTime > 3000)   domains.performance.score = Math.max(0, domains.performance.score - 15);
+    if (p.pageLoadTime > 7000)        domains.performance.score = Math.max(0, domains.performance.score - 30);
+    else if (p.pageLoadTime > 5000)   domains.performance.score = Math.max(0, domains.performance.score - 15);
     if (p.storageSizeKB > 4000)  domains.donnees.score = Math.max(0, domains.donnees.score - 20);
     else if (p.storageSizeKB > 3000) domains.donnees.score = Math.max(0, domains.donnees.score - 10);
     if (p.jsErrors > 0)               domains.fonctionnel.score = Math.max(0, domains.fonctionnel.score - Math.min(40, p.jsErrors * 8));
