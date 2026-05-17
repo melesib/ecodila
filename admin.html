@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!-- build:2026-05-17-2105-txpa-fix -->
 <html lang="fr">
 <head>
 <!-- ════════════════════════════════════════════════════════════════════
@@ -42432,11 +42432,11 @@ function _pnlRenderBreakdown(){
             +'<div style="font-size:.7rem;color:var(--text-muted)">'+tx.length+' transaction'+(tx.length>1?'s':'')+' · '+totalUnites+' unité'+(totalUnites>1?'s':'')+' · '+stats[type]+'</div></div></div>'
             +'<div class="pnl-bk-stat"><span class="pnl-bk-k">Chiffre d\'affaires</span><span class="pnl-bk-v" style="color:#4da3ff">'+_pnlFmt(ca)+' F</span></div>'
             +(avgPrixUnit!=null?'<div class="pnl-bk-stat"><span class="pnl-bk-k" style="font-size:.7rem;color:var(--text-muted)">↳ Prix moyen/unité</span><span class="pnl-bk-v" style="color:#4da3ff;font-size:.75rem">'+_pnlFmt(avgPrixUnit)+' F/u</span></div>':'')
-            +'<div class="pnl-bk-stat"><span class="pnl-bk-k">Coût d\'achat total</span><span class="pnl-bk-v" style="color:#ffaa00">'+(txPA.length?_pnlFmt(cout)+' F':'—')+'</span></div>'
+            +'<div class="pnl-bk-stat"><span class="pnl-bk-k">Coût d\'achat total</span><span class="pnl-bk-v" style="color:#ffaa00">'+(profitCount>0?_pnlFmt(cout)+' F':'—')+'</span></div>'
             +(avgPAUnit!=null?'<div class="pnl-bk-stat"><span class="pnl-bk-k" style="font-size:.7rem;color:var(--text-muted)">↳ PA moyen/unité</span><span class="pnl-bk-v" style="color:#ffaa00;font-size:.75rem">'+_pnlFmt(avgPAUnit)+' F/u</span></div>':'')
             +(totalComm>0?'<div class="pnl-bk-stat"><span class="pnl-bk-k">🤝 Commissions</span><span class="pnl-bk-v" style="color:#e879f9">−'+_pnlFmt(totalComm)+' F <span style="font-size:.6rem;opacity:.7">('+nbParrain+' via parrain)</span></span></div>':'')
-            +'<div class="pnl-bk-stat" style="border-top:1px solid var(--border);padding-top:.5rem;margin-top:.3rem"><span class="pnl-bk-k" style="font-weight:700">Profit net</span><span class="pnl-bk-v" style="color:'+(txPA.length?(profit>=0?'var(--success)':'var(--danger)'):'var(--text-muted)')+';font-weight:700">'+(txPA.length?(profit>=0?'+':'')+_pnlFmt(profit)+' F':'—')+'</span></div>'
-            +'<div class="pnl-bk-stat"><span class="pnl-bk-k">Avec prix d\'achat</span><span class="pnl-bk-v">'+txPA.length+' / '+tx.length+'</span></div>'
+            +'<div class="pnl-bk-stat" style="border-top:1px solid var(--border);padding-top:.5rem;margin-top:.3rem"><span class="pnl-bk-k" style="font-weight:700">Profit net</span><span class="pnl-bk-v" style="color:'+(profitCount>0?(profit>=0?'var(--success)':'var(--danger)'):'var(--text-muted)')+';font-weight:700">'+(profitCount>0?(profit>=0?'+':'')+_pnlFmt(profit)+' F':'—')+'</span></div>'
+            +'<div class="pnl-bk-stat"><span class="pnl-bk-k">Avec prix d\'achat</span><span class="pnl-bk-v">'+profitCount+' / '+tx.length+'</span></div>'
             +'<div class="pnl-bk-marge" style="background:'+mc+';color:'+tc+'">'
             +(marge!=null?'Marge moy. : '+_pnlFmtPct(marge):'Prix d\'achat non renseigné')+'</div></div>';
     }).join('');
