@@ -19374,7 +19374,7 @@ function openOfferModal(productId) {
             <!-- Annuler retiré : la croix ✕ en haut ouvre le modal de confirmation 3 options -->
             <div id="offer-footer-step2" style="display:none;position:sticky;bottom:0;background:#fff;border-top:1px solid #e5e7eb;padding:.55rem .9rem;gap:.5rem;box-shadow:0 -4px 12px rgba(0,0,0,.04)">
                 <button type="button" onclick="_offerBackToStep1()" style="flex:0 0 auto;padding:.7rem .9rem;border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer;font-weight:700;font-size:.84rem;color:#6b7280;font-family:inherit">← Retour</button>
-                <button id="offer-submit-btn" type="button" onclick="_negoConfirmerCommande()" style="flex:1;padding:.7rem;border:none;border-radius:8px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;cursor:pointer;font-weight:800;font-size:.92rem;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:.35rem">✅ Confirmer ma commande</button>
+                <button id="offer-submit-btn" type="button" onclick="submitOffer()" style="flex:1;padding:.7rem;border:none;border-radius:8px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;cursor:pointer;font-weight:800;font-size:.92rem;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:.35rem">✅ Confirmer ma commande</button>
             </div>
         </div>
     `;
