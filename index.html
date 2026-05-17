@@ -21947,6 +21947,8 @@ window._offerGoToStep2 = function(){
   if(typeof window._offerLogEvent === 'function'){
     window._offerLogEvent('step2_reached', { prix: prix });
   }
+  // FIX 2026-05-17 #step2-skip-wheel : à l'étape 2 la roue ne doit plus bloquer le submit
+  window._offerSkipWheelProposal = true;
 };
 
 // Retour à la Section 1 (Négo)
