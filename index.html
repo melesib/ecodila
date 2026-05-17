@@ -23102,44 +23102,30 @@ window._negoStart = function(){
   // Avant : pitch (long) + greeting + alternatives = 2-3 messages cumulés
   // Après : 1 seul message avec le pitch CONDENSÉ + bouton géant "Proposer un prix"
   // Les autres états sont déjà visibles dans le récap sticky en haut.
-  var typing = _negoShowTyping();
-  setTimeout(function(){
-    _negoHideTyping();
-
-    // Pitch condensé (1-2 lignes max au lieu de 5)
-    var pitchShort = '';
-    if(etat === 'Neuf'){
-      pitchShort = '✨ <strong>Neuf scellé</strong> · 100% original · garantie fabricant 🛡️';
-    } else if(etat === 'Occasion'){
-      pitchShort = '👐 <strong>Occasion testée</strong> · vérifiée techniquement · garantie 3 mois ✅';
-    } else if(etat === 'Recyclé' || etat === 'Reconditionné'){
-      pitchShort = '♻️ <strong>Remis à neuf</strong> · pièces remplacées · garantie 3 mois ✅';
-    }
-    window._negoPitchShown = true;
-
-    // Construire le message principal
-    var msg = '';
-    if(pitchShort){
-      msg += pitchShort + '<br><br>';
-    }
-    msg += '💰 <strong>Quel prix proposes-tu ?</strong>';
-    msg += '<br><span style="font-size:.7rem;opacity:.75">Prix officiel : <strong>'
-        + refPrix.toLocaleString('fr-FR') + ' FCFA</strong></span>';
-
-    // Boutons principaux : 1 gros "Proposer un prix" + alternatives
-    // (les boutons d'état sont déjà dans le récap sticky permanent — pas besoin de doubler)
-    var btns = [
-      { label: '💰 Proposer mon prix', style: 'primary', onClick: function(){
-          _negoAddMsg('👍 OK, écris ton prix ci-dessous 👇', 'bot');
-          _negoShowPriceInput(true);
-        }
+  // Premier message : affiché instantanément sans typing indicator
+  window._negoPitchShown = true;
+  var pitchShort = '';
+  if(etat === 'Neuf'){
+    pitchShort = '✨ <strong>Neuf scellé</strong> · 100% original · garantie fabricant 🛡️';
+  } else if(etat === 'Occasion'){
+    pitchShort = '👐 <strong>Occasion testée</strong> · vérifiée techniquement · garantie 3 mois ✅';
+  } else if(etat === 'Recyclé' || etat === 'Reconditionné'){
+    pitchShort = '♻️ <strong>Remis à neuf</strong> · pièces remplacées · garantie 3 mois ✅';
+  }
+  var msg = '';
+  if(pitchShort){ msg += pitchShort + '<br><br>'; }
+  msg += '💰 <strong>Quel prix proposes-tu ?</strong>';
+  msg += '<br><span style="font-size:.7rem;opacity:.75">Prix officiel : <strong>'
+      + refPrix.toLocaleString('fr-FR') + ' FCFA</strong></span>';
+  var btns = [
+    { label: '💰 Proposer mon prix', style: 'primary', onClick: function(){
+        _negoAddMsg('👍 OK, écris ton prix ci-dessous 👇', 'bot');
+        _negoShowPriceInput(true);
       }
-    ];
-
-    _negoAddMsg(msg, 'bot', { buttons: btns });
-    // Afficher l'input prix d'emblée (le client peut taper directement sans cliquer)
-    _negoShowPriceInput(true);
-  }, 350);
+    }
+  ];
+  _negoAddMsg(msg, 'bot', { buttons: btns });
+  _negoShowPriceInput(true);
 };
 
 // 📝 Le client soumet un prix
@@ -23229,37 +23215,13 @@ window._negoSubmitPrice = function(){
     prixMinAcceptable = Math.round(refPrix * 0.85 / 500) * 500; // floor à 85% du refPrix
   }
 
-  // Bot "réfléchit" : 1.2 à 2.5 secondes (random)
+  // Bot répond directement après 200ms (typing court + réponse immédiate)
   window._negoState = 'bot_thinking';
-  var thinkTime = 600 + Math.floor(Math.random() * 500);
-
-  // Petit message d'attente pendant la réflexion (random)
-  var thinkingMsgs = [
-    'Hmm, laisse-moi voir... 🤔',
-    'Pas mal, je réfléchis un peu... 💭',
-    'Attends, je calcule... 🧮',
-    'Intéressant... 🤨',
-    'Je regarde si c\'est faisable... 👀',
-    'Voyons voir... 🔍',
-    'Donne-moi 2 secondes... ⏳',
-    'OK je check... 📊'
-  ];
-  var thinkMsg = thinkingMsgs[Math.floor(Math.random() * thinkingMsgs.length)];
-
   var typing = _negoShowTyping();
-  // Phase 1 : afficher le message "je réfléchis" après 300ms
   setTimeout(function(){
     _negoHideTyping();
-    _negoAddMsg(thinkMsg, 'bot');
-    typing = _negoShowTyping();
-
-    // Phase 2 : la vraie réponse après le reste du temps
-    setTimeout(function(){
-      _negoHideTyping();
-      _negoProcessClientPrice(clientPrice, prixMinAcceptable, prixAchat, refPrix, previousClientPrice);
-    }, thinkTime - 300);
-
-  }, 300);
+    _negoProcessClientPrice(clientPrice, prixMinAcceptable, prixAchat, refPrix, previousClientPrice);
+  }, 200);
 };
 
 // 🧠 Traite le prix proposé par le client et choisit la stratégie du bot
