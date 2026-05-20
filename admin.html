@@ -50886,11 +50886,10 @@ window.prActResolveError  = prActResolveError;
    répétés sur la même session. ─────────────────────────────────── */
 var _ipCache = window._ipCache = { ip: null, ts: 0 };
 var _IP_SERVICES = [
-  { url: 'https://cloudflare.com/cdn-cgi/trace', key: 'ip', parse: function(t){ var m=(t||'').match(/ip=([^\n]+)/); return m?{ip:m[1].trim()}:null; } },
   { url: 'https://api.ipify.org?format=json',    key: 'ip'      },
   { url: 'https://api64.ipify.org?format=json',  key: 'ip'      },
   { url: 'https://api.my-ip.io/v2/ip.json',      key: 'ip'      },
-  { url: 'https://freeipapi.com/api/json',        key: 'ipAddress'}
+  { url: 'https://get.geojs.io/v1/ip/geo.json',  key: 'ip'      }
 ];
 var _IP_CACHE_TTL = 600000; /* 10 min */
 
@@ -54412,7 +54411,7 @@ function geoFromTimezone(){
 }
 
 /* ── Stratégie 2 : Détection IP via plusieurs providers en cascade ──
-   Essaie ipapi.co, freeipapi.com — le 1er qui répond gagne.
+   Essaie geojs.io, ipify — le 1er qui répond gagne.
    Tous supportent CORS donc fetch() fonctionne directement (pas besoin de JSONP). */
 function geoFromIPAPI(cb){
   var done = false;
@@ -54432,31 +54431,25 @@ function geoFromIPAPI(cb){
   // Note : on n'utilise QUE les domaines autorisés par la CSP du site (cf _headers / netlify.toml)
   var providers = [
     {
-      name: 'ip-api',
-      url: 'https://ip-api.com/json/?fields=query,country,countryCode,city,regionName,org',
+      name: 'geojs',
+      url: 'https://get.geojs.io/v1/ip/geo.json',
       parse: function(d){
-        if(!d || !d.countryCode) return null;
+        if(!d || !d.country_code) return null;
         return {
-          countryCode: d.countryCode,
-          country: d.country || d.countryCode,
+          countryCode: d.country_code,
+          country: d.country || d.country_code,
           city: d.city || '',
-          region: d.regionName || '',
-          ip: d.query || ''
+          region: d.region || '',
+          ip: d.ip || ''
         };
       }
     },
     {
-      name: 'freeipapi',
-      url: 'https://freeipapi.com/api/json',
+      name: 'ipify-geo',
+      url: 'https://api.ipify.org?format=json',
       parse: function(d){
-        if(!d || !d.countryCode) return null;
-        return {
-          countryCode: d.countryCode,
-          country: d.countryName || d.countryCode,
-          city: d.cityName || '',
-          region: d.regionName || '',
-          ip: d.ipAddress || ''
-        };
+        if(!d || !d.ip) return null;
+        return { countryCode: '', country: '', city: '', region: '', ip: d.ip };
       }
     }
   ];
