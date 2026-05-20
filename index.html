@@ -41849,10 +41849,11 @@ window._siteUpdateFraisBox = function(prefix){
         var tProd = window._currentTrocProduct;
         if(tProd) marque = tProd.marque || tProd.brand || '';
     } else if(prefix === 'offer'){
-        if(window.currentOfferItem){ 
-            categorie = window.currentOfferItem.cat || window.currentOfferItem.categorie || 'Autre'; 
-            montant = window.currentOfferItem.prix || 0; 
-            marque = window.currentOfferItem.marque || window.currentOfferItem.brand || '';
+        var _offerProd = window.currentOfferItem || window._currentOfferProduct || null;
+        if(_offerProd){ 
+            categorie = _offerProd.cat || _offerProd.categorie || 'Autre'; 
+            montant   = _offerProd.prix || 0; 
+            marque    = _offerProd.marque || _offerProd.brand || '';
         }
     }
     flSiteRenderBox(boxId, hintId, villeId, categorie, montant, marque);
