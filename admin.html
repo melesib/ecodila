@@ -50886,10 +50886,10 @@ window.prActResolveError  = prActResolveError;
    répétés sur la même session. ─────────────────────────────────── */
 var _ipCache = window._ipCache = { ip: null, ts: 0 };
 var _IP_SERVICES = [
+  { url: 'https://cloudflare.com/cdn-cgi/trace', key: 'ip', parse: function(t){ var m=(t||'').match(/ip=([^\n]+)/); return m?{ip:m[1].trim()}:null; } },
   { url: 'https://api.ipify.org?format=json',    key: 'ip'      },
   { url: 'https://api64.ipify.org?format=json',  key: 'ip'      },
   { url: 'https://api.my-ip.io/v2/ip.json',      key: 'ip'      },
-  { url: 'https://ipapi.co/json/',                key: 'ip'      },
   { url: 'https://freeipapi.com/api/json',        key: 'ipAddress'}
 ];
 var _IP_CACHE_TTL = 600000; /* 10 min */
@@ -54432,16 +54432,16 @@ function geoFromIPAPI(cb){
   // Note : on n'utilise QUE les domaines autorisés par la CSP du site (cf _headers / netlify.toml)
   var providers = [
     {
-      name: 'ipapi',
-      url: 'https://ipapi.co/json/',
+      name: 'ip-api',
+      url: 'https://ip-api.com/json/?fields=query,country,countryCode,city,regionName,org',
       parse: function(d){
-        if(!d || !d.country_code || d.error) return null;
+        if(!d || !d.countryCode) return null;
         return {
-          countryCode: d.country_code,
-          country: d.country_name || d.country_code,
+          countryCode: d.countryCode,
+          country: d.country || d.countryCode,
           city: d.city || '',
-          region: d.region || '',
-          ip: d.ip || ''
+          region: d.regionName || '',
+          ip: d.query || ''
         };
       }
     },
