@@ -40109,12 +40109,22 @@ var K_RL  = 'par_rl_';          // + date key for rate limit
    Persiste en localStorage pour résister aux relances. */
 function _ecoGetBrowserFingerprint(){
   try {
-    // Si déjà calculé ET persisté, le réutiliser
+    // Si déjà calculé ET persisté dans cette session, le réutiliser
     var cached = localStorage.getItem('_ecodila_fp_v1');
     if(cached && cached.length > 5) return cached;
 
     var nav = window.navigator;
+
+    // ── Salt aléatoire persistant par appareil/session ──────────────
+    // Garantit l'unicité même sur cybercafé (même IP, même PC, même navigateur)
+    var deviceSalt = localStorage.getItem('_ecodila_device_salt');
+    if(!deviceSalt){
+      deviceSalt = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      try { localStorage.setItem('_ecodila_device_salt', deviceSalt); } catch(e){}
+    }
+
     var parts = [
+      deviceSalt,                                    // ← unicité par session/appareil
       nav.language || '',
       nav.languages ? nav.languages.join(',') : '',
       nav.platform || '',
@@ -40136,9 +40146,27 @@ function _ecoGetBrowserFingerprint(){
       ctx.fillStyle = '#52b788';
       ctx.fillRect(0, 0, 200, 50);
       ctx.fillStyle = '#fff';
-      ctx.fillText('EcoDila-FP-Test 🔒 ' + parts[0], 2, 2);
+      ctx.fillText('EcoDila-FP-Test 🔒 ' + parts[1], 2, 2);
       parts.push(c.toDataURL().substring(50, 150));
     } catch(eC){}
+
+    // AudioContext fingerprint (varie entre utilisateurs même sur même PC)
+    try {
+      var AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if(AudioCtx){
+        var ac = new AudioCtx();
+        var osc = ac.createOscillator();
+        var analyser = ac.createAnalyser();
+        var gain = ac.createGain();
+        gain.gain.value = 0;
+        osc.connect(analyser); analyser.connect(gain); gain.connect(ac.destination);
+        osc.start(0);
+        var buf = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(buf);
+        osc.stop(0); ac.close();
+        parts.push(buf[0].toString().substring(0, 8));
+      }
+    } catch(eA){}
 
     var s = parts.join('|');
     var h = 5381;
