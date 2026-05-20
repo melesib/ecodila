@@ -37743,6 +37743,13 @@ window._openFeaturedModal = function(productId, cardEl){
 
 window._partnersCache = null;
 
+// FIX 2026-05-20 #partner-cache : hydrater depuis _d si déjà chargé
+(function _hydratePartnersCache(){
+    if (window._d && window._d.partners && window._d.partners.length > 0) {
+        window._partnersCache = window._d.partners;
+    }
+})();
+
 async function _fetchPartners() {
     try {
         // FIX 2026-05-11 : sur le site, Supabase est exposée comme _sb (pas supa)
@@ -41707,14 +41714,20 @@ function flSiteCalculer(villeId, categorie, montant, marque){
     var partnerFreeShip = false;
     if (marque) {
         try {
-            var partners = window._partnersCache || [];
+            // FIX 2026-05-20 #partner-cache : fallback sur _d.partners si _partnersCache null
+            var partners = window._partnersCache;
+            if (!partners || partners.length === 0) {
+                partners = (window._d && window._d.partners) || [];
+                if (partners.length > 0) window._partnersCache = partners; // hydrate le cache
+            }
+            partners = partners || [];
             var brandLower = String(marque).toLowerCase().trim();
             for (var i = 0; i < partners.length; i++) {
                 var p = partners[i];
                 if (p.is_active === false) continue;
                 if (p.free_shipping !== true) continue;
                 var pname = String(p.name || '').toLowerCase().trim();
-                if (pname === brandLower) {
+                if (pname === brandLower || brandLower.indexOf(pname) > -1 || pname.indexOf(brandLower) > -1) {
                     partnerFreeShip = true;
                     break;
                 }
