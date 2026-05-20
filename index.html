@@ -6144,17 +6144,15 @@ setTimeout(function(){ try { window._sbDiscoverSchema(); } catch(e){} }, 2000);
   // Cascade de providers IP (chacun retourne {ip: '...'})
   // CSP-compliant : tous ces domaines sont autorisés dans _headers
   var IP_PROVIDERS = [
-    { url: '/.netlify/functions/get-ip',        extract: function(d){ return d && d.ip; } },
+    { url: '/.netlify/functions/get-ip',           extract: function(d){ return d && d.ip; } },
     { url: 'https://cloudflare.com/cdn-cgi/trace', extract: function(d){
-        // Cloudflare trace retourne du texte : "ip=x.x.x.x\n..."
         if(typeof d === 'string'){ var m=d.match(/ip=([^\n]+)/); return m?m[1].trim():null; }
         return null;
     }},
-    { url: 'https://api.ipify.org?format=json',  extract: function(d){ return d && d.ip; } },
-    { url: 'https://api64.ipify.org?format=json',extract: function(d){ return d && d.ip; } },
-    { url: 'https://freeipapi.com/api/json',     extract: function(d){ return d && d.ipAddress; } },
-    { url: 'https://api.my-ip.io/v2/ip.json',   extract: function(d){ return d && d.ip; } },
-    { url: 'https://ipapi.co/json/',             extract: function(d){ return d && d.ip; } }
+    { url: 'https://api.ipify.org?format=json',    extract: function(d){ return d && d.ip; } },
+    { url: 'https://api64.ipify.org?format=json',  extract: function(d){ return d && d.ip; } },
+    { url: 'https://freeipapi.com/api/json',       extract: function(d){ return d && d.ipAddress; } },
+    { url: 'https://api.my-ip.io/v2/ip.json',     extract: function(d){ return d && d.ip; } }
   ];
 
   // Tentative séquentielle de tous les providers
@@ -36769,28 +36767,30 @@ document.addEventListener('DOMContentLoaded', function() {
                   realIp = ipData.ip || '';
                 } catch(e1) {}
 
-                // 2. Geo via ipapi.co avec l'IP réelle
+                // 2. Geo via ip-api.com (CI-friendly, pas de ERR_CONNECTION_CLOSED)
                 if (realIp && realIp !== 'unknown') {
                   entry.visitorIp = realIp;
                   try {
-                    var respGeo = await fetch('https://ipapi.co/' + realIp + '/json/');
+                    var respGeo = await fetch('https://ip-api.com/json/' + realIp + '?fields=country,countryCode,city,org');
                     var geo = await respGeo.json();
-                    entry.country = geo.country_name || '';
-                    entry.countryCode = geo.country_code || '';
+                    entry.country = geo.country || '';
+                    entry.countryCode = geo.countryCode || '';
                     entry.ville = geo.city || '';
                     entry.geoSource = 'netlify+ipapi';
                     entry.platform = geo.org || '';
                   } catch(e2) { entry.geoSource = 'netlify-only'; }
                 } else {
-                  // Fallback: ipapi.co directement
-                  var resp = await fetch('https://ipapi.co/json/');
-                  var data = await resp.json();
-                  entry.visitorIp = data.ip || '';
-                  entry.country = data.country_name || '';
-                  entry.countryCode = data.country_code || '';
-                  entry.ville = data.city || '';
-                  entry.geoSource = 'ipapi';
-                  entry.platform = data.org || '';
+                  // Fallback: ip-api.com directement
+                  try {
+                    var resp = await fetch('https://ip-api.com/json/?fields=query,country,countryCode,city,org');
+                    var data = await resp.json();
+                    entry.visitorIp = data.query || '';
+                    entry.country = data.country || '';
+                    entry.countryCode = data.countryCode || '';
+                    entry.ville = data.city || '';
+                    entry.geoSource = 'ip-api';
+                    entry.platform = data.org || '';
+                  } catch(e3) { entry.geoSource = 'none'; }
                 }
                 try { sessionStorage.setItem('ecodila_visit_ip', entry.visitorIp); } catch(e){}
               } catch(e){
