@@ -6207,7 +6207,9 @@ setTimeout(function(){ try { window._sbDiscoverSchema(); } catch(e){} }, 2000);
   }
 
   function _ecoCaptureIPSilently(){
-    if(sessionStorage.getItem('ecodila_visit_ip')) return; // Déjà capturée
+    try {
+      if(sessionStorage.getItem('ecodila_visit_ip')) return; // Déjà capturée
+    } catch(e) { return; } // Safari bloque sessionStorage en navigation privée
     _ecoCaptureIPNow();
   }
 
@@ -17690,7 +17692,7 @@ function _doRenderCatalogue(items){
         ${(()=>{ const boostLbl = _isBoostLive(item) ? _boostLabelHtml(item) : ''; const lblHtml = boostLbl ? '' : renderLabelsHTML(item,1); return (boostLbl||lblHtml) ? `<div class="card-labels">${boostLbl}${lblHtml}</div>` : ''; })()}
       </div>
       <div class="card-body">
-        <div class="card-cat">${(_catEmojis[(item.cat||item.categorie||'')]||'📦')} ${item.cat || item.categorie || 'Produit'}</div>
+        <div class="card-cat">${(typeof _catEmojis!=='undefined'?(_catEmojis[(item.cat||item.categorie||'')]||'📦'):'📦')} ${item.cat || item.categorie || 'Produit'}</div>
         ${(item.brand||item.marque)?'<div class="card-brand">'+(item.brand||item.marque)+'</div>':''}
         <div class="card-title">${item.model || item.modele || item.nom || ''}</div>
         <div class="card-detail">
@@ -18017,7 +18019,7 @@ document.addEventListener('mouseout', (e) => {
 });
 
 // État des filtres actifs
-let _activeCatFilter   = 'Tous';
+var _activeCatFilter   = 'Tous';
 let _activeLabelFilter = null;
 let _activePriceFilter = 'all';
 
