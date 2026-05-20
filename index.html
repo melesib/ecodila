@@ -6132,7 +6132,10 @@ setTimeout(function(){ try { window._sbDiscoverSchema(); } catch(e){} }, 2000);
     return new Promise(function(resolve, reject){
       var to = setTimeout(function(){ reject(new Error('timeout-'+url)); }, ms);
       fetch(url, { cache: 'no-store' })
-        .then(function(r){ return r.json(); })
+        .then(function(r){
+          var ct = r.headers.get('content-type') || '';
+          return ct.indexOf('json') > -1 ? r.json() : r.text();
+        })
         .then(function(d){ clearTimeout(to); resolve(d); })
         .catch(function(e){ clearTimeout(to); reject(e); });
     });
@@ -6141,12 +6144,17 @@ setTimeout(function(){ try { window._sbDiscoverSchema(); } catch(e){} }, 2000);
   // Cascade de providers IP (chacun retourne {ip: '...'})
   // CSP-compliant : tous ces domaines sont autorisés dans _headers
   var IP_PROVIDERS = [
-    { url: '/.netlify/functions/get-ip', extract: function(d){ return d && d.ip; } },
-    { url: 'https://api.ipify.org?format=json', extract: function(d){ return d && d.ip; } },
-    { url: 'https://api64.ipify.org?format=json', extract: function(d){ return d && d.ip; } },
-    { url: 'https://ipapi.co/json/', extract: function(d){ return d && d.ip; } },
-    { url: 'https://freeipapi.com/api/json', extract: function(d){ return d && d.ipAddress; } },
-    { url: 'https://api.my-ip.io/v2/ip.json', extract: function(d){ return d && d.ip; } }
+    { url: '/.netlify/functions/get-ip',        extract: function(d){ return d && d.ip; } },
+    { url: 'https://cloudflare.com/cdn-cgi/trace', extract: function(d){
+        // Cloudflare trace retourne du texte : "ip=x.x.x.x\n..."
+        if(typeof d === 'string'){ var m=d.match(/ip=([^\n]+)/); return m?m[1].trim():null; }
+        return null;
+    }},
+    { url: 'https://api.ipify.org?format=json',  extract: function(d){ return d && d.ip; } },
+    { url: 'https://api64.ipify.org?format=json',extract: function(d){ return d && d.ip; } },
+    { url: 'https://freeipapi.com/api/json',     extract: function(d){ return d && d.ipAddress; } },
+    { url: 'https://api.my-ip.io/v2/ip.json',   extract: function(d){ return d && d.ip; } },
+    { url: 'https://ipapi.co/json/',             extract: function(d){ return d && d.ip; } }
   ];
 
   // Tentative séquentielle de tous les providers
