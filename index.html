@@ -36781,7 +36781,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     entry.country = geo.country || '';
                     entry.countryCode = geo.country_code || '';
                     entry.ville = geo.city || '';
-                    entry.geoSource = 'netlify+geojs';
+                    entry.geoSource = 'netlify+geo';
                     entry.platform = geo.organization || '';
                   } catch(e2) { entry.geoSource = 'netlify-only'; }
                 } else {
@@ -36793,7 +36793,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     entry.country = data.country || '';
                     entry.countryCode = data.country_code || '';
                     entry.ville = data.city || '';
-                    entry.geoSource = 'geojs';
+                    entry.geoSource = 'ipify';
                     entry.platform = data.organization || '';
                   } catch(e3) { entry.geoSource = 'none'; }
                 }

@@ -50905,10 +50905,10 @@ window.prActResolveError  = prActResolveError;
    répétés sur la même session. ─────────────────────────────────── */
 var _ipCache = window._ipCache = { ip: null, ts: 0 };
 var _IP_SERVICES = [
-  { url: 'https://api.ipify.org?format=json',    key: 'ip'      },
-  { url: 'https://api64.ipify.org?format=json',  key: 'ip'      },
-  { url: 'https://api.my-ip.io/v2/ip.json',      key: 'ip'      },
-  { url: 'https://get.geojs.io/v1/ip/geo.json',  key: 'ip'      }
+  { url: '/.netlify/functions/get-ip',          key: 'ip'      },
+  { url: 'https://api.ipify.org?format=json',   key: 'ip'      },
+  { url: 'https://api64.ipify.org?format=json', key: 'ip'      },
+  { url: 'https://api.my-ip.io/v2/ip.json',     key: 'ip'      }
 ];
 var _IP_CACHE_TTL = 600000; /* 10 min */
 
@@ -54429,9 +54429,9 @@ function geoFromTimezone(){
   return null;
 }
 
-/* ── Stratégie 2 : Détection IP via plusieurs providers en cascade ──
-   Essaie geojs.io, ipify — le 1er qui répond gagne.
-   Tous supportent CORS donc fetch() fonctionne directement (pas besoin de JSONP). */
+/* ── Stratégie 2 : IP via ipify (fiable en CI) — géo non disponible
+   Les APIs de géolocalisation (geojs, ipapi.co) sont bloquées sur réseaux CI.
+   On capture uniquement l'IP réelle, la géo est ignorée gracieusement. */
 function geoFromIPAPI(cb){
   var done = false;
   var timer = setTimeout(function(){
@@ -54445,27 +54445,26 @@ function geoFromIPAPI(cb){
     cb(result);
   };
 
-  // Liste des providers en ordre de priorité
-  // Chaque provider a son format de réponse : on normalise vers {countryCode, country, city, ip}
-  // Note : on n'utilise QUE les domaines autorisés par la CSP du site (cf _headers / netlify.toml)
   var providers = [
     {
-      name: 'geojs',
-      url: 'https://get.geojs.io/v1/ip/geo.json',
+      name: 'netlify',
+      url: '/.netlify/functions/get-ip',
       parse: function(d){
-        if(!d || !d.country_code) return null;
-        return {
-          countryCode: d.country_code,
-          country: d.country || d.country_code,
-          city: d.city || '',
-          region: d.region || '',
-          ip: d.ip || ''
-        };
+        if(!d || !d.ip) return null;
+        return { countryCode: d.country||'', country: d.country||'', city: d.city||'', region: '', ip: d.ip };
       }
     },
     {
-      name: 'ipify-geo',
+      name: 'ipify',
       url: 'https://api.ipify.org?format=json',
+      parse: function(d){
+        if(!d || !d.ip) return null;
+        return { countryCode: '', country: '', city: '', region: '', ip: d.ip };
+      }
+    },
+    {
+      name: 'ipify64',
+      url: 'https://api64.ipify.org?format=json',
       parse: function(d){
         if(!d || !d.ip) return null;
         return { countryCode: '', country: '', city: '', region: '', ip: d.ip };
@@ -54473,13 +54472,9 @@ function geoFromIPAPI(cb){
     }
   ];
 
-  // Tenter chaque provider l'un après l'autre
   function tryProvider(idx){
     if(done) return;
-    if(idx >= providers.length){
-      finishWith(null);
-      return;
-    }
+    if(idx >= providers.length){ finishWith(null); return; }
     var p = providers[idx];
     fetch(p.url, { method: 'GET', cache: 'no-store' })
       .then(function(r){
@@ -54489,25 +54484,12 @@ function geoFromIPAPI(cb){
       .then(function(d){
         var parsed = p.parse(d);
         if(parsed){
-          finishWith({
-            countryCode: parsed.countryCode,
-            country: parsed.country,
-            city: parsed.city,
-            region: parsed.region,
-            ip: parsed.ip,
-            source: 'ipapi',
-            provider: p.name,
-            ts: Date.now()
-          });
-        } else {
-          // Réponse OK mais pas exploitable → essayer le suivant
-          tryProvider(idx + 1);
-        }
+          finishWith({ countryCode: parsed.countryCode, country: parsed.country,
+            city: parsed.city, region: parsed.region, ip: parsed.ip,
+            source: 'ipapi', provider: p.name, ts: Date.now() });
+        } else { tryProvider(idx + 1); }
       })
-      .catch(function(){
-        // Erreur réseau / CORS / timeout → essayer le suivant
-        tryProvider(idx + 1);
-      });
+      .catch(function(){ tryProvider(idx + 1); });
   }
   tryProvider(0);
 }
@@ -54523,7 +54505,7 @@ function geoResolve(cb){
     if(cached && cached.ts && (Date.now()-cached.ts) < GEO_TTL && cached.countryCode && cached.countryCode !== '??'){
       _geoData = cached; _geoReady = true;
       var src = cached.source === 'timezone' ? '(timezone)' :
-                cached.source === 'geojs' ? '(geojs)' :
+                cached.source === 'netlify' ? '(netlify)' :
                 cached.source === 'ipapi' ? '(ipapi)' :
                 cached.source === 'manual' ? '(manuel)' : '';
       geoSetStatus('🟢','Géolocalisation active '+src+' · '+geoFlag(_geoData.countryCode)+' '+_geoData.country+(_geoData.city?' · '+_geoData.city:''), _geoData.ts);
@@ -55035,7 +55017,7 @@ window.geoExportCSV = function(){
 
 function geoCheckContaminationCount(){
   var KEYS = ['ecodila_visitors','ecodila_product_views'];
-  var VALID = ['geojs','timezone','manual','resolved','ipapi'];
+  var VALID = ['netlify','timezone','manual','resolved','ipapi'];
   var contaminated = 0;
   KEYS.forEach(function(key){
     try {
@@ -55071,7 +55053,7 @@ function geoCheckContamination(){
         if(item.countryCode){
           total++;
           // Mock data = pas de geoSource ET ID qui ressemble à du mock (V1234_0_1)
-          var validSources = ['geojs','timezone','manual','resolved','ipapi','netlify+ipapi','netlify-only','site','auto'];
+          var validSources = ['netlify','timezone','manual','resolved','ipapi','netlify+ipapi','netlify-only','site','auto'];
           var isMock = !item.geoSource && (!item.id || /^V\d+_\d+_\d+$/.test(item.id||''));
           var isUnknownSource = item.geoSource && validSources.indexOf(item.geoSource) < 0;
           if(isMock || isUnknownSource){
@@ -55101,7 +55083,7 @@ function geoCheckContamination(){
 }
 
 window.geoPurgeContaminated = function(){
-  var validSources = ['geojs','timezone','manual','resolved','ipapi','netlify+ipapi','netlify-only','site','auto'];
+  var validSources = ['netlify','timezone','manual','resolved','ipapi','netlify+ipapi','netlify-only','site','auto'];
   var allV = adminData.visitors || [];
   var allPV = adminData.productViews || [];
 
