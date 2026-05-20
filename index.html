@@ -6743,7 +6743,7 @@ window._d = {
   challenges:[],
   notifications:[], conversations:[], errorLogs:[], visitors:[],
   productViews:[], currentUser:null, categories:[], panier:[],
-  settings:{}, loaded:false
+  settings:{}, loaded:false, partners:[]
 };
 
 async function _sbInit() {
@@ -6758,16 +6758,20 @@ async function _sbInit() {
       setTimeout(function(){ if(typeof _onProductsReady === 'function') _onProductsReady(); }, 0);
     }
 
-    // ── PHASE 1 : Produits + Settings (Supabase — optimisé) ──
+    // ── PHASE 1 : Produits + Settings + Partners (Supabase — optimisé) ──
     var t0 = performance.now();
     var r1 = await Promise.all([
       _sb.from('products').select('*').eq('is_active',true).order('created_at',{ascending:false}),
-      _sb.from('settings').select('*')
+      _sb.from('settings').select('*'),
+      _sb.from('partners').select('*').eq('is_active',true).order('display_order',{ascending:true})
     ]);
     var d = window._d;
     d.products = r1[0].data || [];
     var stgs = {}; (r1[1].data||[]).forEach(function(s){ stgs[s.key] = s.value; });
     d.settings = stgs;
+    // FIX 2026-05-20 #partner-cache : charger partners dès Phase 1
+    d.partners = r1[2].data || [];
+    window._partnersCache = d.partners;
     // Animations catalogue — auto-détection + réglage admin
     try{if(typeof _ecoCheckAnim==='function')_ecoCheckAnim();}catch(e){}
     // Charger les emojis de catégories personnalisés et les fusionner partout
@@ -24184,62 +24188,13 @@ window._negoUpdateNextBtn = function(){
     btn.disabled = false;
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
-    // FIX 2026-05-17 #offer-qty : afficher sélecteur quantité après acceptation prix
-    var qtyWrap = document.getElementById('offer-qty-wrap');
-    if (!qtyWrap) {
-      // Créer le sélecteur quantité
-      var p = window._currentOfferProduct || window.currentOfferItem || window._currentBuyProduct;
-      // Lire le stock exactement comme le mécanisme achat
-      var stockMax = 1;
-      if (p && typeof p.stock === 'number' && p.stock > 0) {
-        stockMax = p.stock;
-      } else if (window._currentOfferProductId && typeof products !== 'undefined') {
-        var _pr = products.find(function(x){ return String(x.id) === String(window._currentOfferProductId); });
-        if (_pr && typeof _pr.stock === 'number' && _pr.stock > 0) stockMax = _pr.stock;
-      }
-      // Reset quantité seulement à la première création (pas si déjà modifiée)
-      if (!window._offerQtyMax || window._offerQtyMax !== stockMax) {
-        window._offerQty = 1;
-        window._offerQtyMax = stockMax;
-      }
-      var prixNego = window._negoAcceptedPrice || (p ? p.prix : 0) || 0;
-      var insertAfter = document.getElementById('offer-savings-box') || document.getElementById('offer-recap-box');
-      if (insertAfter) {
-        var div = document.createElement('div');
-        div.id = 'offer-qty-wrap';
-        div.style.cssText = 'margin-top:.5rem;background:linear-gradient(135deg,rgba(45,106,79,.06),rgba(82,183,136,.04));border:1.5px solid rgba(82,183,136,.25);border-radius:10px;padding:.85rem .9rem';
-        div.innerHTML = '<div style="font-size:.7rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.55rem">📦 Quantité souhaitée</div>'
-          + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">'
-          +   '<div style="display:flex;align-items:center;gap:.75rem">'
-          +     '<button type="button" onclick="offerQtyChange(-1)" id="offer-qty-minus" disabled style="width:36px;height:36px;border-radius:50%;border:1.5px solid var(--green);background:transparent;color:var(--green);font-size:1.2rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>'
-          +     '<span id="offer-qty-display" style="font-size:1.4rem;font-weight:800;min-width:2rem;text-align:center">1</span>'
-          +     '<button type="button" onclick="offerQtyChange(+1)" id="offer-qty-plus" '+(stockMax<=1?'disabled':'')+' style="width:36px;height:36px;border-radius:50%;border:1.5px solid var(--green);background:var(--green);color:white;font-size:1.2rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>'
-          +     '<span style="font-size:.75rem;color:var(--gray)">sur '+stockMax+' disponible'+(stockMax>1?'s':'')+'</span>'
-          +   '</div>'
-          +   '<div style="text-align:right">'
-          +     '<div style="font-size:.65rem;color:var(--gray);margin-bottom:.1rem">Total négocié</div>'
-          +     '<div id="offer-qty-total" style="font-size:1.1rem;font-weight:800;color:var(--green)">'+(prixNego > 0 ? prixNego.toLocaleString('fr-FR')+' FCFA' : '—')+'</div>'
-          +   '</div>'
-          + '</div>';
-        insertAfter.parentNode.insertBefore(div, insertAfter.nextSibling);
-      }
-    } else {
-      // Mettre à jour le prix si déjà affiché
-      var prixNego2 = window._negoAcceptedPrice || 0;
-      var offerTotal = document.getElementById('offer-qty-total');
-      var offerQty2 = window._offerQty || 1;
-      if (offerTotal && prixNego2 > 0) {
-        offerTotal.textContent = (prixNego2 * offerQty2).toLocaleString('fr-FR') + ' FCFA';
-      }
-      qtyWrap.style.display = '';
-    }
+    // Cacher l'ancien sélecteur qty étape 1 s'il existe (remplacé par étape 2)
+    var qtyWrapOld = document.getElementById('offer-qty-wrap');
+    if (qtyWrapOld) qtyWrapOld.remove();
   } else {
     btn.disabled = true;
     btn.style.opacity = '0.5';
     btn.style.cursor = 'not-allowed';
-    // Cacher le sélecteur quantité si le prix n'est plus accepté
-    var qtyWrapHide = document.getElementById('offer-qty-wrap');
-    if (qtyWrapHide) qtyWrapHide.style.display = 'none';
   }
 };
 
