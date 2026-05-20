@@ -25572,6 +25572,25 @@ function _renderCustTable(list) {
         const avatarBorder = ipSuspicious ? 'border:2px solid #ff4466;' : '';
         const avatarContent = ipSuspicious ? '🚨' : initials;
 
+        // ── Fingerprint Badge (confiance identité) ────────────────────
+        var fpUuid = c.fingerprint ? (c.fingerprint.match(/^fp_([a-f0-9]{6,})_/) || [])[1] || null : null;
+        var fpSiblings = fpUuid ? (adminData.customers||[]).filter(function(other){
+            if(other.id === c.id || other.bloque) return false;
+            if(!other.fingerprint) return false;
+            var otherUuid = (other.fingerprint.match(/^fp_([a-f0-9]{6,})_/) || [])[1];
+            return otherUuid && otherUuid === fpUuid;
+        }) : [];
+        var fpBadgeHtml = '';
+        if(!c.fingerprint || c.fingerprint === 'fp_unknown'){
+            fpBadgeHtml = '<span style="font-size:.6rem;padding:.1rem .3rem;border-radius:100px;background:rgba(136,146,166,.1);color:var(--text-muted);border:1px solid var(--border)">🔍 —</span>';
+        } else if(fpSiblings.length >= 2){
+            fpBadgeHtml = '<span style="font-size:.6rem;padding:.1rem .3rem;border-radius:100px;background:rgba(255,68,102,.12);color:#ff4466;border:1px solid rgba(255,68,102,.3);font-weight:700" title="'+fpSiblings.length+' autres comptes avec le même appareil">🚨 '+fpSiblings.length+' doublons</span>';
+        } else if(fpSiblings.length === 1){
+            fpBadgeHtml = '<span style="font-size:.6rem;padding:.1rem .3rem;border-radius:100px;background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.3);font-weight:700" title="1 autre compte avec le même appareil">⚠️ 1 doublon</span>';
+        } else {
+            fpBadgeHtml = '<span style="font-size:.6rem;padding:.1rem .3rem;border-radius:100px;background:rgba(0,255,136,.08);color:#00ff88;border:1px solid rgba(0,255,136,.2)">✅ Unique</span>';
+        }
+
         return `<tr class="${rowSuspClass}" data-cust-id="${c.id}" style="border-bottom:1px solid var(--border);transition:background .15s;cursor:pointer"
                     onmouseover="this.style.background='${rowHoverCol}'"
                     onmouseout="this.style.background=''">
@@ -25589,7 +25608,7 @@ function _renderCustTable(list) {
                 <div style="font-size:.83rem">${c.telephone || c.tel || '—'}</div>
                 <div style="font-size:.72rem;color:var(--text-muted)">${_esc(c.email || '—')}</div>
             </td>
-            <td style="padding:.8rem;text-align:center">${ipBadgeHtml}</td>
+            <td style="padding:.8rem;text-align:center">${ipBadgeHtml}<br>${fpBadgeHtml}</td>
             <td style="padding:.8rem;text-align:center">
                 <div style="display:flex;flex-direction:column;align-items:center;gap:.05rem">
                     ${cmdBadge}

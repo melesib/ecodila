@@ -11738,86 +11738,95 @@ function inscription(e){
     });
 
     if (!_isWhitelisted) {
-    // 🔒 COUCHE 1 : Téléphone unique — bloquer si un compte existe déjà
+    // 🔒 COUCHE 1 : Téléphone unique STRICT — 1 numéro = 1 seul compte
     var telExiste = utilisateurs.find(function(u){
       var uTel = (u.telephone||u.tel||'').replace(/[^0-9]/g,'').slice(-8);
-      return uTel.length >= 6 && uTel === telNorm8;
+      return uTel.length >= 6 && uTel === telNorm8 && !u.supprime && !u.deleted;
     });
     if(telExiste){
-      showToast('❌ Un compte existe déjà avec ce numéro. Connectez-vous ou utilisez "Mot de passe oublié".');
+      showToast('❌ Ce numéro est déjà associé à un compte. Connectez-vous ou contactez-nous au +225 05 96 27 55 55.');
       return;
     }
 
-    // 🔒 COUCHE 2 : Fingerprint — MAX 2 comptes par appareil (familial, partage téléphone)
-    // Avant : 1 seul compte par fingerprint (bloquait les iPhones avec empreinte similaire)
-    // Après : jusqu'à 2 comptes autorisés (famille, couple, colocation)
-    //          au 3e → blocage anti-fraude
-    //
-    // Match intelligent : on compare en priorité le préfixe UUID du fingerprint
-    // (partie stable entre sessions du même device) plutôt que le fp complet.
-    // Format enrichi : fp_UUIDslice_signalhash → le UUIDslice est l'identifiant stable.
+    // 🔒 COUCHE 2 : Fingerprint — délais progressifs anti-fraude cybercafé
+    // Logique : même appareil = délais croissants entre chaque inscription
+    //   1er compte créé → 0 → OK immédiat
+    //   2ème tentative   → délai 1h depuis la dernière inscription
+    //   3ème tentative   → délai 2h depuis la dernière inscription
+    //   4ème tentative+  → délai 24h depuis la dernière inscription
+    // Cybercafé légit : clients différents = fingerprint différent (salt unique localStorage)
     var _fp = '';
     try { _fp = sessionStorage.getItem('ecodila_visit_fp') || ''; } catch(e){}
     if(_fp && _fp !== 'fp_unknown'){
-      // Extraire le préfixe UUID si format enrichi (fp_UUIDslice_hash)
       var _fpUuidMatch = _fp.match(/^fp_([a-f0-9]{6,})_/);
       var _fpUuid = _fpUuidMatch ? _fpUuidMatch[1] : null;
 
-      var fpCount = utilisateurs.filter(function(u){
-        if(!u.fingerprint || u.bloque) return false;
-        // Match exact (même session / même device / ancien format)
+      // Tous les comptes créés depuis cet appareil (non bloqués)
+      var fpMatches = utilisateurs.filter(function(u){
+        if(u.bloque || u.supprime || u.deleted) return false;
+        if(!u.fingerprint) return false;
         if(u.fingerprint === _fp) return true;
-        // Match par préfixe UUID (stable entre sessions du même device)
         if(_fpUuid){
           var storedMatch = u.fingerprint.match(/^fp_([a-f0-9]{6,})_/);
           if(storedMatch && storedMatch[1] === _fpUuid) return true;
         }
         return false;
-      }).length;
+      });
 
-      if(fpCount >= 2){
-        showToast('❌ 2 comptes existent déjà depuis cet appareil. Si c\'est une erreur, contactez-nous sur WhatsApp au +225 05 96 27 55 55.');
-        return;
+      var nbComptes = fpMatches.length;
+
+      if(nbComptes >= 1){
+        // Déterminer le délai selon le nombre de comptes existants
+        var _1h  = 1  * 60 * 60 * 1000;
+        var _2h  = 2  * 60 * 60 * 1000;
+        var _24h = 24 * 60 * 60 * 1000;
+        var delai = nbComptes === 1 ? _1h : nbComptes === 2 ? _2h : _24h;
+
+        // Date du dernier compte créé depuis cet appareil
+        var dernierCompte = fpMatches.reduce(function(latest, u){
+          var d = u.created_at || u.dateISO || '';
+          var t = 0;
+          if(d){ t = new Date(d).getTime(); }
+          if(!t && u.date && u.date.indexOf('/') > -1){
+            var p = u.date.split('/');
+            if(p.length === 3){ t = new Date(p[2]+'-'+p[1]+'-'+p[0]).getTime() || 0; }
+          }
+          if(!t && u.timestamp){ t = Number(u.timestamp) || 0; }
+          return t > latest ? t : latest;
+        }, 0);
+
+        if(dernierCompte && !isNaN(dernierCompte) && (Date.now() - dernierCompte) < delai){
+          var resteMs = delai - (Date.now() - dernierCompte);
+          var resteH  = Math.ceil(resteMs / 3600000);
+          var resteMin = Math.ceil(resteMs / 60000);
+          var resteStr = resteH >= 2 ? resteH + 'h' : resteMin + ' min';
+          showToast('❌ Créations trop rapides depuis cet appareil. Réessayez dans ' + resteStr + '.');
+          return;
+        }
       }
     }
 
-    // 🔒 COUCHE 3 : IP + FINGERPRINT — Bloquer SEULEMENT si IP **ET** appareil identiques
-    //
-    // ⚠️ CONTEXTE CÔTE D'IVOIRE :
-    // - CGNAT mobile MTN/Orange/Moov : des MILLIERS d'utilisateurs partagent
-    //   la même IP publique sortante. C'est légitime, pas de la fraude.
-    // - Cybercafés : 1 IP pour 10-20 clients différents.
-    // - Wifi public (école, université, marché) : pareil.
-    // - Wifi familial : 4-5 personnes, 4-5 appareils différents.
-    //
-    // Donc on ne bloque QUE si IP partagée + même fingerprint (vraie tentative
-    // de créer plusieurs comptes depuis le même téléphone/PC).
+    // 🔒 COUCHE 3 : IP + FINGERPRINT — Bloquer si IP ET appareil identiques
     var _regIp = '';
     try { _regIp = sessionStorage.getItem('ecodila_visit_ip') || ''; } catch(e){}
     if(_regIp && _regIp !== 'unknown' && _fp && _fp !== 'fp_unknown'){
-      // Re-extraction du préfixe UUID stable
       var _fpUuidIp = (_fp.match(/^fp_([a-f0-9]{6,})_/) || [])[1] || null;
-
-      // Compter UNIQUEMENT les comptes qui partagent IP **ET** fingerprint
-      var sameIpAndDevice = utilisateurs.filter(function(u){
+      var sameIpDeviceList = utilisateurs.filter(function(u){
         if(u.bloque) return false;
         if(!u.registrationIp || u.registrationIp !== _regIp) return false;
-        if(!u.fingerprint) return false; // Pas de fingerprint enregistré : ne compte pas
-        // Match exact ou par UUID stable
+        if(!u.fingerprint) return false;
         if(u.fingerprint === _fp) return true;
         if(_fpUuidIp){
           var m = u.fingerprint.match(/^fp_([a-f0-9]{6,})_/);
           if(m && m[1] === _fpUuidIp) return true;
         }
         return false;
-      }).length;
-      if(sameIpAndDevice >= 2){
+      });
+      if(sameIpDeviceList.length >= 2){
         showToast('❌ 2 comptes existent déjà depuis cet appareil et cette connexion. Si c\'est une erreur, contactez-nous sur WhatsApp au +225 05 96 27 55 55.');
         return;
       }
     } else if(_regIp && _regIp !== 'unknown' && (!_fp || _fp === 'fp_unknown')){
-      // Pas de fingerprint disponible (vieux navigateur, cookies bloqués) :
-      // tomber sur l'ancien comportement permissif (max 5 comptes / IP)
       var ipCountFallback = utilisateurs.filter(function(u){
         return u.registrationIp && u.registrationIp === _regIp && !u.bloque;
       }).length;
