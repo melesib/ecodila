@@ -7168,10 +7168,21 @@ async function doLogin(){
   /* ── Capturer l'IP du parrain pour l'exclure des stats + fingerprint ── */
   (async function(){
     try {
-      var resp = await fetch('https://api.ipify.org?format=json');
-      var data = await resp.json();
+      // Cascade de providers IP — uniquement ceux fonctionnels sur réseau CI
+      var _ipProviders = [
+        '/.netlify/functions/get-ip',
+        'https://api64.ipify.org?format=json',
+        'https://api.my-ip.io/v2/ip.json'
+      ];
+      var data = null;
+      for(var _pi = 0; _pi < _ipProviders.length; _pi++){
+        try {
+          var _r = await fetch(_ipProviders[_pi], {cache:'no-store'});
+          if(_r.ok){ data = await _r.json(); if(data && data.ip) break; }
+        } catch(e){}
+      }
       var update = {};
-      if(data.ip) update.lastIp = data.ip;
+      if(data && data.ip) update.lastIp = data.ip;
       // Fingerprint navigateur pour identifier l'appareil de manière fiable
       try {
         var fp = (typeof window._ecoGetBrowserFingerprint === 'function') ? window._ecoGetBrowserFingerprint() : null;

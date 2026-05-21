@@ -13609,6 +13609,29 @@ function login(e) {
     }
 
     var proceed = function(adminRecord) {
+        // ── BATCH 3 : Supabase Auth ──────────────────────────────────────────
+        // Signe dans Supabase Auth pour passer de anon → authenticated
+        // Toutes les requêtes Supabase suivantes utilisent le rôle authenticated
+        // → débloque les policies RLS strictes (admins, auditaz, partners, etc.)
+        var _sbAuthEmail    = 'ecodila225@gmail.com';
+        var _sbAuthPassword = 'EcoDila2026!';
+        try {
+            window._sb.auth.signInWithPassword({
+                email: _sbAuthEmail,
+                password: _sbAuthPassword
+            }).then(function(res) {
+                if (res && res.data && res.data.session) {
+                    console.log('[BATCH3] ✅ Supabase Auth → authenticated');
+                } else {
+                    console.warn('[BATCH3] ⚠️ Auth sans session — mode anon conservé');
+                }
+            }).catch(function(err) {
+                console.warn('[BATCH3] ⚠️ signInWithPassword échoué:', err && err.message);
+            });
+        } catch(ex) {
+            console.warn('[BATCH3] ⚠️ signInWithPassword exception:', ex);
+        }
+        // ─────────────────────────────────────────────────────────────────────
         // Démarrer le système d'inactivité (10 min) — nouveau système timestamp-based
         if(typeof _inactivityStart==="function") _inactivityStart();
         else if(typeof _inactivityReset==="function") _inactivityReset();
@@ -13910,6 +13933,8 @@ function login(e) {
 }
 
 function logout() {
+    // BATCH 3 : signer hors de Supabase Auth (retour en anon)
+    try { window._sb.auth.signOut().catch(function(){}); } catch(ex) {}
     // Effacer la session admin
     if (typeof window.clearSessionAdmin === 'function') window.clearSessionAdmin();
     // Effacer le timer d'inactivité
