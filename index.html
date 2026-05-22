@@ -35569,7 +35569,7 @@ window._promoBarClick=function(){
         const error = {
             id: 'ERR' + Date.now() + Math.random().toString(36).substr(2, 9),
             timestamp: new Date().toISOString(),
-            date: new Date().toLocaleString('fr-FR'),
+            date: (function(){ try{ var d=new Date(); return d.toLocaleString('fr-FR'); }catch(e){ var d=new Date(); return d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear()+' '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'); } })(),
             resolved: false,
             ...errorData
         };
@@ -36093,7 +36093,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', function() {
             if (formStartTime) {
                 const timeSpent = Math.round((Date.now() - formStartTime) / 1000);
-                if (timeSpent > 300) { // Plus de 5 minutes
+                if (timeSpent > 900) { // Plus de 15 minutes
                     window.logUserError(
                         'Session Formulaire',
                         'Session très longue sur formulaire',
