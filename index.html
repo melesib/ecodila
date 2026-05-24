@@ -38494,9 +38494,9 @@ document.addEventListener('DOMContentLoaded', function(){
       <h3 style="font-size:.85rem;color:#1a2e1a;margin:.9rem 0 .3rem">5. Avec qui partageons-nous vos données ?</h3>
       <p>Nous ne <strong>vendons jamais</strong> vos données. Elles sont traitées par les sous-traitants suivants, strictement nécessaires au fonctionnement :</p>
       <ul style="margin:.3rem 0 .3rem 1.2rem;padding:0">
-        <li><strong>Supabase</strong> (base de données — Union Européenne) — hébergement sécurisé</li>
-        <li><strong>Netlify</strong> (hébergement du site — Union Européenne/USA) — livraison du site</li>
-        <li><strong>ipapi.co</strong> (géolocalisation approximative) — détection du pays du visiteur</li>
+        <li><strong>Supabase</strong> (base de données — Union Européenne) — hébergement sécurisé des données</li>
+        <li><strong>Netlify</strong> (hébergement du site — USA) — livraison du site web</li>
+        <li><strong>Cloudflare</strong> (réseau CDN mondial — USA/monde) — sécurité, performance et protection DDoS</li>
         <li><strong>WhatsApp / Meta</strong> (si vous nous contactez) — communication client</li>
       </ul>
       <p style="margin-top:.3rem">Vos données peuvent être transmises aux <strong>autorités judiciaires</strong> sur réquisition légale (ARTCI, police, justice).</p>
@@ -38516,7 +38516,8 @@ document.addEventListener('DOMContentLoaded', function(){
       <h3 style="font-size:.85rem;color:#1a2e1a;margin:.9rem 0 .3rem">7. Sécurité de vos données</h3>
       <ul style="margin:.3rem 0 .3rem 1.2rem;padding:0">
         <li>Mots de passe hashés avec <strong>SHA-256</strong> (jamais stockés en clair)</li>
-        <li>Chiffrement <strong>HTTPS</strong> sur toutes les communications</li>
+        <li>Chiffrement <strong>HTTPS/TLS 1.3</strong> sur toutes les communications</li>
+        <li>Protection <strong>Cloudflare CDN</strong> — anti-DDoS, pare-feu applicatif (WAF), filtrage bots</li>
         <li>Authentification à <strong>2 facteurs (2FA)</strong> pour le back-office administratif</li>
         <li>Accès aux données restreint aux employés autorisés uniquement</li>
         <li>Sauvegardes régulières sur serveurs sécurisés</li>
@@ -38551,9 +38552,12 @@ document.addEventListener('DOMContentLoaded', function(){
       <h3 style="font-size:.85rem;color:#1a2e1a;margin:.9rem 0 .3rem">Hébergement</h3>
       <p>Le site est hébergé par :</p>
       <ul style="margin:.3rem 0 .3rem 1.2rem;padding:0">
-        <li><strong>Netlify, Inc.</strong><br>
+        <li><strong>Netlify, Inc.</strong> (hébergement)<br>
           512 2nd Street, San Francisco, CA 94107, USA<br>
           <a href="https://www.netlify.com" style="color:#2d6a4f" target="_blank" rel="noopener">www.netlify.com</a></li>
+        <li><strong>Cloudflare, Inc.</strong> (réseau CDN, sécurité, protection DDoS)<br>
+          101 Townsend St, San Francisco, CA 94107, USA<br>
+          <a href="https://www.cloudflare.com" style="color:#2d6a4f" target="_blank" rel="noopener">www.cloudflare.com</a></li>
         <li><strong>Supabase Inc.</strong> (base de données)<br>
           970 Toa Payoh North, Singapore<br>
           <a href="https://supabase.com" style="color:#2d6a4f" target="_blank" rel="noopener">supabase.com</a></li>
@@ -38583,7 +38587,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
       <h3 style="font-size:.85rem;color:#1a2e1a;margin:.9rem 0 .3rem">Crédits</h3>
       <p>Conception et développement : équipe EcoDila<br>
-      Technologies : HTML/CSS/JavaScript, Supabase, Netlify<br>
+      Technologies : HTML/CSS/JavaScript, Supabase, Netlify, Cloudflare<br>
       Polices : Syne, DM Sans (Google Fonts)</p>
 
     </div>
