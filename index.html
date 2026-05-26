@@ -10024,7 +10024,7 @@ function _sendResetWhatsApp(user, parrainInfo, isParrain, compteType, typeIcon, 
         compteType: compteType,
         isParrain: isParrain,
         parrainCode: isParrain && parrainInfo ? parrainInfo.code : null,
-        date: new Date().toLocaleString('fr-FR'),
+        date: (function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})(),
         dateISO: new Date().toISOString(),
         lu: false,
         cible: 'admin',         // 🚨 IMPORTANT : pour ne pas fuiter chez les clients
@@ -10045,7 +10045,7 @@ function _sendResetWhatsApp(user, parrainInfo, isParrain, compteType, typeIcon, 
                  + 'Type de compte : ' + compteType + '\n'
                  + 'Email : ' + (user.email || '—') + '\n'
                  + (isParrain ? 'Code parrain : ' + (parrainInfo.code || '') + '\n' : '')
-                 + 'Date : ' + new Date().toLocaleString('fr-FR'),
+                 + 'Date : ' + (function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})(),
           clientNom: user.nom || user.prenom || '',
           clientTel: phoneNormalized,
           clientEmail: user.email || '',
@@ -10935,7 +10935,7 @@ function _trackAction(type, data) {
         }
         events.unshift({
             ts:   Date.now(),
-            date: new Date().toLocaleString('fr-FR'),
+            date: (function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})(),
             type: type,
             source: _src,
             refCode: _ref || null,
@@ -11403,7 +11403,7 @@ function connexion(e) {
                 try {
                     var attempt = {
                         ts: Date.now(),
-                        date: new Date().toLocaleString('fr-FR'),
+                        date: (function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})(),
                         telLast8: _loginTel8,
                         telFull: telNormalise,
                         status: status,
@@ -12893,7 +12893,7 @@ function rgpdExportMyData(format){
         // CSV : concaténation des différentes sections
         var lines = [];
         lines.push('# EcoDila - Export des données personnelles');
-        lines.push('# Exporté le ' + new Date().toLocaleString('fr-FR'));
+        lines.push('# Exporté le ' + (function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})());
         lines.push('');
         lines.push('=== COMPTE ===');
         lines.push('Champ,Valeur');
@@ -15563,7 +15563,7 @@ function _ecoNotif(type, titre, message, oldSt, newSt, itemId){
                clientTel:_cTel,
                itemId:extractedId,        // ⭐ pour permettre la suppression cascade
                item_id:extractedId,       // alias snake_case pour cohérence Supabase
-               date:new Date().toLocaleString('fr-FR'),dateISO:new Date().toISOString(),lu:false};
+               date:(function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})(),dateISO:new Date().toISOString(),lu:false};
     notifications.unshift(notif);
     if(notifications.length>250) notifications.length=250;
     userNotifications=notifications;
@@ -15704,7 +15704,7 @@ function nouvelleConversation(){
         motDeclencheur: motDeclencheur || null,
         statut: 'À traiter',
         resolu: false,
-        date: new Date().toLocaleString('fr-FR'),
+        date: (function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})(),
         dateCreation: new Date().toISOString(),
         lastMsg: msg,
         unread: false,
@@ -15730,7 +15730,7 @@ function nouvelleConversation(){
             message: clientNom + ' : ' + subj.slice(0, 80),
             priorite: priorite,
             convId: conv.id,
-            date: new Date().toLocaleString('fr-FR'),
+            date: (function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})(),
             dateISO: new Date().toISOString(),
             lu: false,
             cible: 'admin'
@@ -28016,7 +28016,7 @@ function _resolveAndTrackParrain(obj, type) {
         taux: taux,
         comm: commission,
         statut: 'En attente',
-        date: new Date().toLocaleString('fr-FR'),
+        date: (function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})(),
         timestamp: new Date().toISOString(),
         source: 'auto',
         pnlEstime: pnlEstime
@@ -28105,7 +28105,7 @@ function _blockClient(tel, ip, raison){
       ip: ip || '',
       raison: raison,
       date: new Date().toISOString(),
-      dateHumain: new Date().toLocaleString('fr-FR')
+      dateHumain: (function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})()
     });
     _sb.from('settings').upsert({
       key: 'ecodila_blocked_clients',
@@ -28235,7 +28235,7 @@ function _submitRetourClient(){
   } catch(e){ console.warn('[Retour] Erreur sauvegarde:', e); }
 
   // 2. Notification interne
-  var _retNotif = {id:'N-'+Date.now(),type:'retour',titre:'📦 Demande de retour envoyée',message:'Votre demande '+retourId+' pour '+produit+' est en cours de traitement.',corps:'Retour '+retourId+' — '+produit,date:new Date().toLocaleString('fr-FR'),dateISO:new Date().toISOString(),lu:false,clientTel:tel,retourId:retourId,newStatut:'En cours'};
+  var _retNotif = {id:'N-'+Date.now(),type:'retour',titre:'📦 Demande de retour envoyée',message:'Votre demande '+retourId+' pour '+produit+' est en cours de traitement.',corps:'Retour '+retourId+' — '+produit,date:(function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})(),dateISO:new Date().toISOString(),lu:false,clientTel:tel,retourId:retourId,newStatut:'En cours'};
   _ecoNotifLoad(); notifications.unshift(_retNotif); if(notifications.length>250)notifications.length=250; userNotifications=notifications; window._sbWrite('ecodila_notifications',notifications); updateNotificationsBadge(); showToast('🔔 Demande de retour envoyée');
 
   // 3. WhatsApp
@@ -29001,7 +29001,7 @@ function _saveProductDemand(opts){
       userId:u?(u.id||null):null,
       statut:'Nouvelle',
       date:new Date().toISOString(),
-      dateHumain:new Date().toLocaleString('fr-FR')
+      dateHumain:(function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})()
     };
     var all=[];
     try{all=window._sbRead('ecodila_product_demands')||[];}catch(e){}
@@ -30273,7 +30273,7 @@ window._chatEscalate = function(reason, score){
         message: clientNom + ' : ' + (window._chatLastUserMessage || '').slice(0, 80),
         priorite: priorite,
         convId: conv.id,
-        date: new Date().toLocaleString('fr-FR'),
+        date: (function(){try{return (function(){try{return (function(){try{return new Date().toLocaleString('fr-FR');}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+(_d.getMonth()+1)+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})();}catch(e){var _d=new Date();return _d.getDate()+'/'+((_d.getMonth()+1))+'/'+_d.getFullYear()+' '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0');}})(),
         dateISO: new Date().toISOString(),
         lu: false,
         cible: 'admin',           // 🚨 Marqueur 1 : cible admin
