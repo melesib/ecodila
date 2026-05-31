@@ -1,34 +1,35 @@
 exports.handler = async (event) => {
   const h = event.headers;
 
-  // Cloudflare envoie CF-Connecting-IP (IP réelle du client)
-  // On préfère IPv4 — si IPv6, on cherche une IPv4 dans X-Forwarded-For
-  const cfIP = h['cf-connecting-ip'] || '';
-  const forwarded = (h['x-forwarded-for'] || '').split(',').map(s => s.trim());
-  const clientIP = h['client-ip'] || '';
-  const realIP = h['x-real-ip'] || '';
+  // Debug: log tous les headers disponibles
+  const allHeaders = Object.keys(h).filter(k => 
+    k.includes('ip') || k.includes('forward') || k.includes('client') || k.includes('cf-')
+  );
 
-  // Fonction pour détecter IPv4
   function isIPv4(ip) {
     return /^\d{1,3}(\.\d{1,3}){3}$/.test(ip);
   }
+  function isCloudflareIP(ip) {
+    return ip.startsWith('172.6') || ip.startsWith('104.1') || 
+           ip.startsWith('103.') || ip.startsWith('198.41') ||
+           ip.startsWith('162.158') || ip.startsWith('188.114') ||
+           ip.startsWith('190.93') || ip.startsWith('197.234');
+  }
 
-  // Priorité : IPv4 en premier
-  let ip = '';
+  // Priorité headers pour IP réelle
+  const candidates = [
+    h['x-nf-client-connection-ip'],   // Netlify: IP réelle du client
+    h['cf-connecting-ip'],             // Cloudflare: IP réelle
+    h['true-client-ip'],               // Cloudflare Enterprise
+    h['x-real-ip'],                    // Reverse proxy standard
+    ...(h['x-forwarded-for'] || '').split(',').map(s => s.trim())
+  ].filter(Boolean);
 
-  // 1. CF-Connecting-IP (le plus fiable avec Cloudflare)
-  if (cfIP) {
-    ip = cfIP;
-  }
-  // 2. Chercher IPv4 dans X-Forwarded-For
-  if (!isIPv4(ip)) {
-    const ipv4 = forwarded.find(isIPv4);
-    if (ipv4) ip = ipv4;
-  }
-  // 3. Fallback sur toute adresse disponible
-  if (!ip) {
-    ip = forwarded[0] || clientIP || realIP || 'unknown';
-  }
+  // Préférer IPv4 non-Cloudflare
+  let ip = candidates.find(ip => isIPv4(ip) && !isCloudflareIP(ip))
+        || candidates.find(ip => !isCloudflareIP(ip))
+        || candidates[0]
+        || 'unknown';
 
   return {
     statusCode: 200,
@@ -37,6 +38,9 @@ exports.handler = async (event) => {
       'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'no-cache'
     },
-    body: JSON.stringify({ ip: ip.trim() || 'unknown' })
+    body: JSON.stringify({ 
+      ip: ip.trim(),
+      debug_headers: allHeaders
+    })
   };
 };
